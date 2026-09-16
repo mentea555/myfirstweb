@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mentea | Portfolio</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --card-bg: #1a1d26;
+      --card-hover: #222634;
+      --accent: #6366f1;
+      --text: #f3f4f6;
+      --text-muted: #9ca3af;
+      --border: #2e3446;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      padding: 0 20px;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 60px 0;
+    }
+    /* 头部个人信息 */
+    header {
+      margin-bottom: 50px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 30px;
+    }
+    .tag {
+      display: inline-block;
+      padding: 4px 10px;
+      font-size: 12px;
+      background: rgba(99, 102, 241, 0.15);
+      color: var(--accent);
+      border-radius: 20px;
+      margin-bottom: 15px;
+    }
+    h1 { font-size: 2.2rem; font-weight: 700; margin-bottom: 8px; }
+    .bio { color: var(--text-muted); font-size: 1.05rem; }
+    
+    /* 区域标题 */
+    h2 { font-size: 1.4rem; margin-bottom: 24px; position: relative; }
+    h2::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      bottom: -6px;
+      width: 30px;
+      height: 3px;
+      background: var(--accent);
+      border-radius: 2px;
+    }
+
+    /* 作品网格卡片 */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 20px;
+      margin-bottom: 50px;
+    }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      transition: transform 0.2s ease, border-color 0.2s ease;
+      display: flex;
+      flex-direction: column;
+    }
+    .card:hover {
+      transform: translateY(-4px);
+      border-color: var(--accent);
+    }
+    .card-thumb {
+      height: 160px;
+      background: #151821;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      font-size: 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    .card-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .card-body {
+      padding: 16px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    .card-title { font-size: 1.1rem; margin-bottom: 6px; }
+    .card-desc { color: var(--text-muted); font-size: 0.88rem; flex: 1; margin-bottom: 12px; }
+    .card-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+    .card-tags span {
+      font-size: 11px;
+      background: #282c3c;
+      padding: 2px 8px;
+      border-radius: 4px;
+      color: #cbd5e1;
+    }
+
+    /* 底部链接 */
+    footer {
+      border-top: 1px solid var(--border);
+      padding-top: 24px;
+      font-size: 13px;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="tag">Digital Creator & Developer</div>
+      <h1>Mentea's Workshop</h1>
+      <p class="bio">这里记录我的设计习作、插画作品与前端/编程探索。</p>
+    </header>
+
+    <main>
+      <h2>精选作品 / Projects</h2>
+      <div class="grid">
+        <!-- 卡片 1 -->
+        <div class="card">
+          <div class="card-thumb">
+            <!-- 替换这里的链接为你自己的图片 -->
+            <span>[ 作品缩略图 1 ]</span>
+          </div>
+          <div class="card-body">
+            <div class="card-title">视觉概念设计</div>
+            <div class="card-desc">针对特定世界观展开的场景概念与光影插画尝试。</div>
+            <div class="card-tags">
+              <span>Photoshop</span>
+              <span>Concept Art</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 卡片 2 -->
+        <div class="card">
+          <div class="card-thumb">
+            <span>[ 作品缩略图 2 ]</span>
+          </div>
+          <div class="card-body">
+            <div class="card-title">前端交互组件库</div>
+            <div class="card-desc">轻量级组件实践，注重交互动效与无障碍排版。</div>
+            <div class="card-tags">
+              <span>HTML/CSS</span>
+              <span>JavaScript</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 卡片 3 -->
+        <div class="card">
+          <div class="card-thumb">
+            <span>[ 作品缩略图 3 ]</span>
+          </div>
+          <div class="card-body">
+            <div class="card-title">AI 工作流探索</div>
+            <div class="card-desc">结合特定视觉风格与本地模型的提示词管线与自动化实践。</div>
+            <div class="card-tags">
+              <span>Stable Diffusion</span>
+              <span>Prompting</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <footer>
+      <div>© 2026 menteaweb.com</div>
+      <div>Powered by Vercel & GitHub</div>
+    </footer>
+  </div>
+</body>
+</html>
