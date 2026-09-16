@@ -1,0 +1,19 @@
+backend:
+  name: github
+  repo: mentea555/myfirstweb
+  branch: main
+
+media_folder: "assets/images"
+public_folder: "/assets/images"
+
+collections:
+  - name: "notes"
+    label: "笔记与记录"
+    folder: "content/notes"
+    create: true
+    slug: "{{year}}-{{month}}-{{day}}-{{slug}}"
+    fields:
+      - {label: "标题", name: "title", widget: "string"}
+      - {label: "发布日期", name: "date", widget: "datetime"}
+      - {label: "封面图", name: "thumbnail", widget: "image", required: false}
+      - {label: "内容", name: "body", widget: "markdown"}
