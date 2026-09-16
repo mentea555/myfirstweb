@@ -517,12 +517,44 @@
     // 每次请求带时间戳，绕开 CDN 缓存，后台保存后立即能看到变化
     const rawUrl = (path) => `https://raw.githubusercontent.com/${SITE.user}/${SITE.repo}/${SITE.branch}/${path}?t=${Date.now()}`;
 
+    /* ---------------- 乱码自愈 ----------------
+       UTF-8 的中文若被按 Latin-1 逐字节解读（例如用 atob 读 GitHub 返回的
+       base64 内容），会变成「æ•°å—」这种字符；再按 UTF-8 写回就成了双重编码。
+       这里检测这种特征并还原，配置文件万一被写坏，页面也不会一直显示乱码。 */
+    function repairMojibake(text) {
+      if (typeof text !== 'string' || !/[\u00C0-\u00FF]/.test(text)) return text;
+      try {
+        const bytes = new Uint8Array(text.length);
+        for (let i = 0; i < text.length; i++) {
+          const c = text.charCodeAt(i);
+          if (c > 255) return text;          // 真乱码一定是纯字节值，超过 255 说明是正常文本
+          bytes[i] = c;
+        }
+        const fixed = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+        const cjkCount = (s) => (s.match(/[\u4E00-\u9FFF]/g) || []).length;
+        return cjkCount(fixed) > cjkCount(text) ? fixed : text;
+      } catch (e) {
+        return text;                          // 还原失败就原样返回，绝不弄坏正常文本
+      }
+    }
+
+    function repairDeep(value) {
+      if (typeof value === 'string') return repairMojibake(value);
+      if (Array.isArray(value)) return value.map(repairDeep);
+      if (value && typeof value === 'object') {
+        const out = {};
+        Object.keys(value).forEach((k) => { out[k] = repairDeep(value[k]); });
+        return out;
+      }
+      return value;
+    }
+
     async function fetchJSON(path, fallback) {
       try {
         const res = await fetch(rawUrl(path));
         if (!res.ok) return fallback;
         const text = await res.text();
-        return text.trim() ? JSON.parse(text) : fallback;
+        return text.trim() ? repairDeep(JSON.parse(text)) : fallback;
       } catch (e) {
         console.warn('读取配置失败：' + path, e);
         return fallback;
@@ -808,7 +840,7 @@
           const { data, body } = parseFrontmatter(text);
           if (data.draft === true || data.draft === 'true') continue;   // 草稿不上前台
 
-          posts.push({
+          posts.push(repairDeep({
             title: data.title || file.name.replace(/\.mdx?$/i, ''),
             date: data.date || '',
             cover: data.thumbnail || data.cover || data.image || '',
@@ -817,7 +849,7 @@
             featured: data.featured === true || data.featured === 'true',
             body: body.trim(),
             filename: file.name
-          });
+          }));
         } catch (e) {
           console.warn('跳过无法解析的文件：' + file.path, e);
         }

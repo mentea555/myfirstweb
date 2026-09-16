@@ -464,6 +464,53 @@
     const clone = (o) => JSON.parse(JSON.stringify(o));
     const num = (v, f) => { const n = parseFloat(v); return isNaN(n) ? f : n; };
 
+    /* ---------------- Base64 与文本互转 ----------------
+       注意：不能用 atob() 直接当文本。atob 返回的是 Latin-1 二进制串，
+       中文会被逐字节拆成「æ•°å—」这种字符，写回时就变成双重编码的乱码。
+       必须用 TextDecoder 按 UTF-8 解码。 */
+    function b64ToText(b64) {
+      const bin = atob(String(b64).replace(/\s/g, ''));
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      return new TextDecoder('utf-8').decode(bytes);
+    }
+
+    function textToB64(text) {
+      const bytes = new TextEncoder().encode(text);
+      let bin = '';
+      for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+      return btoa(bin);
+    }
+
+    // 已经存在的乱码（历史保存留下的）在这里就地还原，避免把错误继续写下去
+    function repairMojibake(text) {
+      if (typeof text !== 'string' || !/[\u00C0-\u00FF]/.test(text)) return text;
+      try {
+        const bytes = new Uint8Array(text.length);
+        for (let i = 0; i < text.length; i++) {
+          const c = text.charCodeAt(i);
+          if (c > 255) return text;
+          bytes[i] = c;
+        }
+        const fixed = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+        const cjk = (s) => (s.match(/[\u4E00-\u9FFF]/g) || []).length;
+        return cjk(fixed) > cjk(text) ? fixed : text;
+      } catch (e) {
+        return text;
+      }
+    }
+
+    function repairDeep(value) {
+      if (typeof value === 'string') return repairMojibake(value);
+      if (Array.isArray(value)) return value.map(repairDeep);
+      if (value && typeof value === 'object') {
+        const out = {};
+        Object.keys(value).forEach((k) => { out[k] = repairDeep(value[k]); });
+        return out;
+      }
+      return value;
+    }
+
     function setStatus(state, tip) {
       $('statusState').textContent = state;
       if (tip) $('statusTip').textContent = tip;
@@ -1165,7 +1212,7 @@
       const sha = await ghGetSha(path, token);
       const body = {
         message,
-        content: btoa(String.fromCharCode(...new TextEncoder().encode(text))),
+        content: textToB64(text),
         branch: SITE.branch
       };
       if (sha) body.sha = sha;
