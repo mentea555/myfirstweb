@@ -1,0 +1,1253 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>可视化布局编辑器 | Mentea's Web</title>
+  <!-- 拖拽排序：SortableJS（MIT，https://github.com/SortableJS/Sortable） -->
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
+  <style>
+    :root {
+      --ui-bg: #0d1014;
+      --ui-panel: #151920;
+      --ui-panel-2: #1b2029;
+      --ui-border: #262d38;
+      --ui-text: #dde4ee;
+      --ui-dim: #8492a6;
+      --ui-accent: #6366f1;
+      --ui-accent-soft: rgba(99, 102, 241, 0.16);
+      --ui-ok: #22c55e;
+      --ui-warn: #f59e0b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      background: var(--ui-bg);
+      color: var(--ui-text);
+      overflow: hidden;
+      font-size: 13px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ---------------- 顶栏 ---------------- */
+    .topbar {
+      height: 56px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 0 16px;
+      background: var(--ui-panel);
+      border-bottom: 1px solid var(--ui-border);
+      position: relative;
+      z-index: 20;
+    }
+    .logo { display: flex; align-items: center; gap: 9px; font-weight: 700; font-size: 14px; white-space: nowrap; }
+    .logo .dot {
+      width: 22px; height: 22px; border-radius: 7px;
+      background: linear-gradient(135deg, #6366f1, #a855f7);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px;
+    }
+    .spacer { flex: 1; }
+
+    .seg { display: flex; background: var(--ui-panel-2); border: 1px solid var(--ui-border); border-radius: 9px; padding: 2px; }
+    .seg button {
+      border: 0; background: transparent; color: var(--ui-dim);
+      padding: 5px 12px; border-radius: 7px; cursor: pointer;
+      font-size: 12px; font-family: inherit; font-weight: 600;
+      transition: all .15s ease; white-space: nowrap;
+    }
+    .seg button:hover { color: var(--ui-text); }
+    .seg button.active { background: var(--ui-accent); color: #fff; }
+
+    .btn {
+      border: 1px solid var(--ui-border);
+      background: var(--ui-panel-2);
+      color: var(--ui-text);
+      padding: 7px 13px;
+      border-radius: 9px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      font-family: inherit;
+      transition: all .15s ease;
+      white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn:hover:not(:disabled) { border-color: var(--ui-accent); background: var(--ui-accent-soft); }
+    .btn:disabled { opacity: .38; cursor: not-allowed; }
+    .btn.primary { background: var(--ui-accent); border-color: var(--ui-accent); color: #fff; }
+    .btn.primary:hover:not(:disabled) { filter: brightness(1.12); background: var(--ui-accent); }
+    .btn.icon { padding: 7px 10px; }
+
+    /* ---------------- 主体三栏 ---------------- */
+    .layout {
+      display: grid;
+      grid-template-columns: 244px minmax(0, 1fr) 296px;
+      height: calc(100vh - 56px);
+    }
+    .col { min-width: 0; height: 100%; overflow: hidden; display: flex; flex-direction: column; }
+    .col.left { background: var(--ui-panel); border-right: 1px solid var(--ui-border); }
+    .col.right { background: var(--ui-panel); border-left: 1px solid var(--ui-border); }
+    .col.mid { background: #0a0c10; }
+
+    .col-head {
+      padding: 13px 14px 10px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+      color: var(--ui-dim);
+      border-bottom: 1px solid var(--ui-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .col-body { overflow-y: auto; flex: 1; }
+    .col-body::-webkit-scrollbar { width: 9px; }
+    .col-body::-webkit-scrollbar-thumb { background: #2c3441; border-radius: 5px; border: 2px solid var(--ui-panel); }
+
+    /* ---------------- 左侧区块列表 ---------------- */
+    .hint { padding: 9px 14px; font-size: 11px; color: var(--ui-dim); line-height: 1.6; }
+    #blockList { list-style: none; padding: 0 10px 14px; }
+    .block-item {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 9px 10px;
+      margin-bottom: 6px;
+      background: var(--ui-panel-2);
+      border: 1px solid var(--ui-border);
+      border-radius: 10px;
+      cursor: pointer;
+      transition: border-color .15s ease, background .15s ease;
+      user-select: none;
+    }
+    .block-item:hover { border-color: #3a4453; }
+    .block-item.selected { border-color: var(--ui-accent); background: var(--ui-accent-soft); }
+    .block-item.off { opacity: .45; }
+    .grip {
+      cursor: grab;
+      color: #5b6779;
+      flex-shrink: 0;
+      display: flex;
+      line-height: 0;
+      padding: 2px;
+    }
+    .grip:active { cursor: grabbing; }
+    .block-item .info { flex: 1; min-width: 0; }
+    .block-item .nm { font-weight: 600; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .block-item .ds { font-size: 10.5px; color: var(--ui-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+    .eye {
+      border: 0; background: transparent; cursor: pointer; padding: 4px;
+      border-radius: 6px; color: var(--ui-dim); line-height: 0; flex-shrink: 0;
+    }
+    .eye:hover { background: #2a3240; color: var(--ui-text); }
+    .eye.on { color: var(--ui-ok); }
+    .sortable-ghost { opacity: .35; }
+    .sortable-chosen { border-color: var(--ui-accent) !important; }
+
+    /* ---------------- 中间画布 ---------------- */
+    .stage {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      padding: 18px;
+      overflow: hidden;
+      min-height: 0;
+    }
+    .frame-wrap {
+      width: 100%;
+      max-width: 100%;
+      height: 100%;
+      background: #fff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 12px 48px rgba(0, 0, 0, .5);
+      position: relative;
+      transition: max-width .28s cubic-bezier(.4, 0, .2, 1);
+    }
+    #frame { width: 100%; height: 100%; border: 0; display: block; background: #fff; }
+    .frame-loading {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 12px;
+      background: #0f1117; color: #94a3b8; font-size: 12.5px;
+      transition: opacity .3s ease; z-index: 5;
+    }
+    .frame-loading.hide { opacity: 0; pointer-events: none; }
+    .spin {
+      width: 26px; height: 26px; border-radius: 50%;
+      border: 3px solid #262d38; border-top-color: var(--ui-accent);
+      animation: sp .8s linear infinite;
+    }
+    @keyframes sp { to { transform: rotate(360deg); } }
+
+    /* 画布下方状态条 */
+    .statusbar {
+      height: 30px;
+      border-top: 1px solid var(--ui-border);
+      background: var(--ui-panel);
+      display: flex; align-items: center; gap: 14px;
+      padding: 0 14px; font-size: 11px; color: var(--ui-dim);
+      flex-shrink: 0;
+    }
+    .statusbar .pill {
+      padding: 2px 8px; border-radius: 999px;
+      background: var(--ui-panel-2); border: 1px solid var(--ui-border);
+    }
+    .statusbar .pill.ok { color: var(--ui-ok); border-color: rgba(34, 197, 94, .35); }
+
+    /* ---------------- 右侧属性面板 ---------------- */
+    .group { border-bottom: 1px solid var(--ui-border); padding: 13px 14px 16px; }
+    .group-title {
+      font-size: 11px; font-weight: 700; letter-spacing: .07em;
+      text-transform: uppercase; color: var(--ui-dim);
+      margin-bottom: 13px; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    }
+    .group-title .mini {
+      border: 0; background: transparent; color: var(--ui-accent);
+      cursor: pointer; font-size: 11px; font-family: inherit; font-weight: 600; padding: 0;
+    }
+    .empty {
+      color: var(--ui-dim); font-size: 12px; line-height: 1.75;
+      padding: 14px; background: var(--ui-panel-2); border-radius: 10px;
+      border: 1px dashed var(--ui-border); text-align: center;
+    }
+
+    .row { display: block; margin-bottom: 13px; }
+    .row:last-child { margin-bottom: 0; }
+    .row .lbl {
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 12px; color: var(--ui-text); margin-bottom: 6px; gap: 8px;
+    }
+    .row .lbl .val { color: var(--ui-dim); font-variant-numeric: tabular-nums; font-size: 11.5px; }
+
+    input[type="range"] {
+      width: 100%; -webkit-appearance: none; appearance: none;
+      height: 4px; border-radius: 2px; background: #2c3441; outline: none; cursor: pointer;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none; appearance: none;
+      width: 14px; height: 14px; border-radius: 50%;
+      background: var(--ui-accent); cursor: pointer;
+      border: 2px solid var(--ui-panel);
+      box-shadow: 0 0 0 1px var(--ui-accent);
+    }
+    input[type="range"]::-moz-range-thumb {
+      width: 12px; height: 12px; border-radius: 50%;
+      background: var(--ui-accent); cursor: pointer; border: 2px solid var(--ui-panel);
+    }
+
+    select, input[type="text"] {
+      width: 100%; padding: 7px 9px; border-radius: 8px;
+      background: var(--ui-panel-2); border: 1px solid var(--ui-border);
+      color: var(--ui-text); font-size: 12px; font-family: inherit; outline: none;
+    }
+    select:focus, input[type="text"]:focus { border-color: var(--ui-accent); }
+    select option { background: var(--ui-panel-2); color: var(--ui-text); }
+
+    .color-row { display: flex; gap: 8px; align-items: center; }
+    .color-row input[type="color"] {
+      width: 34px; height: 32px; padding: 0; border: 1px solid var(--ui-border);
+      border-radius: 8px; background: var(--ui-panel-2); cursor: pointer; flex-shrink: 0;
+    }
+    .color-row input[type="text"] { flex: 1; font-family: ui-monospace, Consolas, monospace; }
+    .swatch-clear {
+      border: 1px solid var(--ui-border); background: var(--ui-panel-2); color: var(--ui-dim);
+      border-radius: 8px; cursor: pointer; padding: 6px 9px; font-size: 11px; font-family: inherit; flex-shrink: 0;
+    }
+    .swatch-clear:hover { color: var(--ui-text); border-color: var(--ui-accent); }
+
+    .align-grid { display: flex; gap: 6px; }
+    .align-grid button {
+      flex: 1; border: 1px solid var(--ui-border); background: var(--ui-panel-2);
+      color: var(--ui-dim); border-radius: 8px; padding: 7px 0; cursor: pointer;
+      font-size: 13px; line-height: 1; font-family: inherit; transition: all .15s ease;
+    }
+    .align-grid button:hover { color: var(--ui-text); }
+    .align-grid button.active { background: var(--ui-accent); border-color: var(--ui-accent); color: #fff; }
+
+    .toggle-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 9px 11px; background: var(--ui-panel-2); border: 1px solid var(--ui-border);
+      border-radius: 9px; margin-bottom: 13px;
+    }
+    .toggle-row .tx { font-size: 12px; font-weight: 600; }
+    .switch { position: relative; width: 38px; height: 21px; flex-shrink: 0; }
+    .switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+    .switch .sl {
+      position: absolute; inset: 0; background: #333c4a; border-radius: 999px;
+      cursor: pointer; transition: .18s ease;
+    }
+    .switch .sl::before {
+      content: ''; position: absolute; width: 15px; height: 15px; border-radius: 50%;
+      background: #fff; top: 3px; left: 3px; transition: .18s ease;
+    }
+    .switch input:checked + .sl { background: var(--ui-ok); }
+    .switch input:checked + .sl::before { transform: translateX(17px); }
+
+    /* ---------------- 提示条 ---------------- */
+    #toast {
+      position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%) translateY(80px);
+      background: #1e242e; border: 1px solid var(--ui-border); color: var(--ui-text);
+      padding: 11px 20px; border-radius: 11px; font-size: 12.5px; font-weight: 500;
+      box-shadow: 0 10px 34px rgba(0, 0, 0, .45); z-index: 100;
+      opacity: 0; transition: all .28s cubic-bezier(.4, 0, .2, 1); pointer-events: none;
+      max-width: 78vw; text-align: center; line-height: 1.6;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    #toast.err { border-color: #7f1d1d; background: #2a1618; }
+    #toast.ok { border-color: rgba(34, 197, 94, .4); }
+
+    .modal-mask {
+      position: fixed; inset: 0; background: rgba(6, 8, 11, .72);
+      display: none; align-items: center; justify-content: center; z-index: 200;
+      backdrop-filter: blur(3px);
+    }
+    .modal-mask.show { display: flex; }
+    .modal {
+      background: var(--ui-panel); border: 1px solid var(--ui-border);
+      border-radius: 14px; width: min(640px, 88vw); max-height: 76vh;
+      display: flex; flex-direction: column; overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, .55);
+    }
+    .modal h3 { padding: 16px 18px; font-size: 13.5px; border-bottom: 1px solid var(--ui-border); }
+    .modal .body { padding: 16px 18px; overflow: auto; }
+    .modal textarea {
+      width: 100%; height: 300px; background: #0e1116; color: #a5d6ff;
+      border: 1px solid var(--ui-border); border-radius: 9px; padding: 12px;
+      font-family: ui-monospace, Consolas, monospace; font-size: 11.5px; line-height: 1.6; resize: vertical; outline: none;
+    }
+    .modal .foot { padding: 12px 18px; border-top: 1px solid var(--ui-border); display: flex; justify-content: flex-end; gap: 9px; }
+
+    @media (max-width: 1180px) {
+      .layout { grid-template-columns: 210px minmax(0, 1fr) 262px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="logo"><span class="dot">🎨</span> 可视化布局编辑器</div>
+
+    <div class="seg" id="deviceSeg">
+      <button data-w="390">📱 手机</button>
+      <button data-w="834">💻 平板</button>
+      <button data-w="0" class="active">🖥 桌面</button>
+    </div>
+
+    <div class="spacer"></div>
+
+    <button class="btn icon" id="btnUndo" title="撤销">↶</button>
+    <button class="btn icon" id="btnRedo" title="重做">↷</button>
+    <button class="btn" id="btnReload" title="放弃改动并重新读取线上配置">重新载入</button>
+    <button class="btn" id="btnExport">导出配置</button>
+    <button class="btn primary" id="btnSave">保存到网站</button>
+  </div>
+
+  <div class="layout">
+
+    <!-- 左：区块列表 -->
+    <div class="col left">
+      <div class="col-head">页面区块</div>
+      <div class="hint">拖动左侧 ⠿ 手柄调整区块顺序，点眼睛可隐藏区块。也可以直接在右侧画布上拖动区块本身。</div>
+      <div class="col-body">
+        <ul id="blockList"></ul>
+      </div>
+    </div>
+
+    <!-- 中：真实页面画布 -->
+    <div class="col mid">
+      <div class="stage">
+        <div class="frame-wrap" id="frameWrap">
+          <iframe id="frame" src="/index.html?designer=1" title="页面预览"></iframe>
+          <div class="frame-loading" id="frameLoading">
+            <div class="spin"></div>
+            <div>正在载入你的网站...</div>
+          </div>
+        </div>
+      </div>
+      <div class="statusbar">
+        <span class="pill" id="statusState">就绪</span>
+        <span id="statusTip">改动实时预览，点右上角「保存到网站」才会生效</span>
+      </div>
+    </div>
+
+    <!-- 右：属性面板 -->
+    <div class="col right">
+      <div class="col-head">样式设置</div>
+      <div class="col-body" id="inspector"></div>
+    </div>
+
+  </div>
+
+  <div id="toast"></div>
+
+  <div class="modal-mask" id="exportMask">
+    <div class="modal">
+      <h3>布局配置（content/layout.json）</h3>
+      <div class="body"><textarea id="exportText" readonly></textarea></div>
+      <div class="foot">
+        <button class="btn" id="btnCopy">复制</button>
+        <button class="btn primary" id="btnCloseExport">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ==========================================================
+       区块元信息：顺序即默认顺序
+       ========================================================== */
+    const BLOCK_META = {
+      announce: { name: '公告条',      desc: '页面顶部的提示条',      align: ['left', 'center', 'right'] },
+      header:   { name: '页头',        desc: '站名与导航链接',        align: ['space-between', 'left', 'center', 'right'] },
+      hero:     { name: '首屏区',      desc: '大标题与副标题',        align: ['left', 'center', 'right'] },
+      toolbar:  { name: '标签筛选',    desc: '分类筛选按钮',          align: ['left', 'center', 'right'] },
+      feed:     { name: '内容流',      desc: '文章卡片列表',          align: ['stretch', 'center'] },
+      about:    { name: '关于我',      desc: '个人介绍板块',          align: ['left', 'center', 'right'] },
+      footer:   { name: '页脚',        desc: '版权与备案信息',        align: ['left', 'center', 'right'] }
+    };
+
+    const DEFAULT_LAYOUT = {
+      version: 1,
+      tokens: {
+        theme: 'dark', accent: '#6366f1', background: '', font: 'jakarta',
+        radius: 16, pageWidth: 900, cardPadding: 26, cardGap: 30,
+        lineHeight: 178, titleScale: 100
+      },
+      blocks: [
+        { id: 'announce', enabled: true, align: 'left', gap: 24, bg: '' },
+        { id: 'header', enabled: true, align: 'space-between', gap: 36, bg: '' },
+        { id: 'hero', enabled: true, align: 'left', gap: 34, bg: '', titleSize: 34 },
+        { id: 'toolbar', enabled: true, align: 'left', gap: 26, bg: '' },
+        { id: 'feed', enabled: true, align: 'stretch', gap: 40, bg: '', columns: 1 },
+        { id: 'about', enabled: true, align: 'left', gap: 46, bg: '' },
+        { id: 'footer', enabled: true, align: 'center', gap: 0, bg: '' }
+      ]
+    };
+
+    const SITE = { user: 'mentea555', repo: 'myfirstweb', branch: 'main' };
+    const LAYOUT_PATH = 'content/layout.json';
+    const SETTINGS_PATH = 'content/settings.json';
+    const TOKEN_KEY = 'mentea_gh_token';
+
+    /* ---------------- 状态 ---------------- */
+    let draft = null;              // 当前编辑中的布局
+    let selectedId = null;         // 选中的区块
+    const undoStack = [];
+    const redoStack = [];
+    let pendingSnapshot = null;
+    let canvasReady = false;
+    let dirty = false;
+
+    /* ---------------- DOM ---------------- */
+    const $ = (id) => document.getElementById(id);
+    const frame = $('frame');
+    const blockList = $('blockList');
+    const inspector = $('inspector');
+    const toastEl = $('toast');
+
+    /* ---------------- 工具 ---------------- */
+    let toastTimer = null;
+    function toast(msg, type) {
+      toastEl.textContent = msg;
+      toastEl.className = 'show' + (type ? ' ' + type : '');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { toastEl.className = ''; }, 3200);
+    }
+
+    const clone = (o) => JSON.parse(JSON.stringify(o));
+    const num = (v, f) => { const n = parseFloat(v); return isNaN(n) ? f : n; };
+
+    function setStatus(state, tip) {
+      $('statusState').textContent = state;
+      if (tip) $('statusTip').textContent = tip;
+    }
+
+    /* ---------------- 载入并补全布局 ---------------- */
+    function mergeLayout(src) {
+      const s = (src && typeof src === 'object') ? src : {};
+      const defaults = {};
+      DEFAULT_LAYOUT.blocks.forEach((b) => { defaults[b.id] = b; });
+      const known = Object.keys(defaults);
+
+      const out = {
+        version: DEFAULT_LAYOUT.version,
+        tokens: Object.assign({}, DEFAULT_LAYOUT.tokens, s.tokens || {}),
+        blocks: []
+      };
+
+      (Array.isArray(s.blocks) ? s.blocks : []).forEach((b) => {
+        if (!b || known.indexOf(b.id) === -1) return;
+        if (out.blocks.some((x) => x.id === b.id)) return;
+        out.blocks.push(Object.assign({}, defaults[b.id], b));
+      });
+      DEFAULT_LAYOUT.blocks.forEach((b) => {
+        if (!out.blocks.some((x) => x.id === b.id)) out.blocks.push(clone(b));
+      });
+      return out;
+    }
+
+    /* ==========================================================
+       撤销 / 重做
+       ========================================================== */
+    function pushHistory(snapshotBefore) {
+      const before = snapshotBefore || JSON.stringify(draft);
+      if (before === JSON.stringify(draft)) return;
+      undoStack.push(before);
+      if (undoStack.length > 60) undoStack.shift();
+      redoStack.length = 0;
+      refreshHistoryButtons();
+      markDirty();
+    }
+
+    function refreshHistoryButtons() {
+      $('btnUndo').disabled = undoStack.length === 0;
+      $('btnRedo').disabled = redoStack.length === 0;
+    }
+
+    function markDirty() {
+      dirty = true;
+      setStatus('未保存', '改动仅在预览里生效，点「保存到网站」才会发布');
+    }
+
+    $('btnUndo').onclick = () => {
+      if (!undoStack.length) return;
+      redoStack.push(JSON.stringify(draft));
+      draft = JSON.parse(undoStack.pop());
+      selectedId = draft.blocks.some((b) => b.id === selectedId) ? selectedId : null;
+      syncAll();
+      refreshHistoryButtons();
+      markDirty();
+    };
+    $('btnRedo').onclick = () => {
+      if (!redoStack.length) return;
+      undoStack.push(JSON.stringify(draft));
+      draft = JSON.parse(redoStack.pop());
+      syncAll();
+      refreshHistoryButtons();
+      markDirty();
+    };
+    refreshHistoryButtons();
+
+    /* ==========================================================
+       画布：把草稿推给 iframe 实时渲染
+       ========================================================== */
+    function pushToFrame() {
+      if (!canvasReady) return;
+      const w = frame.contentWindow;
+      if (!w) return;
+      w.postMessage({ type: 'designer:apply', layout: draft }, location.origin);
+      w.postMessage({ type: 'designer:select', id: selectedId }, location.origin);
+    }
+
+    // 每当草稿变化，重画左列表 + 右面板 + 画布
+    function syncAll() {
+      renderBlockList();
+      renderInspector();
+      pushToFrame();
+    }
+
+    /* ---------------- 拖拽（SortableJS） ---------------- */
+    const SORTABLE_OPTS = {
+      animation: 180,
+      ghostClass: 'sortable-ghost',
+      chosenClass: 'sortable-chosen',
+      forceFallback: false
+    };
+
+    // 左列表拖拽
+    let listSortable = null;
+    function initListSortable() {
+      if (listSortable) return;
+      listSortable = new Sortable(blockList, Object.assign({}, SORTABLE_OPTS, {
+        handle: '.grip',
+        onStart: () => { pendingSnapshot = JSON.stringify(draft); },
+        onEnd: () => {
+          const order = Array.from(blockList.children).map((li) => li.dataset.id);
+          applyOrder(order);
+        }
+      }));
+    }
+
+    // 画布内拖拽：把 SortableJS 注入到 iframe 自己的 window 里
+    function loadSortableInto(win, doc) {
+      return new Promise((resolve) => {
+        if (win.Sortable) return resolve(win.Sortable);
+        const urls = [
+          'https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js',
+          'https://unpkg.com/sortablejs@1.15.6/Sortable.min.js',
+          'https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.6/Sortable.min.js'
+        ];
+        let i = 0;
+        const next = () => {
+          if (i >= urls.length) return resolve(null);
+          const s = doc.createElement('script');
+          s.src = urls[i++];
+          s.onload = () => resolve(win.Sortable || null);
+          s.onerror = next;
+          doc.head.appendChild(s);
+        };
+        next();
+      });
+    }
+
+    const GRIP_SVG = '<svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">' +
+      '<circle cx="4.5" cy="3" r="1.3"/><circle cx="9.5" cy="3" r="1.3"/>' +
+      '<circle cx="4.5" cy="7" r="1.3"/><circle cx="9.5" cy="7" r="1.3"/>' +
+      '<circle cx="4.5" cy="11" r="1.3"/><circle cx="9.5" cy="11" r="1.3"/></svg>';
+
+    async function setupCanvasDrag() {
+      let doc, win, container;
+      try {
+        doc = frame.contentDocument;
+        win = frame.contentWindow;
+        container = doc.getElementById('blocks');
+      } catch (e) {
+        console.warn('无法访问画布 DOM（可能跨域）', e);
+        return;
+      }
+      if (!container) return;
+
+      // 给每个区块挂一个拖拽手柄
+      doc.querySelectorAll('[data-block]').forEach((el) => {
+        if (el.querySelector(':scope > .designer-drag-handle')) return;
+        const h = doc.createElement('div');
+        h.className = 'designer-drag-handle';
+        h.innerHTML = GRIP_SVG;
+        h.title = '拖动调整位置';
+        el.prepend(h);
+      });
+
+      const SortableCtor = await loadSortableInto(win, doc);
+      if (!SortableCtor) {
+        console.warn('SortableJS 未能载入，画布内拖拽不可用（左侧列表仍可拖拽）');
+        return;
+      }
+
+      if (win.__designerSortable) {
+        try { win.__designerSortable.destroy(); } catch (e) {}
+      }
+      win.__designerSortable = SortableCtor.create(container, Object.assign({}, SORTABLE_OPTS, {
+        handle: '.designer-drag-handle',
+        onStart: () => { pendingSnapshot = JSON.stringify(draft); },
+        onEnd: () => {
+          const order = Array.from(container.querySelectorAll('[data-block]')).map((el) => el.dataset.block);
+          applyOrder(order);
+        }
+      }));
+    }
+
+    // 顺序变了：重排草稿并同步所有视图
+    function applyOrder(order) {
+      const map = {};
+      draft.blocks.forEach((b) => { map[b.id] = b; });
+      const next = [];
+      order.forEach((id) => { if (map[id] && !next.some((x) => x.id === id)) next.push(map[id]); });
+      draft.blocks.forEach((b) => { if (!next.some((x) => x.id === b.id)) next.push(b); });
+      draft.blocks = next;
+
+      pushHistory(pendingSnapshot);
+      pendingSnapshot = null;
+      syncAll();
+    }
+
+    /* ==========================================================
+       左侧列表
+       ========================================================== */
+    const EYE_ON = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>';
+    const EYE_OFF = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17.94 17.94A10.1 10.1 0 0112 19c-6.5 0-10-7-10-7a17.6 17.6 0 015.06-5.94M9.9 4.24A9.1 9.1 0 0112 4c6.5 0 10 7 10 7a17.7 17.7 0 01-2.16 3.19M1 1l22 22"/></svg>';
+
+    function renderBlockList() {
+      blockList.innerHTML = '';
+      draft.blocks.forEach((b) => {
+        const meta = BLOCK_META[b.id] || { name: b.id, desc: '' };
+        const li = document.createElement('li');
+        li.className = 'block-item' + (b.id === selectedId ? ' selected' : '') + (b.enabled === false ? ' off' : '');
+        li.dataset.id = b.id;
+        li.innerHTML = `
+          <span class="grip">${GRIP_SVG}</span>
+          <span class="info">
+            <span class="nm">${meta.name}</span>
+            <span class="ds">${meta.desc}</span>
+          </span>
+          <button class="eye${b.enabled === false ? '' : ' on'}" title="${b.enabled === false ? '已隐藏，点击显示' : '显示中，点击隐藏'}">
+            ${b.enabled === false ? EYE_OFF : EYE_ON}
+          </button>
+        `;
+        li.addEventListener('click', (e) => {
+          if (e.target.closest('.eye')) return;
+          if (e.target.closest('.grip')) return;
+          selectBlock(b.id);
+        });
+        li.querySelector('.eye').addEventListener('click', (e) => {
+          e.stopPropagation();
+          const snap = JSON.stringify(draft);
+          b.enabled = b.enabled === false;
+          pushHistory(snap);
+          syncAll();
+        });
+        blockList.appendChild(li);
+      });
+      setStatusLineCount();
+    }
+
+    function setStatusLineCount() {
+      const on = draft.blocks.filter((b) => b.enabled !== false).length;
+      $('statusTip').textContent = dirty
+        ? '改动仅在预览里生效，点「保存到网站」才会发布'
+        : `${on} / ${draft.blocks.length} 个区块显示中`;
+    }
+
+    function selectBlock(id) {
+      selectedId = (selectedId === id) ? null : id;
+      renderBlockList();
+      renderInspector();
+      if (canvasReady && frame.contentWindow) {
+        frame.contentWindow.postMessage({ type: 'designer:select', id: selectedId }, location.origin);
+      }
+    }
+
+    /* ==========================================================
+       右侧属性面板
+       ========================================================== */
+    function rangeRow(label, unit, scope, key, value, min, max, step) {
+      return `<label class="row">
+        <span class="lbl"><span>${label}</span><span class="val" data-out="${scope}.${key}">${value}${unit}</span></span>
+        <input type="range" min="${min}" max="${max}" step="${step}" value="${value}"
+               data-scope="${scope}" data-key="${key}" data-unit="${unit}">
+      </label>`;
+    }
+
+    function renderInspector() {
+      const sel = draft.blocks.find((b) => b.id === selectedId);
+      const t = draft.tokens;
+      let html = '';
+
+      if (sel) {
+        const meta = BLOCK_META[sel.id] || { name: sel.id, align: ['left', 'center', 'right'] };
+        html += `<div class="group">
+          <div class="group-title">
+            <span>${meta.name}</span>
+            <button class="mini" data-act="deselect">取消选中</button>
+          </div>
+
+          <div class="toggle-row">
+            <span class="tx">在页面上显示</span>
+            <label class="switch">
+              <input type="checkbox" data-act="enabled" ${sel.enabled === false ? '' : 'checked'}>
+              <span class="sl"></span>
+            </label>
+          </div>
+
+          ${rangeRow('下方间距', 'px', 'block', 'gap', num(sel.gap, 0), 0, 120, 2)}
+
+          <label class="row">
+            <span class="lbl"><span>对齐方式</span></span>
+            <span class="align-grid" data-act="align">
+              ${meta.align.map((a) => `
+                <button data-value="${a}" class="${sel.align === a ? 'active' : ''}">${alignLabel(a)}</button>
+              `).join('')}
+            </span>
+          </label>
+
+          ${sel.id === 'hero' ? rangeRow('标题字号', 'px', 'block', 'titleSize', num(sel.titleSize, 34), 20, 64, 1) : ''}
+
+          ${sel.id === 'feed' ? `<label class="row">
+            <span class="lbl"><span>每行列数</span></span>
+            <span class="align-grid" data-act="columns">
+              <button data-value="1" class="${num(sel.columns, 1) < 2 ? 'active' : ''}">单列</button>
+              <button data-value="2" class="${num(sel.columns, 1) >= 2 ? 'active' : ''}">双列</button>
+            </span>
+          </label>` : ''}
+
+          <label class="row">
+            <span class="lbl"><span>区块背景色</span><span class="val">留空为默认</span></span>
+            <span class="color-row">
+              <input type="color" value="${sel.bg || '#1a1d27'}" data-act="block-bg-picker">
+              <input type="text" value="${sel.bg || ''}" placeholder="留空 = 默认" data-act="block-bg-text">
+              <button class="swatch-clear" data-act="block-bg-clear">清除</button>
+            </span>
+          </label>
+        </div>`;
+      } else {
+        html += `<div class="group">
+          <div class="group-title">未选中区块</div>
+          <div class="empty">在画布上点一下某个区块，<br>或点左侧列表里的名字，<br>就能单独调整它的样式。</div>
+        </div>`;
+      }
+
+      html += `<div class="group">
+        <div class="group-title">全站外观</div>
+
+        <label class="row">
+          <span class="lbl"><span>配色模式</span></span>
+          <select data-scope="token" data-key="theme">
+            <option value="dark" ${t.theme !== 'light' ? 'selected' : ''}>暗色</option>
+            <option value="light" ${t.theme === 'light' ? 'selected' : ''}>亮色</option>
+          </select>
+        </label>
+
+        <label class="row">
+          <span class="lbl"><span>主题强调色</span></span>
+          <span class="color-row">
+            <input type="color" value="${t.accent || '#6366f1'}" data-act="accent-picker">
+            <input type="text" value="${t.accent || ''}" data-act="accent-text">
+          </span>
+        </label>
+
+        <label class="row">
+          <span class="lbl"><span>页面背景色</span><span class="val">留空为默认</span></span>
+          <span class="color-row">
+            <input type="color" value="${t.background || '#0f1117'}" data-act="bg-picker">
+            <input type="text" value="${t.background || ''}" placeholder="留空 = 默认" data-act="bg-text">
+            <button class="swatch-clear" data-act="bg-clear">清除</button>
+          </span>
+        </label>
+
+        <label class="row">
+          <span class="lbl"><span>字体</span></span>
+          <select data-scope="token" data-key="font">
+            <option value="jakarta" ${t.font === 'jakarta' ? 'selected' : ''}>无衬线（默认）</option>
+            <option value="system" ${t.font === 'system' ? 'selected' : ''}>系统字体</option>
+            <option value="serif" ${t.font === 'serif' ? 'selected' : ''}>衬线体</option>
+            <option value="mono" ${t.font === 'mono' ? 'selected' : ''}>等宽体</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="group">
+        <div class="group-title">间距与尺寸</div>
+        ${rangeRow('内容区宽度', 'px', 'token', 'pageWidth', num(t.pageWidth, 900), 640, 1400, 10)}
+        ${rangeRow('卡片圆角', 'px', 'token', 'radius', num(t.radius, 16), 0, 36, 1)}
+        ${rangeRow('卡片内边距', 'px', 'token', 'cardPadding', num(t.cardPadding, 26), 10, 60, 2)}
+        ${rangeRow('卡片之间间距', 'px', 'token', 'cardGap', num(t.cardGap, 30), 6, 80, 2)}
+        ${rangeRow('正文行高', '%', 'token', 'lineHeight', num(t.lineHeight, 178), 130, 260, 2)}
+        ${rangeRow('标题缩放', '%', 'token', 'titleScale', num(t.titleScale, 100), 70, 160, 2)}
+      </div>`;
+
+      inspector.innerHTML = html;
+      bindInspector();
+      setStatusLineCount();
+    }
+
+    function alignLabel(a) {
+      return ({ left: '左对齐', center: '居中', right: '右对齐', 'space-between': '两端', stretch: '撑满' })[a] || a;
+    }
+
+    /* ---------------- 面板事件 ---------------- */
+    function applyValueChange(scope, key, value, isFinal) {
+      if (scope === 'block') {
+        const b = draft.blocks.find((x) => x.id === selectedId);
+        if (!b) return;
+        b[key] = value;
+      } else {
+        draft.tokens[key] = value;
+      }
+      pushToFrame();
+      if (isFinal) {
+        pushHistory(pendingSnapshot);
+        pendingSnapshot = null;
+        renderBlockList();
+      }
+    }
+
+    function bindInspector() {
+      // 滑杆：拖动时实时预览，松手才记入撤销栈
+      inspector.querySelectorAll('input[type="range"]').forEach((el) => {
+        const apply = (isFinal) => {
+          const scope = el.dataset.scope, key = el.dataset.key, unit = el.dataset.unit || '';
+          const value = parseFloat(el.value);
+          const out = inspector.querySelector(`[data-out="${scope}.${key}"]`);
+          if (out) out.textContent = value + unit;
+          applyValueChange(scope, key, value, isFinal);
+        };
+        el.addEventListener('input', () => {
+          if (pendingSnapshot === null) pendingSnapshot = JSON.stringify(draft);
+          apply(false);
+        });
+        el.addEventListener('change', () => apply(true));
+      });
+
+      // 下拉
+      inspector.querySelectorAll('select[data-key]').forEach((el) => {
+        el.addEventListener('change', () => {
+          const snap = JSON.stringify(draft);
+          applyValueChange(el.dataset.scope, el.dataset.key, el.value, false);
+          pushHistory(snap);
+          renderInspector();
+        });
+      });
+
+      inspector.querySelectorAll('[data-act]').forEach((el) => {
+        const act = el.dataset.act;
+        if (act === 'deselect') el.onclick = () => selectBlock(selectedId);
+
+        if (act === 'enabled') {
+          el.onchange = () => {
+            const b = draft.blocks.find((x) => x.id === selectedId);
+            if (!b) return;
+            const snap = JSON.stringify(draft);
+            b.enabled = el.checked;
+            pushHistory(snap);
+            syncAll();
+          };
+        }
+
+        if (act === 'align') {
+          el.querySelectorAll('button').forEach((btn) => {
+            btn.onclick = () => {
+              const b = draft.blocks.find((x) => x.id === selectedId);
+              if (!b) return;
+              const snap = JSON.stringify(draft);
+              b.align = btn.dataset.value;
+              pushHistory(snap);
+              syncAll();
+            };
+          });
+        }
+
+        if (act === 'columns') {
+          el.querySelectorAll('button').forEach((btn) => {
+            btn.onclick = () => {
+              const b = draft.blocks.find((x) => x.id === selectedId);
+              if (!b) return;
+              const snap = JSON.stringify(draft);
+              b.columns = parseInt(btn.dataset.value, 10);
+              pushHistory(snap);
+              syncAll();
+            };
+          });
+        }
+
+        // 颜色：区块背景
+        if (act === 'block-bg-picker') {
+          el.oninput = () => {
+            const b = draft.blocks.find((x) => x.id === selectedId);
+            if (!b) return;
+            if (pendingSnapshot === null) pendingSnapshot = JSON.stringify(draft);
+            b.bg = el.value;
+            const txt = inspector.querySelector('[data-act="block-bg-text"]');
+            if (txt) txt.value = el.value;
+            pushToFrame();
+          };
+          el.onchange = () => { pushHistory(pendingSnapshot); pendingSnapshot = null; };
+        }
+        if (act === 'block-bg-text') {
+          el.onchange = () => {
+            const b = draft.blocks.find((x) => x.id === selectedId);
+            if (!b) return;
+            const snap = JSON.stringify(draft);
+            const v = el.value.trim();
+            b.bg = /^#[0-9a-fA-F]{6}$/.test(v) ? v : '';
+            pushHistory(snap);
+            syncAll();
+          };
+        }
+        if (act === 'block-bg-clear') {
+          el.onclick = () => {
+            const b = draft.blocks.find((x) => x.id === selectedId);
+            if (!b) return;
+            const snap = JSON.stringify(draft);
+            b.bg = '';
+            pushHistory(snap);
+            syncAll();
+          };
+        }
+
+        // 颜色：强调色
+        if (act === 'accent-picker') {
+          el.oninput = () => {
+            if (pendingSnapshot === null) pendingSnapshot = JSON.stringify(draft);
+            draft.tokens.accent = el.value;
+            const txt = inspector.querySelector('[data-act="accent-text"]');
+            if (txt) txt.value = el.value;
+            pushToFrame();
+          };
+          el.onchange = () => { pushHistory(pendingSnapshot); pendingSnapshot = null; };
+        }
+        if (act === 'accent-text') {
+          el.onchange = () => {
+            const snap = JSON.stringify(draft);
+            const v = el.value.trim();
+            if (/^#[0-9a-fA-F]{6}$/.test(v)) {
+              draft.tokens.accent = v;
+              pushHistory(snap);
+              syncAll();
+            } else {
+              toast('色号格式应为 #RRGGBB', 'err');
+              renderInspector();
+            }
+          };
+        }
+
+        // 颜色：页面背景
+        if (act === 'bg-picker') {
+          el.oninput = () => {
+            if (pendingSnapshot === null) pendingSnapshot = JSON.stringify(draft);
+            draft.tokens.background = el.value;
+            const txt = inspector.querySelector('[data-act="bg-text"]');
+            if (txt) txt.value = el.value;
+            pushToFrame();
+          };
+          el.onchange = () => { pushHistory(pendingSnapshot); pendingSnapshot = null; };
+        }
+        if (act === 'bg-text') {
+          el.onchange = () => {
+            const snap = JSON.stringify(draft);
+            const v = el.value.trim();
+            draft.tokens.background = /^#[0-9a-fA-F]{6}$/.test(v) ? v : '';
+            pushHistory(snap);
+            syncAll();
+          };
+        }
+        if (act === 'bg-clear') {
+          el.onclick = () => {
+            const snap = JSON.stringify(draft);
+            draft.tokens.background = '';
+            pushHistory(snap);
+            syncAll();
+          };
+        }
+      });
+    }
+
+    /* ==========================================================
+       画布通信
+       ========================================================== */
+    let lastDragAt = 0;      // 拖拽刚结束时忽略紧随其后的点击，避免误切换选中
+
+    window.addEventListener('message', (ev) => {
+      if (ev.origin !== location.origin) return;
+      const msg = ev.data;
+      if (!msg || typeof msg !== 'object') return;
+
+      if (msg.type === 'designer:ready') {
+        if (draft === null) {
+          draft = mergeLayout(msg.layout);
+          selectedId = null;
+          initListSortable();
+          undoStack.length = 0;
+          redoStack.length = 0;
+          refreshHistoryButtons();
+          renderBlockList();
+          renderInspector();
+        }
+        canvasReady = true;
+        pushToFrame();
+        setupCanvasDrag();
+        $('frameLoading').classList.add('hide');
+        setStatus('已连接', '可以先拖几下试试，满意了再保存');
+      }
+
+      if (msg.type === 'designer:clicked') {
+        if (Date.now() - lastDragAt < 350) return;   // 刚拖完的那一下点击不算选中
+        selectedId = (selectedId === msg.id) ? null : msg.id;
+        renderBlockList();
+        renderInspector();
+        frame.contentWindow.postMessage({ type: 'designer:select', id: selectedId }, location.origin);
+      }
+    });
+
+    /* ---------------- 设备宽度 ---------------- */
+    $('deviceSeg').addEventListener('click', (e) => {
+      const btn = e.target.closest('button');
+      if (!btn) return;
+      $('deviceSeg').querySelectorAll('button').forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      const w = parseInt(btn.dataset.w, 10);
+      $('frameWrap').style.maxWidth = w ? (w + 'px') : '100%';
+    });
+
+    /* ---------------- 重新载入 ---------------- */
+    $('btnReload').onclick = () => {
+      if (dirty && !confirm('放弃当前未保存的改动，重新读取线上配置？')) return;
+      draft = null;
+      canvasReady = false;
+      dirty = false;
+      pendingSnapshot = null;
+      $('frameLoading').classList.remove('hide');
+      setStatus('载入中', '正在重新读取线上配置');
+      frame.src = '/index.html?designer=1&t=' + Date.now();
+    };
+
+    /* ---------------- 导出配置 ---------------- */
+    $('btnExport').onclick = () => {
+      $('exportText').value = JSON.stringify(draft, null, 2);
+      $('exportMask').classList.add('show');
+    };
+    $('btnCloseExport').onclick = () => $('exportMask').classList.remove('show');
+    $('btnCopy').onclick = async () => {
+      const ta = $('exportText');
+      ta.select();
+      try {
+        await navigator.clipboard.writeText(ta.value);
+        toast('已复制到剪贴板', 'ok');
+      } catch (e) {
+        document.execCommand('copy');
+        toast('已复制', 'ok');
+      }
+    };
+    $('exportMask').addEventListener('click', (e) => {
+      if (e.target === $('exportMask')) $('exportMask').classList.remove('show');
+    });
+
+    /* ==========================================================
+       GitHub 授权 + 保存（复用站点已有的 /api/auth 与 /api/callback）
+       ========================================================== */
+    function githubAuth() {
+      return new Promise((resolve) => {
+        const cached = sessionStorage.getItem(TOKEN_KEY);
+        if (cached) return resolve(cached);
+
+        const popup = window.open('/api/auth', 'gh_oauth', 'width=640,height=760');
+        if (!popup) {
+          toast('浏览器拦截了登录窗口，请允许弹窗后重试', 'err');
+          return resolve(null);
+        }
+
+        let done = false;
+        const finish = (token) => {
+          if (done) return;
+          done = true;
+          clearInterval(handshake);
+          window.removeEventListener('message', onMsg);
+          try { popup.close(); } catch (e) {}
+          resolve(token);
+        };
+
+        const onMsg = (ev) => {
+          if (ev.origin !== location.origin) return;
+          const raw = typeof ev.data === 'string' ? ev.data : '';
+          // 弹窗准备好了，回它一声即可拿到 token（Decap 的标准握手）
+          if (raw === 'authorizing:github') {
+            popup.postMessage('authorizing:github', location.origin);
+            return;
+          }
+          if (raw.indexOf('authorization:github:success:') === 0) {
+            try {
+              const payload = JSON.parse(raw.slice('authorization:github:success:'.length));
+              if (payload && payload.token) {
+                sessionStorage.setItem(TOKEN_KEY, payload.token);
+                finish(payload.token);
+              }
+            } catch (e) { /* 忽略畸形消息 */ }
+          }
+        };
+
+        window.addEventListener('message', onMsg);
+        const handshake = setInterval(() => {
+          if (popup.closed) finish(null);
+        }, 700);
+
+        setTimeout(() => { if (!done) { toast('登录超时，请重试', 'err'); finish(null); } }, 180000);
+      });
+    }
+
+    const GH_API = `https://api.github.com/repos/${SITE.user}/${SITE.repo}/contents`;
+
+    async function ghGetSha(path, token) {
+      const res = await fetch(`${GH_API}/${path}?ref=${SITE.branch}&t=${Date.now()}`, {
+        headers: { Authorization: 'Bearer ' + token, Accept: 'application/vnd.github+json' }
+      });
+      if (res.status === 404) return null;             // 文件还不存在
+      if (!res.ok) throw new Error('读取 ' + path + ' 失败（HTTP ' + res.status + '）');
+      const data = await res.json();
+      return data.sha || null;
+    }
+
+    async function ghPut(path, text, token, message) {
+      const sha = await ghGetSha(path, token);
+      const body = {
+        message,
+        content: btoa(String.fromCharCode(...new TextEncoder().encode(text))),
+        branch: SITE.branch
+      };
+      if (sha) body.sha = sha;
+
+      const res = await fetch(`${GH_API}/${path}`, {
+        method: 'PUT',
+        headers: {
+          Authorization: 'Bearer ' + token,
+          Accept: 'application/vnd.github+json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(body)
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error('写入 ' + path + ' 失败：' + (err.message || ('HTTP ' + res.status)));
+      }
+      return res.json();
+    }
+
+    $('btnSave').onclick = async () => {
+      if (!draft) return;
+      const btn = $('btnSave');
+      const original = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = '保存中...';
+      setStatus('保存中', '正在提交到 GitHub');
+
+      try {
+        const token = await githubAuth();
+        if (!token) {
+          setStatus('待保存', '登录未完成，改动仍在本地');
+          return;
+        }
+
+        const layoutText = JSON.stringify(draft, null, 2) + '\n';
+
+        await ghPut(LAYOUT_PATH, layoutText, token, 'chore: 通过可视化编辑器更新页面布局');
+
+        // 外观类设置同步写回 settings.json，避免后台两处数值打架
+        let settingsText = null;
+        try {
+          const res = await fetch(`${GH_API}/${SETTINGS_PATH}?ref=${SITE.branch}&t=${Date.now()}`, {
+            headers: { Authorization: 'Bearer ' + token, Accept: 'application/vnd.github+json' }
+          });
+          const current = res.ok ? JSON.parse(atob((await res.json()).content.replace(/\n/g, ''))) : {};
+          const merged = Object.assign({}, current, {
+            theme_mode: draft.tokens.theme,
+            accent_color: draft.tokens.accent,
+            background_color: draft.tokens.background || '',
+            font_family: draft.tokens.font,
+            page_width: num(draft.tokens.pageWidth, 900)
+          });
+          settingsText = JSON.stringify(merged, null, 2) + '\n';
+        } catch (e) {
+          console.warn('读取 settings.json 失败，跳过同步', e);
+        }
+        if (settingsText) {
+          await ghPut(SETTINGS_PATH, settingsText, token, 'chore: 同步外观设置（可视化编辑器）');
+        }
+
+        dirty = false;
+        setStatus('已保存', 'Vercel 正在自动部署，约 30 秒后线上生效');
+        toast('保存成功，网站正在自动部署', 'ok');
+      } catch (err) {
+        console.error(err);
+        setStatus('保存失败', err.message);
+        toast(err.message, 'err');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = original;
+      }
+    };
+
+    /* ---------------- 离开提醒 ---------------- */
+    window.addEventListener('beforeunload', (e) => {
+      if (!dirty) return;
+      e.preventDefault();
+      e.returnValue = '';
+    });
+
+    setStatus('载入中', '正在载入页面画布...');
+  </script>
+</body>
+</html>

@@ -20,6 +20,12 @@
       --radius: 16px;
       --page-width: 900px;
       --font: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      /* 以下由可视化编辑器（content/layout.json）驱动 */
+      --card-padding: 26px;
+      --card-gap: 30px;
+      --line-height: 1.78;
+      --title-scale: 1;
+      --hero-title-size: 2.15rem;
     }
     html[data-theme="dark"] {
       --bg: #0f1117;
@@ -51,6 +57,8 @@
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    /* 内容驱动的隐藏优先级最高 */
+    [hidden] { display: none !important; }
     body {
       font-family: var(--font);
       background-color: var(--bg);
@@ -69,6 +77,53 @@
       margin: 0 auto;
       padding: 40px 24px 80px;
     }
+
+    /* ============ 区块布局（由可视化编辑器写入 content/layout.json） ============ */
+    .block { position: relative; }
+    /* 编辑器里被关掉的区块：正式页面隐藏，编辑画布里淡化但仍可点选 */
+    [data-layout-hidden="true"]:not(.designer-ghost) { display: none; }
+    .designer-ghost { opacity: 0.35; filter: grayscale(0.7); }
+    .container > .block:last-child { margin-bottom: 0 !important; }
+
+    /* 编辑画布模式（仅 /index.html?designer=1 时生效） */
+    html.designer-mode .admin-btn { display: none !important; }
+    html.designer-mode .block {
+      outline: 1px dashed rgba(125, 135, 155, 0.5);
+      outline-offset: 6px;
+      border-radius: 6px;
+      transition: outline-color 0.15s ease;
+    }
+    html.designer-mode .block:hover { outline-color: var(--accent); }
+    html.designer-mode .block.is-selected {
+      outline: 2px solid var(--accent);
+      outline-offset: 6px;
+    }
+    /* 编辑时禁用页面内的链接跳转，避免误点离开 */
+    html.designer-mode a, html.designer-mode button { pointer-events: none; }
+    .designer-drag-handle {
+      position: absolute;
+      top: -14px;
+      right: -14px;
+      width: 32px;
+      height: 32px;
+      border-radius: 9px;
+      background: var(--accent);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      line-height: 1;
+      cursor: grab;
+      z-index: 60;
+      opacity: 0;
+      pointer-events: auto !important;
+      transition: opacity 0.15s ease;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+      user-select: none;
+    }
+    .designer-drag-handle:active { cursor: grabbing; }
+    .block:hover > .designer-drag-handle { opacity: 1; }
 
     /* ============ 公告条 ============ */
     .announce {
@@ -141,7 +196,7 @@
       margin-bottom: 14px;
     }
     .hero h2 {
-      font-size: 2.15rem;
+      font-size: var(--hero-title-size, 2.15rem);
       line-height: 1.25;
       font-weight: 800;
       letter-spacing: -0.8px;
@@ -174,20 +229,34 @@
     .chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 
     /* ============ 作品卡片流 ============ */
-    .feed { display: flex; flex-direction: column; gap: 30px; }
+    .feed { display: flex; flex-direction: column; gap: var(--card-gap, 30px); }
+    .feed[data-columns="2"] {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      align-items: start;
+    }
+    @media (max-width: 720px) {
+      .feed[data-columns="2"] { grid-template-columns: 1fr; }
+    }
 
     .post-card {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
       border-radius: var(--radius);
-      padding: 26px;
+      padding: var(--card-padding, 26px);
       backdrop-filter: blur(16px);
       box-shadow: var(--shadow);
       transition: transform 0.2s ease, border-color 0.2s ease;
     }
     .post-card:hover { transform: translateY(-2px); border-color: var(--hover-border); }
 
-    .post-title { font-size: 1.35rem; font-weight: 700; color: var(--text-strong); margin-bottom: 8px; line-height: 1.4; }
+    .post-title {
+      font-size: calc(1.35rem * var(--title-scale, 1));
+      font-weight: 700;
+      color: var(--text-strong);
+      margin-bottom: 8px;
+      line-height: 1.4;
+    }
     .post-meta {
       display: flex;
       align-items: center;
@@ -228,7 +297,7 @@
 
     .post-desc { color: var(--text-dim); font-size: 0.95rem; line-height: 1.7; margin-bottom: 14px; }
 
-    .post-body { font-size: 1rem; line-height: 1.78; color: var(--body-text); }
+    .post-body { font-size: 1rem; line-height: var(--line-height, 1.78); color: var(--body-text); }
     .post-body p { margin-bottom: 12px; }
     .post-body h1, .post-body h2, .post-body h3 { color: var(--text-strong); margin: 20px 0 10px; line-height: 1.4; }
     .post-body ul, .post-body ol { margin: 0 0 12px 22px; }
@@ -265,7 +334,7 @@
       background: var(--card-bg);
       border: 1px solid var(--card-border);
       border-radius: var(--radius);
-      padding: 26px;
+      padding: var(--card-padding, 26px);
       backdrop-filter: blur(16px);
       box-shadow: var(--shadow);
     }
@@ -301,7 +370,7 @@
 
     @media (max-width: 640px) {
       .container { padding: 26px 16px 60px; }
-      .hero h2 { font-size: 1.6rem; }
+      .hero h2 { font-size: calc(var(--hero-title-size, 2.15rem) * 0.76); }
       .brand h1 { font-size: 1.35rem; }
       header { margin-bottom: 26px; }
     }
@@ -309,10 +378,10 @@
 </head>
 <body>
 
-  <div class="container">
-    <div id="announce" class="announce" hidden></div>
+  <div class="container" id="blocks">
+    <div id="announce" class="announce block" data-block="announce" hidden></div>
 
-    <header>
+    <header class="block" data-block="header">
       <a class="brand" href="/">
         <h1 id="siteTitle">Mentea's Web</h1>
         <p id="siteSubtitle">数字画作、笔记与灵感存档</p>
@@ -323,27 +392,27 @@
       </nav>
     </header>
 
-    <section class="hero" id="hero" hidden>
+    <section class="hero block" id="hero" data-block="hero" hidden>
       <span class="hero-badge" id="heroBadge" hidden></span>
       <h2 id="heroTitle"></h2>
       <p id="heroSubtitle"></p>
     </section>
 
-    <div class="toolbar" id="toolbar" hidden></div>
+    <div class="toolbar block" id="toolbar" data-block="toolbar" hidden></div>
 
-    <div id="feed" class="feed">
+    <div id="feed" class="feed block" data-block="feed">
       <div class="status-box">
         <div class="spinner"></div>
         <p>正在同步云端内容...</p>
       </div>
     </div>
 
-    <section class="about-card" id="aboutCard" hidden>
+    <section class="about-card block" id="aboutCard" data-block="about" hidden>
       <h3 id="aboutTitle">关于我</h3>
       <div class="post-body" id="aboutBody"></div>
     </section>
 
-    <footer id="footer"></footer>
+    <footer class="block" id="footer" data-block="footer"></footer>
   </div>
 
   <script>
@@ -354,8 +423,9 @@
       user: 'mentea555',
       repo: 'myfirstweb',
       branch: 'main',
-      settingsFile: 'content/settings.json',   // 后台「前端页面设置 → 全站设置」
-      homepageFile: 'content/homepage.json'    // 后台「前端页面设置 → 首页内容」
+      settingsFile: 'content/settings.json',   // 后台「全站外观与设置」
+      homepageFile: 'content/homepage.json',   // 后台「首页内容」
+      layoutFile: 'content/layout.json'        // 可视化布局编辑器
     };
 
     // 兜底默认值：配置文件读取失败也不会开天窗
@@ -386,6 +456,41 @@
       about_body: '',
       footer_text: ''
     };
+    const DEFAULT_LAYOUT = {
+      version: 1,
+      tokens: {
+        theme: 'dark',
+        accent: '#6366f1',
+        background: '',
+        font: 'jakarta',
+        radius: 16,
+        pageWidth: 900,
+        cardPadding: 26,
+        cardGap: 30,
+        lineHeight: 178,
+        titleScale: 100
+      },
+      blocks: [
+        { id: 'announce', enabled: true, align: 'left', gap: 24, bg: '' },
+        { id: 'header', enabled: true, align: 'space-between', gap: 36, bg: '' },
+        { id: 'hero', enabled: true, align: 'left', gap: 34, bg: '', titleSize: 34 },
+        { id: 'toolbar', enabled: true, align: 'left', gap: 26, bg: '' },
+        { id: 'feed', enabled: true, align: 'stretch', gap: 40, bg: '', columns: 1 },
+        { id: 'about', enabled: true, align: 'left', gap: 46, bg: '' },
+        { id: 'footer', enabled: true, align: 'center', gap: 0, bg: '' }
+      ]
+    };
+
+    // 各区块对齐方式的语义（flex 容器走 justify-content，其余走 text-align）
+    const BLOCK_ALIGN_MODE = {
+      announce: 'text',
+      hero: 'text',
+      about: 'text',
+      footer: 'text',
+      header: 'flex',
+      toolbar: 'flex',
+      feed: 'stretch'
+    };
 
     const FONTS = {
       jakarta: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif",
@@ -394,11 +499,20 @@
       mono: "'JetBrains Mono', Consolas, 'Courier New', monospace"
     };
 
+    /* 是否在可视化编辑器的画布里运行 */
+    const IS_DESIGNER = new URLSearchParams(location.search).get('designer') === '1';
+    if (IS_DESIGNER) document.documentElement.classList.add('designer-mode');
+
     /* ---------------- 小工具函数 ---------------- */
     const $ = (id) => document.getElementById(id);
     const escapeHtml = (s) => String(s == null ? '' : s)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+    const num = (v, fallback) => {
+      const n = parseFloat(v);
+      return isNaN(n) ? fallback : n;
+    };
 
     // 每次请求带时间戳，绕开 CDN 缓存，后台保存后立即能看到变化
     const rawUrl = (path) => `https://raw.githubusercontent.com/${SITE.user}/${SITE.repo}/${SITE.branch}/${path}?t=${Date.now()}`;
@@ -477,7 +591,17 @@
       return { data, body: text.slice(m[0].length) };
     }
 
-    /* ---------------- 应用后台设置（这就是"改前端"的入口） ---------------- */
+    /* ---------------- 应用后台设置 ---------------- */
+    function ensureStyleTag(id) {
+      let tag = document.getElementById(id);
+      if (!tag) {
+        tag = document.createElement('style');
+        tag.id = id;
+        document.head.appendChild(tag);
+      }
+      return tag;
+    }
+
     function applySettings(s) {
       const root = document.documentElement;
 
@@ -510,14 +634,13 @@
         adminBtn.textContent = s.admin_button_text || '管理后台 →';
       }
 
-      // 自定义 CSS / 注入 head
-      if (s.custom_css) {
-        const tag = document.createElement('style');
-        tag.textContent = s.custom_css;
-        document.head.appendChild(tag);
-      }
+      // 自定义 CSS / 注入 head（幂等，重复调用不会叠加）
+      ensureStyleTag('custom-css').textContent = s.custom_css || '';
+      const headHolder = document.getElementById('custom-head-holder');
+      if (headHolder) headHolder.remove();
       if (s.custom_head) {
         const wrap = document.createElement('div');
+        wrap.id = 'custom-head-holder';
         wrap.innerHTML = s.custom_head;
         Array.from(wrap.children).forEach((node) => document.head.appendChild(node));
       }
@@ -526,6 +649,7 @@
     function applyHomepage(h, settings) {
       const badge = $('heroBadge');
       if (h.hero_badge) { badge.textContent = h.hero_badge; badge.hidden = false; }
+      else { badge.hidden = true; }
 
       const title = h.hero_title || settings.site_title || DEFAULT_SETTINGS.site_title;
       const subtitle = h.hero_subtitle || settings.site_subtitle || '';
@@ -534,19 +658,132 @@
       $('hero').hidden = !(h.hero_badge || title || subtitle);
 
       if (h.announcement) {
-        $('announce').innerHTML = window.marked ? md2html(h.announcement) : escapeHtml(h.announcement);
+        $('announce').innerHTML = md2html(h.announcement);
         $('announce').hidden = false;
+      } else {
+        $('announce').hidden = true;
       }
 
       if (h.about_enabled && h.about_body) {
         $('aboutTitle').textContent = h.about_title || '关于我';
         $('aboutBody').innerHTML = md2html(h.about_body);
         $('aboutCard').hidden = false;
+      } else {
+        $('aboutCard').hidden = true;
       }
 
-      if (h.footer_text) {
-        $('footer').innerHTML = window.marked ? md2html(h.footer_text) : escapeHtml(h.footer_text);
+      $('footer').innerHTML = h.footer_text ? md2html(h.footer_text) : '';
+    }
+
+    /* ==========================================================
+       可视化布局引擎 —— content/layout.json 决定区块顺序与外观
+       ========================================================== */
+
+    // 补全缺失字段，保证老配置也能正常工作
+    function mergeLayout(layout) {
+      const src = (layout && typeof layout === 'object') ? layout : {};
+      const known = DEFAULT_LAYOUT.blocks.map((b) => b.id);
+      const defaults = {};
+      DEFAULT_LAYOUT.blocks.forEach((b) => { defaults[b.id] = b; });
+
+      const out = {
+        version: DEFAULT_LAYOUT.version,
+        tokens: Object.assign({}, DEFAULT_LAYOUT.tokens, src.tokens || {}),
+        blocks: []
+      };
+
+      (Array.isArray(src.blocks) ? src.blocks : []).forEach((b) => {
+        if (!b || known.indexOf(b.id) === -1) return;
+        if (out.blocks.some((x) => x.id === b.id)) return;
+        out.blocks.push(Object.assign({}, defaults[b.id], b));
+      });
+      // 配置里没提到的区块，按默认顺序补到末尾
+      DEFAULT_LAYOUT.blocks.forEach((b) => {
+        if (!out.blocks.some((x) => x.id === b.id)) out.blocks.push(Object.assign({}, b));
+      });
+
+      return out;
+    }
+
+    function applyTokens(t) {
+      const root = document.documentElement;
+      const tk = Object.assign({}, DEFAULT_LAYOUT.tokens, t || {});
+
+      root.setAttribute('data-theme', tk.theme === 'light' ? 'light' : 'dark');
+      if (tk.accent) {
+        root.style.setProperty('--accent', tk.accent);
+        root.style.setProperty('--accent-soft', hexToRgba(tk.accent, 0.25));
       }
+      if (tk.background) {
+        root.style.setProperty('--bg', tk.background);
+      } else {
+        root.style.removeProperty('--bg');
+      }
+      root.style.setProperty('--font', FONTS[tk.font] || FONTS.jakarta);
+      root.style.setProperty('--radius', num(tk.radius, 16) + 'px');
+      root.style.setProperty('--page-width', num(tk.pageWidth, 900) + 'px');
+      root.style.setProperty('--card-padding', num(tk.cardPadding, 26) + 'px');
+      root.style.setProperty('--card-gap', num(tk.cardGap, 30) + 'px');
+      root.style.setProperty('--line-height', num(tk.lineHeight, 178) / 100);
+      root.style.setProperty('--title-scale', num(tk.titleScale, 100) / 100);
+    }
+
+    function applyBlockAlign(el, id, align) {
+      const mode = BLOCK_ALIGN_MODE[id] || 'text';
+      if (mode === 'flex') {
+        el.style.justifyContent = ({
+          left: 'flex-start', center: 'center', right: 'flex-end', 'space-between': 'space-between'
+        })[align] || 'flex-start';
+      } else if (mode === 'stretch') {
+        el.style.alignItems = align === 'center' ? 'center' : 'stretch';
+      } else {
+        el.style.textAlign = ({ left: 'left', center: 'center', right: 'right' })[align] || 'left';
+      }
+    }
+
+    function applyLayout(layout) {
+      const container = $('blocks');
+      const map = {};
+      Array.from(container.children).forEach((el) => {
+        if (el.dataset.block) map[el.dataset.block] = el;
+      });
+
+      const blocks = (layout && Array.isArray(layout.blocks)) ? layout.blocks : DEFAULT_LAYOUT.blocks;
+
+      blocks.forEach((b) => {
+        const el = map[b.id];
+        if (!el) return;
+
+        // 1) 顺序：按配置逐个 append，末尾即最后
+        container.appendChild(el);
+
+        // 2) 显隐：编辑画布里用淡化代替隐藏，方便重新打开
+        const off = b.enabled === false;
+        el.classList.toggle('designer-ghost', off && IS_DESIGNER);
+        if (off) el.setAttribute('data-layout-hidden', 'true');
+        else el.removeAttribute('data-layout-hidden');
+
+        // 3) 间距（CSS 里原有的 margin-top 统一清零，避免叠加）
+        el.style.marginTop = '0';
+        el.style.marginBottom = (num(b.gap, 0) || 0) + 'px';
+
+        // 4) 对齐
+        applyBlockAlign(el, b.id, b.align);
+
+        // 5) 自定义背景色
+        el.style.backgroundColor = b.bg || '';
+        el.style.padding = b.bg ? '20px' : '';
+        el.style.borderRadius = b.bg ? 'var(--radius)' : '';
+        el.style.backgroundClip = '';
+
+        // 6) 区块专属
+        if (b.id === 'hero') {
+          el.style.setProperty('--hero-title-size', num(b.titleSize, 34) + 'px');
+        }
+        if (b.id === 'feed') {
+          el.setAttribute('data-columns', num(b.columns, 1) >= 2 ? '2' : '1');
+        }
+      });
     }
 
     /* ---------------- 拉取文章 ---------------- */
@@ -649,18 +886,60 @@
       });
     }
 
+    /* ==========================================================
+       可视化编辑器桥接（同源 iframe 通信）
+       ========================================================== */
+    const postToParent = (msg) => {
+      if (window.parent !== window) window.parent.postMessage(msg, location.origin);
+    };
+
+    window.addEventListener('message', (ev) => {
+      if (ev.origin !== location.origin) return;
+      const msg = ev.data;
+      if (!msg || typeof msg !== 'object' || !IS_DESIGNER) return;
+
+      if (msg.type === 'designer:apply' && msg.layout) {
+        applyTokens(msg.layout.tokens);
+        applyLayout(msg.layout);
+        postToParent({ type: 'designer:applied' });
+      }
+
+      if (msg.type === 'designer:select') {
+        document.querySelectorAll('.block.is-selected').forEach((el) => el.classList.remove('is-selected'));
+        if (msg.id) {
+          const el = document.querySelector(`[data-block="${msg.id}"]`);
+          if (el) el.classList.add('is-selected');
+        }
+      }
+    });
+
+    if (IS_DESIGNER) {
+      // 点击画布里的区块 → 通知编辑器选中它
+      document.addEventListener('click', (e) => {
+        const block = e.target.closest('[data-block]');
+        if (!block) return;
+        e.preventDefault();
+        e.stopPropagation();
+        postToParent({ type: 'designer:clicked', id: block.dataset.block });
+      }, true);
+    }
+
     /* ---------------- 启动 ---------------- */
     (async function init() {
-      const [settings, homepage] = await Promise.all([
+      const [settings, homepage, layout] = await Promise.all([
         fetchJSON(SITE.settingsFile, DEFAULT_SETTINGS),
-        fetchJSON(SITE.homepageFile, DEFAULT_HOMEPAGE)
+        fetchJSON(SITE.homepageFile, DEFAULT_HOMEPAGE),
+        fetchJSON(SITE.layoutFile, DEFAULT_LAYOUT)
       ]);
 
       const s = Object.assign({}, DEFAULT_SETTINGS, settings);
       const h = Object.assign({}, DEFAULT_HOMEPAGE, homepage);
+      const l = mergeLayout(layout);
 
       applySettings(s);
       applyHomepage(h, s);
+      applyLayout(l);          // 布局优先，覆盖 settings 里的同类项
+      applyTokens(l.tokens);
 
       const feed = $('feed');
       try {
@@ -672,6 +951,7 @@
         const render = () => {
           renderPosts(posts, s, activeTag);
           renderTagBar(posts, s, activeTag, (tag) => { activeTag = tag; render(); });
+          if (IS_DESIGNER) postToParent({ type: 'designer:rendered' });
         };
         render();
       } catch (err) {
@@ -682,6 +962,13 @@
           <p style="margin-top:10px;font-size:0.82rem">检查要点：仓库为公开仓库 · 分支名 <code>${escapeHtml(SITE.branch)}</code> · 内容目录 <code>${escapeHtml(s.posts_dir)}</code></p>
         </div>`;
       }
+
+      // 通知编辑器：画布已就绪，可以开始拖拽了
+      postToParent({
+        type: 'designer:ready',
+        blocks: Array.from(document.querySelectorAll('[data-block]')).map((el) => el.dataset.block),
+        layout: l
+      });
     })();
   </script>
 </body>

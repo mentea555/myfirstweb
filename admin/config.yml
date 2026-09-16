@@ -52,7 +52,7 @@ collections:
   # ==================== 前端页面设置（改前端的工具） ====================
   - name: "pages"
     label: "前端页面设置"
-    description: "不用碰代码，在这里直接改首页文案和全站外观，保存后前台自动更新。"
+    description: "改文案在这里；调整页面布局、配色和间距，请点右下角「🎨 可视化布局编辑器」，拖一下就好。"
     files:
       - name: "homepage"
         label: "首页内容"
@@ -86,7 +86,7 @@ collections:
           - { label: "页脚文字", name: "footer_text", widget: "markdown", required: false }
 
       - name: "settings"
-        label: "全站外观与设置"
+        label: "全站基础设置"
         file: "content/settings.json"
         fields:
           - { label: "站点标题", name: "site_title", widget: "string", hint: "浏览器标签页与页头左上角的名字" }
@@ -97,6 +97,7 @@ collections:
               widget: "select",
               options: [{ label: "暗色（默认）", value: "dark" }, { label: "亮色", value: "light" }],
               default: "dark",
+              hint: "用右下角的「可视化布局编辑器」调整可以边改边看效果",
             }
           - {
               label: "主题强调色",
@@ -126,7 +127,16 @@ collections:
               ],
               default: "jakarta",
             }
-          - { label: "内容区最大宽度（px）", name: "page_width", widget: "number", value_type: "int", default: 900, min: 600, max: 1400 }
+          - {
+              label: "内容区最大宽度（px）",
+              name: "page_width",
+              widget: "number",
+              value_type: "int",
+              default: 900,
+              min: 600,
+              max: 1400,
+              hint: "以上这几项外观设置，在可视化编辑器里改会更直观",
+            }
           - { label: "显示「管理后台」按钮", name: "show_admin_button", widget: "boolean", default: true }
           - { label: "按钮文字", name: "admin_button_text", widget: "string", default: "管理后台 →", required: false }
           - {
