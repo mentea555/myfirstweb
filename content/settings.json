@@ -1,0 +1,26 @@
+{
+  "site_title": "Mentea's Web",
+  "site_subtitle": "数字画作、笔记与灵感存档",
+  "theme_mode": "dark",
+  "accent_color": "#6366f1",
+  "background_color": "",
+  "font_family": "jakarta",
+  "page_width": 900,
+  "show_admin_button": true,
+  "admin_button_text": "管理后台 →",
+  "nav_links": [
+    {
+      "label": "首页",
+      "url": "/"
+    },
+    {
+      "label": "作品",
+      "url": "/#feed"
+    }
+  ],
+  "posts_dir": "content/notes",
+  "posts_limit": 0,
+  "show_tags": true,
+  "custom_css": "",
+  "custom_head": ""
+}

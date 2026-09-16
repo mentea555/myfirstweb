@@ -1,115 +1,217 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mentea's Cabin | 个人空间</title>
-  <!-- 字体与图标 -->
+  <title>Mentea's Web | 个人空间</title>
+  <meta name="description" content="数字画作、笔记与灵感存档">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap">
-  <!-- Markdown 渲染引擎 -->
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Noto+Serif+SC:wght@400;600&family=JetBrains+Mono:wght@400;600&display=swap">
+  <!-- Markdown 渲染 + HTML 消毒 -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
 
   <style>
+    /* ============ 主题变量 ============ */
     :root {
+      --accent: #6366f1;
+      --accent-soft: rgba(99, 102, 241, 0.25);
+      --radius: 16px;
+      --page-width: 900px;
+      --font: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    }
+    html[data-theme="dark"] {
       --bg: #0f1117;
       --card-bg: rgba(26, 29, 39, 0.7);
       --card-border: rgba(255, 255, 255, 0.08);
       --text: #e2e8f0;
+      --text-strong: #ffffff;
       --text-dim: #94a3b8;
-      --accent: #6366f1;
-      --accent-glow: rgba(99, 102, 241, 0.25);
+      --body-text: #cbd5e1;
+      --glow-1: rgba(99, 102, 241, 0.15);
+      --glow-2: rgba(236, 72, 153, 0.10);
+      --shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      --hover-border: rgba(255, 255, 255, 0.15);
+      --chip-bg: rgba(255, 255, 255, 0.06);
+    }
+    html[data-theme="light"] {
+      --bg: #f6f7fb;
+      --card-bg: rgba(255, 255, 255, 0.85);
+      --card-border: rgba(15, 23, 42, 0.08);
+      --text: #25303f;
+      --text-strong: #0f172a;
+      --text-dim: #6b7788;
+      --body-text: #3d4855;
+      --glow-1: rgba(99, 102, 241, 0.12);
+      --glow-2: rgba(236, 72, 153, 0.08);
+      --shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+      --hover-border: rgba(15, 23, 42, 0.16);
+      --chip-bg: rgba(15, 23, 42, 0.05);
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+      font-family: var(--font);
       background-color: var(--bg);
       color: var(--text);
       min-height: 100vh;
-      background-image: 
-        radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
-        radial-gradient(at 100% 100%, rgba(236, 72, 153, 0.1) 0px, transparent 50%);
+      background-image:
+        radial-gradient(at 0% 0%, var(--glow-1) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, var(--glow-2) 0px, transparent 50%);
       background-attachment: fixed;
+      -webkit-font-smoothing: antialiased;
     }
+    a { color: inherit; }
 
     .container {
-      max-width: 900px;
+      max-width: var(--page-width);
       margin: 0 auto;
-      padding: 60px 24px 100px;
+      padding: 40px 24px 80px;
     }
 
-    /* 顶部导航与 Hero */
+    /* ============ 公告条 ============ */
+    .announce {
+      margin-bottom: 24px;
+      padding: 12px 18px;
+      border-radius: 12px;
+      background: var(--accent-soft);
+      border: 1px solid var(--card-border);
+      font-size: 0.9rem;
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    /* ============ 顶部导航 ============ */
     header {
-      margin-bottom: 50px;
       display: flex;
       justify-content: space-between;
       align-items: center;
+      gap: 20px;
+      flex-wrap: wrap;
       border-bottom: 1px solid var(--card-border);
-      padding-bottom: 24px;
+      padding-bottom: 22px;
+      margin-bottom: 36px;
     }
+    .brand { text-decoration: none; display: block; }
     .brand h1 {
-      font-size: 1.8rem;
-      font-weight: 700;
+      font-size: 1.45rem;
+      font-weight: 800;
       letter-spacing: -0.5px;
-      background: linear-gradient(135deg, #fff 30%, #94a3b8);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
+      color: var(--text-strong);
     }
     .brand p {
       color: var(--text-dim);
-      font-size: 0.95rem;
+      font-size: 0.92rem;
       margin-top: 4px;
     }
-    .admin-btn {
-      padding: 8px 18px;
+    .nav { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .nav a, .admin-btn {
+      padding: 8px 16px;
       border-radius: 9999px;
       background: var(--card-bg);
       border: 1px solid var(--card-border);
       color: var(--text);
       text-decoration: none;
-      font-size: 0.85rem;
+      font-size: 0.84rem;
       font-weight: 600;
       transition: all 0.2s ease;
       backdrop-filter: blur(10px);
+      white-space: nowrap;
     }
-    .admin-btn:hover {
+    .nav a:hover, .admin-btn:hover {
       border-color: var(--accent);
-      box-shadow: 0 0 15px var(--accent-glow);
+      box-shadow: 0 0 15px var(--accent-soft);
+      transform: translateY(-1px);
     }
+    .admin-btn { color: var(--text-strong); }
 
-    /* 作品卡片流 */
-    .feed {
-      display: flex;
-      flex-direction: column;
-      gap: 32px;
+    /* ============ Hero ============ */
+    .hero { margin-bottom: 34px; }
+    .hero-badge {
+      display: inline-block;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent);
+      background: var(--accent-soft);
+      padding: 5px 12px;
+      border-radius: 9999px;
+      margin-bottom: 14px;
     }
+    .hero h2 {
+      font-size: 2.15rem;
+      line-height: 1.25;
+      font-weight: 800;
+      letter-spacing: -0.8px;
+      color: var(--text-strong);
+      margin-bottom: 10px;
+    }
+    .hero p { color: var(--text-dim); font-size: 1.02rem; line-height: 1.7; max-width: 620px; }
+
+    /* ============ 标签筛选 ============ */
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 26px;
+    }
+    .chip {
+      padding: 6px 14px;
+      border-radius: 9999px;
+      border: 1px solid var(--card-border);
+      background: var(--chip-bg);
+      color: var(--text-dim);
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.18s ease;
+      font-family: inherit;
+    }
+    .chip:hover { color: var(--text-strong); border-color: var(--accent); }
+    .chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+    /* ============ 作品卡片流 ============ */
+    .feed { display: flex; flex-direction: column; gap: 30px; }
 
     .post-card {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
-      border-radius: 16px;
-      padding: 28px;
+      border-radius: var(--radius);
+      padding: 26px;
       backdrop-filter: blur(16px);
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      box-shadow: var(--shadow);
       transition: transform 0.2s ease, border-color 0.2s ease;
     }
-    .post-card:hover {
-      transform: translateY(-2px);
-      border-color: rgba(255, 255, 255, 0.15);
-    }
+    .post-card:hover { transform: translateY(-2px); border-color: var(--hover-border); }
 
-    .post-title {
-      font-size: 1.4rem;
+    .post-title { font-size: 1.35rem; font-weight: 700; color: var(--text-strong); margin-bottom: 8px; line-height: 1.4; }
+    .post-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      margin-bottom: 16px;
+    }
+    .post-tag {
+      background: var(--chip-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 9999px;
+      padding: 2px 10px;
+      font-size: 0.74rem;
+      color: var(--text-dim);
+    }
+    .pin {
+      font-size: 0.72rem;
       font-weight: 700;
       color: #fff;
-      margin-bottom: 8px;
-    }
-    .post-date {
-      font-size: 0.82rem;
-      color: var(--text-dim);
-      display: inline-block;
-      margin-bottom: 18px;
+      background: var(--accent);
+      border-radius: 9999px;
+      padding: 2px 10px;
     }
 
     .post-cover-wrapper {
@@ -117,54 +219,117 @@
       max-height: 480px;
       overflow: hidden;
       border-radius: 10px;
-      margin-bottom: 20px;
-      background: rgba(0, 0, 0, 0.2);
+      margin-bottom: 18px;
+      background: var(--chip-bg);
       display: flex;
       justify-content: center;
     }
-    .post-cover {
-      width: 100%;
-      height: auto;
-      object-fit: cover;
-      display: block;
-    }
+    .post-cover { width: 100%; height: auto; object-fit: cover; display: block; }
 
-    .post-body {
-      font-size: 1rem;
-      line-height: 1.75;
-      color: #cbd5e1;
-    }
+    .post-desc { color: var(--text-dim); font-size: 0.95rem; line-height: 1.7; margin-bottom: 14px; }
+
+    .post-body { font-size: 1rem; line-height: 1.78; color: var(--body-text); }
     .post-body p { margin-bottom: 12px; }
+    .post-body h1, .post-body h2, .post-body h3 { color: var(--text-strong); margin: 20px 0 10px; line-height: 1.4; }
+    .post-body ul, .post-body ol { margin: 0 0 12px 22px; }
+    .post-body li { margin-bottom: 6px; }
+    .post-body a { color: var(--accent); }
     .post-body img { max-width: 100%; border-radius: 8px; margin: 12px 0; }
-
-    /* 状态指示器 */
-    .status-box {
-      text-align: center;
-      padding: 60px 0;
+    .post-body blockquote {
+      border-left: 3px solid var(--accent);
+      padding-left: 14px;
       color: var(--text-dim);
+      margin: 12px 0;
+    }
+    .post-body code {
+      font-family: 'JetBrains Mono', Consolas, monospace;
+      font-size: 0.88em;
+      background: var(--chip-bg);
+      padding: 2px 6px;
+      border-radius: 5px;
+    }
+    .post-body pre {
+      background: var(--chip-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 14px;
+      overflow-x: auto;
+      margin: 12px 0;
+    }
+    .post-body pre code { background: none; padding: 0; }
+    .post-body hr { border: none; border-top: 1px solid var(--card-border); margin: 20px 0; }
+
+    /* ============ 关于 / 页脚 / 状态 ============ */
+    .about-card {
+      margin-top: 40px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+      padding: 26px;
+      backdrop-filter: blur(16px);
+      box-shadow: var(--shadow);
+    }
+    .about-card h3 { font-size: 1.1rem; color: var(--text-strong); margin-bottom: 12px; }
+
+    footer {
+      margin-top: 46px;
+      padding-top: 22px;
+      border-top: 1px solid var(--card-border);
+      text-align: center;
+      color: var(--text-dim);
+      font-size: 0.84rem;
+      line-height: 1.7;
+    }
+
+    .status-box { text-align: center; padding: 60px 16px; color: var(--text-dim); line-height: 1.7; }
+    .status-box code {
+      font-family: 'JetBrains Mono', Consolas, monospace;
+      font-size: 0.82rem;
+      background: var(--chip-bg);
+      padding: 2px 6px;
+      border-radius: 5px;
     }
     .spinner {
-      width: 28px;
-      height: 28px;
-      border: 3px solid rgba(255,255,255,0.1);
+      width: 28px; height: 28px;
+      border: 3px solid var(--card-border);
       border-top-color: var(--accent);
       border-radius: 50%;
       animation: spin 0.8s linear infinite;
       margin: 0 auto 16px;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media (max-width: 640px) {
+      .container { padding: 26px 16px 60px; }
+      .hero h2 { font-size: 1.6rem; }
+      .brand h1 { font-size: 1.35rem; }
+      header { margin-bottom: 26px; }
+    }
   </style>
 </head>
 <body>
 
   <div class="container">
+    <div id="announce" class="announce" hidden></div>
+
     <header>
-      <div class="brand">
-        <h1>Mentea's Web</h1>
-        <p>数字画作、笔记与灵感存档</p>
-      </div>
-      <a href="/admin#/" class="admin-btn">管理后台 →</a>
+      <a class="brand" href="/">
+        <h1 id="siteTitle">Mentea's Web</h1>
+        <p id="siteSubtitle">数字画作、笔记与灵感存档</p>
+      </a>
+      <nav class="nav">
+        <span id="navLinks"></span>
+        <a id="adminBtn" href="/admin/" class="admin-btn">管理后台 →</a>
+      </nav>
     </header>
+
+    <section class="hero" id="hero" hidden>
+      <span class="hero-badge" id="heroBadge" hidden></span>
+      <h2 id="heroTitle"></h2>
+      <p id="heroSubtitle"></p>
+    </section>
+
+    <div class="toolbar" id="toolbar" hidden></div>
 
     <div id="feed" class="feed">
       <div class="status-box">
@@ -172,71 +337,352 @@
         <p>正在同步云端内容...</p>
       </div>
     </div>
+
+    <section class="about-card" id="aboutCard" hidden>
+      <h3 id="aboutTitle">关于我</h3>
+      <div class="post-body" id="aboutBody"></div>
+    </section>
+
+    <footer id="footer"></footer>
   </div>
 
   <script>
-    const USER = 'mentea555';
-    const REPO = 'myfirstweb';
-    const FOLDER = 'content'; // 存放文章 md 文件的目录
+    /* ==========================================================
+       基础配置：与 admin/config.yml 里的 repo / branch 保持一致
+       ========================================================== */
+    const SITE = {
+      user: 'mentea555',
+      repo: 'myfirstweb',
+      branch: 'main',
+      settingsFile: 'content/settings.json',   // 后台「前端页面设置 → 全站设置」
+      homepageFile: 'content/homepage.json'    // 后台「前端页面设置 → 首页内容」
+    };
 
-    async function loadContent() {
-      const feed = document.getElementById('feed');
+    // 兜底默认值：配置文件读取失败也不会开天窗
+    const DEFAULT_SETTINGS = {
+      site_title: "Mentea's Web",
+      site_subtitle: '数字画作、笔记与灵感存档',
+      theme_mode: 'dark',
+      accent_color: '#6366f1',
+      background_color: '',
+      font_family: 'jakarta',
+      page_width: 900,
+      show_admin_button: true,
+      admin_button_text: '管理后台 →',
+      nav_links: [],
+      posts_dir: 'content/notes',
+      posts_limit: 0,
+      show_tags: true,
+      custom_css: '',
+      custom_head: ''
+    };
+    const DEFAULT_HOMEPAGE = {
+      hero_badge: '',
+      hero_title: '',
+      hero_subtitle: '',
+      announcement: '',
+      about_enabled: false,
+      about_title: '关于我',
+      about_body: '',
+      footer_text: ''
+    };
+
+    const FONTS = {
+      jakarta: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif",
+      system: "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif",
+      serif: "'Noto Serif SC', Georgia, 'Songti SC', serif",
+      mono: "'JetBrains Mono', Consolas, 'Courier New', monospace"
+    };
+
+    /* ---------------- 小工具函数 ---------------- */
+    const $ = (id) => document.getElementById(id);
+    const escapeHtml = (s) => String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+    // 每次请求带时间戳，绕开 CDN 缓存，后台保存后立即能看到变化
+    const rawUrl = (path) => `https://raw.githubusercontent.com/${SITE.user}/${SITE.repo}/${SITE.branch}/${path}?t=${Date.now()}`;
+
+    async function fetchJSON(path, fallback) {
       try {
-        // 直接读取 GitHub 公开接口拿到 content 文件夹下的文件列表
-        const res = await fetch(`https://api.github.com/repos/${USER}/${REPO}/contents/${FOLDER}`);
-        if (!res.ok) throw new Error('未能找到 content 目录');
-
-        const files = await res.json();
-        const mdFiles = files.filter(f => f.name.endsWith('.md')).reverse();
-
-        if (mdFiles.length === 0) {
-          feed.innerHTML = '<div class="status-box"><p>暂无已发布作品</p></div>';
-          return;
-        }
-
-        feed.innerHTML = '';
-
-        for (const file of mdFiles) {
-          const contentRes = await fetch(file.download_url);
-          const rawText = await contentRes.text();
-
-          // 解析 Frontmatter (--- 之间的元数据)
-          let title = file.name.replace('.md', '');
-          let date = '';
-          let cover = '';
-
-          const match = rawText.match(/^---([\s\S]*?)---/);
-          if (match) {
-            const yaml = match[1];
-            const titleMatch = yaml.match(/title:\s*"?([^"\n]+)"?/);
-            const dateMatch = yaml.match(/date:\s*"?([^"\n]+)"?/);
-            const thumbMatch = yaml.match(/(?:thumbnail|cover|image):\s*"?([^"\n]+)"?/);
-
-            if (titleMatch) title = titleMatch[1];
-            if (dateMatch) date = dateMatch[1].split('T')[0];
-            if (thumbMatch) cover = thumbMatch[1];
-          }
-
-          // 正文 Markdown 渲染
-          const bodyText = rawText.replace(/^---[\s\S]*?---/, '').trim();
-          const renderedHtml = marked.parse(bodyText);
-
-          const card = document.createElement('article');
-          card.className = 'post-card';
-          card.innerHTML = `
-            <h2 class="post-title">${title}</h2>
-            ${date ? `<span class="post-date">发布于 ${date}</span>` : ''}
-            ${cover ? `<div class="post-cover-wrapper"><img class="post-cover" src="${cover}" alt="${title}"></div>` : ''}
-            <div class="post-body">${renderedHtml}</div>
-          `;
-          feed.appendChild(card);
-        }
-      } catch (err) {
-        feed.innerHTML = `<div class="status-box"><p>内容同步异常: ${err.message}</p></div>`;
+        const res = await fetch(rawUrl(path));
+        if (!res.ok) return fallback;
+        const text = await res.text();
+        return text.trim() ? JSON.parse(text) : fallback;
+      } catch (e) {
+        console.warn('读取配置失败：' + path, e);
+        return fallback;
       }
     }
 
-    loadContent();
+    function hexToRgba(hex, alpha) {
+      const h = String(hex || '').replace('#', '');
+      if (h.length !== 6) return `rgba(99,102,241,${alpha})`;
+      const n = parseInt(h, 16);
+      return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`;
+    }
+
+    function formatDate(value) {
+      if (!value) return '';
+      const d = new Date(value);
+      if (isNaN(d.getTime())) return String(value);
+      const p = (n) => String(n).padStart(2, '0');
+      return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
+    }
+
+    function md2html(md) {
+      const html = window.marked ? marked.parse(String(md || '')) : escapeHtml(md);
+      return window.DOMPurify ? DOMPurify.sanitize(html, { ADD_ATTR: ['target'] }) : html;
+    }
+
+    /* ---------------- Frontmatter 解析 ---------------- */
+    function unquote(v) {
+      const s = String(v).trim();
+      if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
+        return s.slice(1, -1);
+      }
+      return s;
+    }
+
+    function parseFrontmatter(raw) {
+      const text = raw.replace(/^\uFEFF/, '');
+      const m = text.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
+      if (!m) return { data: {}, body: text };
+
+      const data = {};
+      let currentKey = null;
+
+      for (const line of m[1].split(/\r?\n/)) {
+        // YAML 列表项：  - 项目
+        const listItem = line.match(/^\s+-\s+(.*)$/);
+        if (listItem && currentKey) {
+          if (!Array.isArray(data[currentKey])) data[currentKey] = [];
+          data[currentKey].push(unquote(listItem[1]));
+          continue;
+        }
+        const kv = line.match(/^([A-Za-z0-9_-]+)\s*:\s*(.*)$/);
+        if (!kv) continue;
+
+        currentKey = kv[1];
+        const val = kv[2].trim();
+
+        if (val === '') {
+          data[currentKey] = '';
+        } else if (/^\[.*\]$/.test(val)) {
+          data[currentKey] = val.slice(1, -1).split(',').map((s) => unquote(s)).filter(Boolean);
+        } else {
+          data[currentKey] = unquote(val);
+        }
+      }
+      return { data, body: text.slice(m[0].length) };
+    }
+
+    /* ---------------- 应用后台设置（这就是"改前端"的入口） ---------------- */
+    function applySettings(s) {
+      const root = document.documentElement;
+
+      root.setAttribute('data-theme', s.theme_mode === 'light' ? 'light' : 'dark');
+      if (s.accent_color) {
+        root.style.setProperty('--accent', s.accent_color);
+        root.style.setProperty('--accent-soft', hexToRgba(s.accent_color, 0.25));
+      }
+      if (s.background_color) root.style.setProperty('--bg', s.background_color);
+      root.style.setProperty('--font', FONTS[s.font_family] || FONTS.jakarta);
+      root.style.setProperty('--page-width', (parseInt(s.page_width, 10) || 900) + 'px');
+
+      document.title = (s.site_title || DEFAULT_SETTINGS.site_title) + ' | 个人空间';
+      $('siteTitle').textContent = s.site_title || DEFAULT_SETTINGS.site_title;
+      $('siteSubtitle').textContent = s.site_subtitle || '';
+
+      // 导航链接（后台可增删）
+      const navLinks = Array.isArray(s.nav_links) ? s.nav_links : [];
+      $('navLinks').innerHTML = navLinks
+        .filter((l) => l && l.label && l.url)
+        .map((l) => `<a href="${escapeHtml(l.url)}">${escapeHtml(l.label)}</a>`)
+        .join('');
+
+      // 管理后台按钮
+      const adminBtn = $('adminBtn');
+      if (s.show_admin_button === false) {
+        adminBtn.hidden = true;
+      } else {
+        adminBtn.hidden = false;
+        adminBtn.textContent = s.admin_button_text || '管理后台 →';
+      }
+
+      // 自定义 CSS / 注入 head
+      if (s.custom_css) {
+        const tag = document.createElement('style');
+        tag.textContent = s.custom_css;
+        document.head.appendChild(tag);
+      }
+      if (s.custom_head) {
+        const wrap = document.createElement('div');
+        wrap.innerHTML = s.custom_head;
+        Array.from(wrap.children).forEach((node) => document.head.appendChild(node));
+      }
+    }
+
+    function applyHomepage(h, settings) {
+      const badge = $('heroBadge');
+      if (h.hero_badge) { badge.textContent = h.hero_badge; badge.hidden = false; }
+
+      const title = h.hero_title || settings.site_title || DEFAULT_SETTINGS.site_title;
+      const subtitle = h.hero_subtitle || settings.site_subtitle || '';
+      $('heroTitle').textContent = title;
+      $('heroSubtitle').textContent = subtitle;
+      $('hero').hidden = !(h.hero_badge || title || subtitle);
+
+      if (h.announcement) {
+        $('announce').innerHTML = window.marked ? md2html(h.announcement) : escapeHtml(h.announcement);
+        $('announce').hidden = false;
+      }
+
+      if (h.about_enabled && h.about_body) {
+        $('aboutTitle').textContent = h.about_title || '关于我';
+        $('aboutBody').innerHTML = md2html(h.about_body);
+        $('aboutCard').hidden = false;
+      }
+
+      if (h.footer_text) {
+        $('footer').innerHTML = window.marked ? md2html(h.footer_text) : escapeHtml(h.footer_text);
+      }
+    }
+
+    /* ---------------- 拉取文章 ---------------- */
+    async function fetchPosts(dir) {
+      // 一次 API 调用拿到目录清单（比逐个猜文件名可靠）
+      const api = `https://api.github.com/repos/${SITE.user}/${SITE.repo}/contents/${dir}?ref=${SITE.branch}&t=${Date.now()}`;
+      const res = await fetch(api, { headers: { Accept: 'application/vnd.github+json' } });
+
+      if (res.status === 403) throw new Error('GitHub 接口访问过于频繁，请稍后刷新');
+      if (res.status === 404) throw new Error(`未找到内容目录 ${dir}，请在后台检查「内容目录」设置`);
+      if (!res.ok) throw new Error('内容目录读取失败（HTTP ' + res.status + '）');
+
+      const files = await res.json();
+      if (!Array.isArray(files)) throw new Error('内容目录返回格式异常');
+
+      const mdFiles = files.filter((f) => f.type === 'file' && /\.mdx?$/i.test(f.name));
+
+      const posts = [];
+      for (const file of mdFiles) {
+        try {
+          const text = await (await fetch(rawUrl(file.path))).text();
+          const { data, body } = parseFrontmatter(text);
+          if (data.draft === true || data.draft === 'true') continue;   // 草稿不上前台
+
+          posts.push({
+            title: data.title || file.name.replace(/\.mdx?$/i, ''),
+            date: data.date || '',
+            cover: data.thumbnail || data.cover || data.image || '',
+            description: data.description || data.summary || '',
+            tags: Array.isArray(data.tags) ? data.tags : (data.tags ? [data.tags] : []),
+            featured: data.featured === true || data.featured === 'true',
+            body: body.trim(),
+            filename: file.name
+          });
+        } catch (e) {
+          console.warn('跳过无法解析的文件：' + file.path, e);
+        }
+      }
+
+      // 置顶优先，其次按日期倒序
+      posts.sort((a, b) => {
+        if (a.featured !== b.featured) return a.featured ? -1 : 1;
+        return new Date(b.date || 0) - new Date(a.date || 0);
+      });
+      return posts;
+    }
+
+    function renderPosts(posts, settings, activeTag) {
+      const feed = $('feed');
+      const showTags = settings.show_tags !== false;
+
+      const list = activeTag === '全部' || !activeTag
+        ? posts
+        : posts.filter((p) => p.tags.indexOf(activeTag) !== -1);
+
+      if (list.length === 0) {
+        feed.innerHTML = `<div class="status-box"><p>${posts.length === 0 ? '暂无已发布内容' : '该标签下暂无内容'}</p></div>`;
+        return;
+      }
+
+      feed.innerHTML = '';
+      list.forEach((post) => {
+        const card = document.createElement('article');
+        card.className = 'post-card';
+
+        const tagsHtml = showTags && post.tags.length
+          ? post.tags.map((t) => `<span class="post-tag">#${escapeHtml(t)}</span>`).join('')
+          : '';
+
+        card.innerHTML = `
+          ${post.featured ? '<span class="pin">置顶</span>' : ''}
+          <h2 class="post-title">${escapeHtml(post.title)}</h2>
+          <div class="post-meta">
+            ${post.date ? `<span>${escapeHtml(formatDate(post.date))}</span>` : ''}
+            ${tagsHtml}
+          </div>
+          ${post.cover ? `<div class="post-cover-wrapper"><img class="post-cover" loading="lazy" src="${escapeHtml(post.cover)}" alt="${escapeHtml(post.title)}"></div>` : ''}
+          ${post.description ? `<p class="post-desc">${escapeHtml(post.description)}</p>` : ''}
+          <div class="post-body">${md2html(post.body)}</div>
+        `;
+        feed.appendChild(card);
+      });
+    }
+
+    function renderTagBar(posts, settings, activeTag, onChange) {
+      const toolbar = $('toolbar');
+      const tags = [];
+      posts.forEach((p) => p.tags.forEach((t) => { if (tags.indexOf(t) === -1) tags.push(t); }));
+
+      if (settings.show_tags === false || tags.length === 0) { toolbar.hidden = true; return; }
+
+      toolbar.hidden = false;
+      toolbar.innerHTML = '';
+      ['全部'].concat(tags).forEach((tag) => {
+        const btn = document.createElement('button');
+        btn.className = 'chip' + (tag === activeTag ? ' active' : '');
+        btn.textContent = tag === '全部' ? '全部' : '#' + tag;
+        btn.onclick = () => onChange(tag);
+        toolbar.appendChild(btn);
+      });
+    }
+
+    /* ---------------- 启动 ---------------- */
+    (async function init() {
+      const [settings, homepage] = await Promise.all([
+        fetchJSON(SITE.settingsFile, DEFAULT_SETTINGS),
+        fetchJSON(SITE.homepageFile, DEFAULT_HOMEPAGE)
+      ]);
+
+      const s = Object.assign({}, DEFAULT_SETTINGS, settings);
+      const h = Object.assign({}, DEFAULT_HOMEPAGE, homepage);
+
+      applySettings(s);
+      applyHomepage(h, s);
+
+      const feed = $('feed');
+      try {
+        let posts = await fetchPosts(s.posts_dir || 'content/notes');
+        const limit = parseInt(s.posts_limit, 10) || 0;
+        if (limit > 0) posts = posts.slice(0, limit);
+
+        let activeTag = '全部';
+        const render = () => {
+          renderPosts(posts, s, activeTag);
+          renderTagBar(posts, s, activeTag, (tag) => { activeTag = tag; render(); });
+        };
+        render();
+      } catch (err) {
+        console.error(err);
+        feed.innerHTML = `<div class="status-box">
+          <p><strong>内容同步失败</strong></p>
+          <p>${escapeHtml(err.message)}</p>
+          <p style="margin-top:10px;font-size:0.82rem">检查要点：仓库为公开仓库 · 分支名 <code>${escapeHtml(SITE.branch)}</code> · 内容目录 <code>${escapeHtml(s.posts_dir)}</code></p>
+        </div>`;
+      }
+    })();
   </script>
 </body>
 </html>

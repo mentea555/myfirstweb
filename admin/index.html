@@ -1,12 +1,32 @@
 <!doctype html>
-<html>
+<html lang="zh-CN">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Content Manager</title>
-<link href="/admin/config.yml" type="text/yaml" rel="cms-config-url" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>内容管理后台 | Mentea's Web</title>
+  <link href="/admin/config.yml" type="text/yaml" rel="cms-config-url" />
+  <style>
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; }
+    #boot {
+      display: flex; align-items: center; justify-content: center;
+      height: 100vh; color: #64748b; font-size: 14px; line-height: 1.8; text-align: center;
+    }
+  </style>
 </head>
 <body>
+  <div id="boot">
+    正在加载内容管理后台...<br />
+    如果长时间没有反应，请检查浏览器是否拦截了 unpkg.com 的脚本。
+  </div>
+
   <script src="https://unpkg.com/decap-cms@^3.0.0/dist/decap-cms.js"></script>
+  <script>
+    // 脚本加载成功后，Decap 会自行接管页面，移除提示层
+    if (window.CMS) {
+      var boot = document.getElementById("boot");
+      if (boot) boot.remove();
+    }
+  </script>
 </body>
 </html>

@@ -5,17 +5,174 @@ backend:
   base_url: https://www.menteaweb.com
   auth_endpoint: /api/auth
 
+# 后台展示与媒体库
+site_url: https://www.menteaweb.com
+display_url: https://www.menteaweb.com
 media_folder: "assets/images"
 public_folder: "/assets/images"
 
 collections:
+  # ==================== 内容：笔记与作品 ====================
   - name: "notes"
     label: "笔记与作品"
+    label_singular: "一篇内容"
+    description: "在这里写的内容，保存后会立即出现在网站首页的卡片流里。"
     folder: "content/notes"
     create: true
     slug: "{{year}}-{{month}}-{{day}}-{{slug}}"
+    sortable_fields: ["date", "title"]
     fields:
-      - {label: "标题", name: "title", widget: "string"}
-      - {label: "日期", name: "date", widget: "datetime"}
-      - {label: "封面图/作品图", name: "thumbnail", widget: "image", required: false}
-      - {label: "正文内容", name: "body", widget: "markdown"}
+      - { label: "标题", name: "title", widget: "string", hint: "卡片上显示的大标题" }
+      - { label: "发布日期", name: "date", widget: "datetime", hint: "决定卡片排序，最新的排在最前" }
+      - {
+          label: "摘要（可选）",
+          name: "description",
+          widget: "text",
+          required: false,
+          hint: "显示在标题下方的一句话简介",
+        }
+      - { label: "封面图/作品图（可选）", name: "thumbnail", widget: "image", required: false }
+      - {
+          label: "标签（可选）",
+          name: "tags",
+          widget: "list",
+          required: false,
+          hint: "例如：插画、随笔。前台会自动生成标签筛选按钮",
+        }
+      - { label: "置顶", name: "featured", widget: "boolean", default: false, required: false }
+      - {
+          label: "存为草稿（不在前台显示）",
+          name: "draft",
+          widget: "boolean",
+          default: false,
+          required: false,
+        }
+      - { label: "正文内容", name: "body", widget: "markdown" }
+
+  # ==================== 前端页面设置（改前端的工具） ====================
+  - name: "pages"
+    label: "前端页面设置"
+    description: "不用碰代码，在这里直接改首页文案和全站外观，保存后前台自动更新。"
+    files:
+      - name: "homepage"
+        label: "首页内容"
+        file: "content/homepage.json"
+        fields:
+          - {
+              label: "顶部小标签",
+              name: "hero_badge",
+              widget: "string",
+              required: false,
+              hint: "首页大标题上方的小胶囊文字，留空则不显示",
+            }
+          - {
+              label: "首页大标题",
+              name: "hero_title",
+              widget: "string",
+              required: false,
+              hint: "留空则自动使用「全站设置」里的站点标题",
+            }
+          - { label: "首页副标题", name: "hero_subtitle", widget: "string", required: false }
+          - {
+              label: "公告条",
+              name: "announcement",
+              widget: "markdown",
+              required: false,
+              hint: "显示在页面最顶部，支持 Markdown。留空则不显示",
+            }
+          - { label: "显示「关于我」板块", name: "about_enabled", widget: "boolean", default: true, required: false }
+          - { label: "板块标题", name: "about_title", widget: "string", required: false }
+          - { label: "板块正文", name: "about_body", widget: "markdown", required: false }
+          - { label: "页脚文字", name: "footer_text", widget: "markdown", required: false }
+
+      - name: "settings"
+        label: "全站外观与设置"
+        file: "content/settings.json"
+        fields:
+          - { label: "站点标题", name: "site_title", widget: "string", hint: "浏览器标签页与页头左上角的名字" }
+          - { label: "站点副标题", name: "site_subtitle", widget: "string", required: false }
+          - {
+              label: "配色模式",
+              name: "theme_mode",
+              widget: "select",
+              options: [{ label: "暗色（默认）", value: "dark" }, { label: "亮色", value: "light" }],
+              default: "dark",
+            }
+          - {
+              label: "主题强调色",
+              name: "accent_color",
+              widget: "color",
+              default: "#6366f1",
+              allowInput: true,
+              hint: "按钮、标签、链接的强调色，可直接粘贴色号如 #6366f1",
+            }
+          - {
+              label: "页面背景色（可选）",
+              name: "background_color",
+              widget: "color",
+              required: false,
+              allowInput: true,
+              hint: "留空则跟随配色模式的默认背景",
+            }
+          - {
+              label: "字体",
+              name: "font_family",
+              widget: "select",
+              options: [
+                { label: "无衬线（默认）", value: "jakarta" },
+                { label: "系统字体", value: "system" },
+                { label: "衬线体", value: "serif" },
+                { label: "等宽体", value: "mono" },
+              ],
+              default: "jakarta",
+            }
+          - { label: "内容区最大宽度（px）", name: "page_width", widget: "number", value_type: "int", default: 900, min: 600, max: 1400 }
+          - { label: "显示「管理后台」按钮", name: "show_admin_button", widget: "boolean", default: true }
+          - { label: "按钮文字", name: "admin_button_text", widget: "string", default: "管理后台 →", required: false }
+          - {
+              label: "顶部导航链接",
+              name: "nav_links",
+              widget: "list",
+              required: false,
+              fields: [
+                { label: "名称", name: "label", widget: "string" },
+                { label: "链接", name: "url", widget: "string" },
+              ],
+            }
+          - {
+              label: "内容目录",
+              name: "posts_dir",
+              widget: "string",
+              default: "content/notes",
+              hint: "文章 md 文件所在目录，非必要不要修改",
+            }
+          - {
+              label: "首页最多显示条数",
+              name: "posts_limit",
+              widget: "number",
+              value_type: "int",
+              default: 0,
+              min: 0,
+              hint: "填 0 表示全部显示",
+            }
+          - { label: "显示标签筛选", name: "show_tags", widget: "boolean", default: true }
+          - {
+              label: "自定义 CSS",
+              name: "custom_css",
+              widget: "code",
+              required: false,
+              default: "",
+              output_code_only: true,
+              allow_language_selection: false,
+              hint: "高级：直接注入样式表，例如改圆角、阴影、卡片间距",
+            }
+          - {
+              label: "自定义 head 代码",
+              name: "custom_head",
+              widget: "code",
+              required: false,
+              default: "",
+              output_code_only: true,
+              allow_language_selection: false,
+              hint: "高级：可插入统计脚本、自定义 meta 等",
+            }
