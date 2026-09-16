@@ -3,7 +3,7 @@ backend:
   repo: mentea555/myfirstweb
   branch: main
   base_url: https://www.menteaweb.com
-auth_endpoint: api/auth
+  auth_endpoint: /api/auth
 
 media_folder: "assets/images"
 public_folder: "/assets/images"
