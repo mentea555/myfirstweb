@@ -1,10 +1,10 @@
 {
   "hero_badge": "个人空间",
   "hero_title": "欢迎来到我的小站",
-  "hero_subtitle": "这里收藏我的数字画作、随笔与灵感碎片。",
+  "hero_subtitle": "这里记录xxy的思考与作品，近期情况",
   "announcement": "",
   "about_enabled": true,
   "about_title": "关于我",
-  "about_body": "这里是我存放作品与想法的地方。\n\n所有内容都在后台 **管理后台 → 前端页面设置** 里随时修改，改完保存即可生效。",
-  "footer_text": "© 2026 Mentea · 由 Decap CMS 与 GitHub 驱动"
+  "about_body": "这里是我存放作品和思考的地方。\n\n后期会加点新东西，例如评论XD",
+  "footer_text": "© 2026 Mentea ·  Decap CMS & GitHub"
 }
