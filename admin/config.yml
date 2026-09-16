@@ -2,7 +2,7 @@ backend:
   name: github
   repo: mentea555/myfirstweb
   branch: main
-  base_url: https://ouath123.vercel.app
+  base_url: https://api.decapcms.org
 
 media_folder: "assets/images"
 public_folder: "/assets/images"
