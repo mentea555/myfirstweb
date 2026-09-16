@@ -2,57 +2,241 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <title>Mentea's Web</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <!-- 引入 Markdown 解析库 -->
+  <title>Mentea's Cabin | 个人空间</title>
+  <!-- 字体与图标 -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap">
+  <!-- Markdown 渲染引擎 -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
   <style>
-    body { font-family: sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; line-height: 1.6; }
-    .card { border: 1px solid #eee; border-radius: 8px; padding: 20px; margin-bottom: 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-    .cover-img { max-width: 100%; border-radius: 6px; display: block; margin: 15px 0; }
+    :root {
+      --bg: #0f1117;
+      --card-bg: rgba(26, 29, 39, 0.7);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --text: #e2e8f0;
+      --text-dim: #94a3b8;
+      --accent: #6366f1;
+      --accent-glow: rgba(99, 102, 241, 0.25);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(236, 72, 153, 0.1) 0px, transparent 50%);
+      background-attachment: fixed;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 60px 24px 100px;
+    }
+
+    /* 顶部导航与 Hero */
+    header {
+      margin-bottom: 50px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 24px;
+    }
+    .brand h1 {
+      font-size: 1.8rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #fff 30%, #94a3b8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .brand p {
+      color: var(--text-dim);
+      font-size: 0.95rem;
+      margin-top: 4px;
+    }
+    .admin-btn {
+      padding: 8px 18px;
+      border-radius: 9999px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      color: var(--text);
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 600;
+      transition: all 0.2s ease;
+      backdrop-filter: blur(10px);
+    }
+    .admin-btn:hover {
+      border-color: var(--accent);
+      box-shadow: 0 0 15px var(--accent-glow);
+    }
+
+    /* 作品卡片流 */
+    .feed {
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+    }
+
+    .post-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 28px;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+    .post-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    .post-title {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 8px;
+    }
+    .post-date {
+      font-size: 0.82rem;
+      color: var(--text-dim);
+      display: inline-block;
+      margin-bottom: 18px;
+    }
+
+    .post-cover-wrapper {
+      width: 100%;
+      max-height: 480px;
+      overflow: hidden;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      background: rgba(0, 0, 0, 0.2);
+      display: flex;
+      justify-content: center;
+    }
+    .post-cover {
+      width: 100%;
+      height: auto;
+      object-fit: cover;
+      display: block;
+    }
+
+    .post-body {
+      font-size: 1rem;
+      line-height: 1.75;
+      color: #cbd5e1;
+    }
+    .post-body p { margin-bottom: 12px; }
+    .post-body img { max-width: 100%; border-radius: 8px; margin: 12px 0; }
+
+    /* 状态指示器 */
+    .status-box {
+      text-align: center;
+      padding: 60px 0;
+      color: var(--text-dim);
+    }
+    .spinner {
+      width: 28px;
+      height: 28px;
+      border: 3px solid rgba(255,255,255,0.1);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
 
-  <h1>我的个人主页</h1>
-  <div id="posts-container">正在加载文章与作品...</div>
+  <div class="container">
+    <header>
+      <div class="brand">
+        <h1>Mentea's Web</h1>
+        <p>数字画作、笔记与灵感存档</p>
+      </div>
+      <a href="/admin#/" class="admin-btn">管理后台 →</a>
+    </header>
+
+    <div id="feed" class="feed">
+      <div class="status-box">
+        <div class="spinner"></div>
+        <p>正在同步云端内容...</p>
+      </div>
+    </div>
+  </div>
 
   <script>
-    async function loadPosts() {
-      const container = document.getElementById('posts-container');
-      
+    const USER = 'mentea555';
+    const REPO = 'myfirstweb';
+    const FOLDER = 'content'; // 存放文章 md 文件的目录
+
+    async function loadContent() {
+      const feed = document.getElementById('feed');
       try {
-        // 1. 读取文章列表
-        const res = await fetch('/posts.json');
-        const posts = await res.json();
-        
-        container.innerHTML = '';
+        // 直接读取 GitHub 公开接口拿到 content 文件夹下的文件列表
+        const res = await fetch(`https://api.github.com/repos/${USER}/${REPO}/contents/${FOLDER}`);
+        if (!res.ok) throw new Error('未能找到 content 目录');
 
-        // 2. 循环读取每篇 Markdown 并渲染
-        for (const post of posts) {
-          const postRes = await fetch(post.file);
-          const rawText = await postRes.text();
-          
-          // 剥离开头的 YAML 配置（--- 之间的内容），只留正文
+        const files = await res.json();
+        const mdFiles = files.filter(f => f.name.endsWith('.md')).reverse();
+
+        if (mdFiles.length === 0) {
+          feed.innerHTML = '<div class="status-box"><p>暂无已发布作品</p></div>';
+          return;
+        }
+
+        feed.innerHTML = '';
+
+        for (const file of mdFiles) {
+          const contentRes = await fetch(file.download_url);
+          const rawText = await contentRes.text();
+
+          // 解析 Frontmatter (--- 之间的元数据)
+          let title = file.name.replace('.md', '');
+          let date = '';
+          let cover = '';
+
+          const match = rawText.match(/^---([\s\S]*?)---/);
+          if (match) {
+            const yaml = match[1];
+            const titleMatch = yaml.match(/title:\s*"?([^"\n]+)"?/);
+            const dateMatch = yaml.match(/date:\s*"?([^"\n]+)"?/);
+            const thumbMatch = yaml.match(/(?:thumbnail|cover|image):\s*"?([^"\n]+)"?/);
+
+            if (titleMatch) title = titleMatch[1];
+            if (dateMatch) date = dateMatch[1].split('T')[0];
+            if (thumbMatch) cover = thumbMatch[1];
+          }
+
+          // 正文 Markdown 渲染
           const bodyText = rawText.replace(/^---[\s\S]*?---/, '').trim();
-          const htmlContent = marked.parse(bodyText);
+          const renderedHtml = marked.parse(bodyText);
 
-          const card = document.createElement('div');
-          card.className = 'card';
+          const card = document.createElement('article');
+          card.className = 'post-card';
           card.innerHTML = `
-            <h2>${post.title}</h2>
-            <small style="color: #888;">发布时间：${post.date}</small>
-            ${post.cover ? `<img src="${post.cover}" class="cover-img" alt="封面">` : ''}
-            <div class="content">${htmlContent}</div>
+            <h2 class="post-title">${title}</h2>
+            ${date ? `<span class="post-date">发布于 ${date}</span>` : ''}
+            ${cover ? `<div class="post-cover-wrapper"><img class="post-cover" src="${cover}" alt="${title}"></div>` : ''}
+            <div class="post-body">${renderedHtml}</div>
           `;
-          container.appendChild(card);
+          feed.appendChild(card);
         }
       } catch (err) {
-        container.innerHTML = '<p>暂无内容或加载失败</p>';
+        feed.innerHTML = `<div class="status-box"><p>内容同步异常: ${err.message}</p></div>`;
       }
     }
 
-    loadPosts();
+    loadContent();
   </script>
 </body>
 </html>
