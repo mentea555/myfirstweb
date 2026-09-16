@@ -2,18 +2,19 @@ backend:
   name: github
   repo: mentea555/myfirstweb
   branch: main
+  base_url: https://decap-oauth-bridge.vercel.app
 
 media_folder: "assets/images"
 public_folder: "/assets/images"
 
 collections:
   - name: "notes"
-    label: "笔记与记录"
+    label: "笔记与作品"
     folder: "content/notes"
     create: true
     slug: "{{year}}-{{month}}-{{day}}-{{slug}}"
     fields:
       - {label: "标题", name: "title", widget: "string"}
-      - {label: "发布日期", name: "date", widget: "datetime"}
-      - {label: "封面图", name: "thumbnail", widget: "image", required: false}
-      - {label: "内容", name: "body", widget: "markdown"}
+      - {label: "日期", name: "date", widget: "datetime"}
+      - {label: "封面图/作品图", name: "thumbnail", widget: "image", required: false}
+      - {label: "正文内容", name: "body", widget: "markdown"}
