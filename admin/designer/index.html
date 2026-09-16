@@ -1258,7 +1258,7 @@
           const res = await fetch(`${GH_API}/${SETTINGS_PATH}?ref=${SITE.branch}&t=${Date.now()}`, {
             headers: { Authorization: 'Bearer ' + token, Accept: 'application/vnd.github+json' }
           });
-          const current = res.ok ? JSON.parse(atob((await res.json()).content.replace(/\n/g, ''))) : {};
+          const current = res.ok ? repairDeep(JSON.parse(b64ToText((await res.json()).content))) : {};
           const merged = Object.assign({}, current, {
             theme_mode: draft.tokens.theme,
             accent_color: draft.tokens.accent,

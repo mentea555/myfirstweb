@@ -576,9 +576,74 @@
       return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
     }
 
+    /* ---------------- 图片地址处理 ----------------
+       两个现实中的坑：
+       1. 部分图床的 CDN 域名在特定网络下不可达（例如 imgbb 的 i.ibb.co），
+          图片会变成一个破图标。→ 加载失败时自动改用图片代理重试一次。
+       2. GitHub 的 blob / raw 链接同样不稳。→ 自动换成 jsDelivr。
+       站点自己上传的图片（/assets/images/…）不经过任何第三方。
+       --------------------------------------------- */
+    const IMG_PROXY = 'https://wsrv.nl/?url=';
+
+    function normalizeImageUrl(raw) {
+      const url = String(raw || '').trim();
+      if (!url) return '';
+      let m;
+      // github.com/<owner>/<repo>/blob|raw/<ref>/<path>
+      m = url.match(/^https?:\/\/github\.com\/([^/]+)\/([^/]+)\/(?:blob|raw)\/([^/]+)\/(.+)$/i);
+      if (m) return `https://cdn.jsdelivr.net/gh/${m[1]}/${m[2]}@${m[3]}/${m[4]}`;
+      // raw.githubusercontent.com/<owner>/<repo>/<ref>/<path>
+      m = url.match(/^https?:\/\/raw\.githubusercontent\.com\/([^/]+)\/([^/]+)\/([^/]+)\/(.+)$/i);
+      if (m) return `https://cdn.jsdelivr.net/gh/${m[1]}/${m[2]}@${m[3]}/${m[4]}`;
+      return url;
+    }
+
+    // 只有外链才需要代理；本站相对路径、以及本机调试地址都跳过
+    function proxiableImage(url) {
+      if (!/^https?:\/\//i.test(url)) return false;
+      return !/^https?:\/\/(localhost|127\.0\.0\.1|\[?::1\]?)[:/]/i.test(url);
+    }
+
+    function proxiedImageUrl(url) {
+      const stripped = String(url).replace(/^https?:\/\//i, '');
+      return IMG_PROXY + encodeURIComponent(stripped).replace(/%2F/gi, '/');
+    }
+
+    // 直连失败 → 代理重试 → 仍失败就把图摘掉，绝不留破图标
+    function makeImageResilient(img) {
+      if (!img || img.dataset.imgGuard === '1') return;
+      img.dataset.imgGuard = '1';
+      img.setAttribute('referrerpolicy', 'no-referrer');
+      img.setAttribute('decoding', 'async');
+
+      const original = img.getAttribute('src') || '';
+      let viaProxy = false;
+
+      img.addEventListener('error', () => {
+        if (!viaProxy && proxiableImage(original)) {
+          viaProxy = true;
+          img.setAttribute('data-via-proxy', '1');
+          img.src = proxiedImageUrl(original);
+          return;
+        }
+        console.warn('图片无法加载，已隐藏：' + original);
+        const wrapper = img.closest('.post-cover-wrapper');
+        if (wrapper) wrapper.remove();
+        else img.remove();
+      });
+    }
+
+    function guardImages(scope) {
+      if (!scope) return;
+      scope.querySelectorAll('img').forEach(makeImageResilient);
+    }
+
     function md2html(md) {
       const html = window.marked ? marked.parse(String(md || '')) : escapeHtml(md);
-      return window.DOMPurify ? DOMPurify.sanitize(html, { ADD_ATTR: ['target'] }) : html;
+      if (!window.DOMPurify) return html;
+      return DOMPurify.sanitize(html, {
+        ADD_ATTR: ['target', 'loading', 'decoding', 'referrerpolicy']
+      });
     }
 
     /* ---------------- Frontmatter 解析 ---------------- */
@@ -691,6 +756,7 @@
 
       if (h.announcement) {
         $('announce').innerHTML = md2html(h.announcement);
+        guardImages($('announce'));
         $('announce').hidden = false;
       } else {
         $('announce').hidden = true;
@@ -699,12 +765,14 @@
       if (h.about_enabled && h.about_body) {
         $('aboutTitle').textContent = h.about_title || '关于我';
         $('aboutBody').innerHTML = md2html(h.about_body);
+        guardImages($('aboutBody'));
         $('aboutCard').hidden = false;
       } else {
         $('aboutCard').hidden = true;
       }
 
       $('footer').innerHTML = h.footer_text ? md2html(h.footer_text) : '';
+      guardImages($('footer'));
     }
 
     /* ==========================================================
@@ -760,14 +828,19 @@
       root.style.setProperty('--title-scale', num(tk.titleScale, 100) / 100);
     }
 
-    function applyBlockAlign(el, id, align) {
+    function applyBlockAlign(el, id, align, columns) {
       const mode = BLOCK_ALIGN_MODE[id] || 'text';
       if (mode === 'flex') {
         el.style.justifyContent = ({
           left: 'flex-start', center: 'center', right: 'flex-end', 'space-between': 'space-between'
         })[align] || 'flex-start';
       } else if (mode === 'stretch') {
-        el.style.alignItems = align === 'center' ? 'center' : 'stretch';
+        // 内容流是卡片容器，卡片必须整列撑满，宽度才不会参差不齐。
+        // 单列是 flex 竖排，align-items 管横向；双列切成 grid 后它变成纵向。
+        // 两种情况下都不能让卡片“各自居中” —— 那会把卡片缩成内容宽度
+        // （单列下宽度参差），双列下则把短卡片在行内垂直居中，看着像没对齐。
+        el.style.alignItems = num(columns, 1) >= 2 ? 'start' : 'stretch';
+        el.style.justifyItems = '';
       } else {
         el.style.textAlign = ({ left: 'left', center: 'center', right: 'right' })[align] || 'left';
       }
@@ -799,8 +872,8 @@
         el.style.marginTop = '0';
         el.style.marginBottom = (num(b.gap, 0) || 0) + 'px';
 
-        // 4) 对齐
-        applyBlockAlign(el, b.id, b.align);
+        // 4) 对齐（列数决定 flex 还是 grid，必须一起传进去）
+        applyBlockAlign(el, b.id, b.align, b.columns);
 
         // 5) 自定义背景色
         el.style.backgroundColor = b.bg || '';
@@ -896,6 +969,8 @@
           ${post.description ? `<p class="post-desc">${escapeHtml(post.description)}</p>` : ''}
           <div class="post-body">${md2html(post.body)}</div>
         `;
+        // 封面和正文里的图片统一挂容错：直连失败 → 代理重试 → 仍失败就摘掉
+        guardImages(card);
         feed.appendChild(card);
       });
     }
