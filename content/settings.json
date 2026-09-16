@@ -1,13 +1,18 @@
 {
-  "site_title": "Mentea's Web",
-  "site_subtitle": "数字画作、笔记与灵感存档",
-  "theme_mode": "dark",
-  "accent_color": "#2d2d2f",
-  "background_color": "",
-  "font_family": "jakarta",
-  "page_width": 1020,
+  "site_title": "Mentea Website",
+  "posts_dir": "content/notes",
   "show_admin_button": true,
   "admin_button_text": "管理后台 →",
+  "custom_head": "",
+  "accent_color": "#2d2d2f",
+  "posts_limit": 0,
+  "site_subtitle": "个人博客小站",
+  "background_color": "",
+  "font_family": "jakarta",
+  "custom_css": "",
+  "page_width": 1020,
+  "theme_mode": "dark",
+  "show_tags": true,
   "nav_links": [
     {
       "label": "首页",
@@ -16,11 +21,10 @@
     {
       "label": "作品",
       "url": "/#feed"
+    },
+    {
+      "label": "我的B站",
+      "url": "https://space.bilibili.com/434856923?spm_id_from=333.1007.0.0"
     }
-  ],
-  "posts_dir": "content/notes",
-  "posts_limit": 0,
-  "show_tags": true,
-  "custom_css": "",
-  "custom_head": ""
+  ]
 }
