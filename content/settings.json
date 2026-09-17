@@ -1,7 +1,7 @@
 {
   "site_title": "Mentea Website",
   "posts_dir": "content/notes",
-  "show_admin_button": true,
+  "show_admin_button": false,
   "admin_button_text": "管理后台 →",
   "custom_head": "",
   "accent_color": "#2d2d2f",
