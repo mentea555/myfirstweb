@@ -491,17 +491,20 @@
 
     /* ---------- 避让 ----------
        悬浮按钮是 fixed 的，会盖在页面顶部区域上。
-       窗口越窄，公告条越宽（撑满容器），按钮就会压到它右端的文字。
-       --float-safe = 按钮总宽 + 右边距 + 一点呼吸空间。
+       --float-safe 由 measureFloatSafe() 实测算出（不是固定常数，
+       否则窄屏会白白空掉一大块）。
        具体避让规则写在 .announce 和 header 的媒体查询里；
        JS 关掉悬浮按钮时会清掉 --float-safe，避让自动失效。 */
-    :root { --float-safe: 76px; }
-    @media (max-width: 720px) { :root { --float-safe: 66px; } }
+    :root { --float-safe: 0px; }
 
     /* 页头在窄屏/中屏会换行堆叠，右端也要避让，
-       否则导航或汉堡按钮会被悬浮按钮压住 */
+       否则导航或汉堡按钮会被悬浮按钮压住。
+       ⚠️ 只对「没有自定义背景色」的页头兜底。
+       区块一旦设了背景色，applyLayout() 会写上行内 padding，
+       行内样式优先级高于本规则 —— 那边同步写入了避让量，
+       所以这里用 .has-bg 类把它排除掉，避免两处打架。 */
     @media (max-width: 960px) {
-      header { padding-right: var(--float-safe); }
+      header:not(.has-bg) { padding-right: var(--float-safe); }
     }
 
     /* 可视化编辑器画布里不显示（它不属于任何可排布区块，会干扰点选） */
@@ -1713,7 +1716,52 @@
        * 悬浮按钮不显示时把它清零，否则会白白留一条空隙。
        */
       document.documentElement.style.setProperty('--float-safe', showDock ? '' : '0px');
+      if (showDock) measureFloatSafe();
     }
+
+    /**
+     * 按真实几何算出「内容需要让出多少右边距」。
+     *
+     * 不用固定常数 —— 曾经写死 66/76px，结果窄屏下页头右侧白白空掉
+     * 一大块（内容被推得离卡片边缘老远）。改成实测：
+     *
+     *     让出量 = 悬浮按钮压进「基准内容右边界」多深 + 呼吸空隙
+     *
+     * 基准取 `--page-width` 与视口的较小值再减容器内边距 —— 也就是
+     * **没有悬浮按钮时内容本该到达的右边界**。
+     * 不能用容器外框（getBoundingClientRect）来算：那条边已经把
+     * 我们即将写入的 padding 包含进去了，会自己吃自己、越算越大。
+     */
+    function measureFloatSafe() {
+      const dock = $('floatDock');
+      const root = document.documentElement;
+      if (!dock || dock.hidden) return;
+      const db = dock.getBoundingClientRect();
+      if (!db.width) return;
+      const cs = getComputedStyle(root);
+      // 容器内边距（窄屏 16px / 宽屏 24px），从内容右边界里扣掉
+      const containerPadR = 16;
+      const pageW = parseFloat(cs.getPropertyValue('--page-width')) || 1020;
+      const baseRight = Math.min(window.innerWidth, pageW) - (window.innerWidth > pageW ? 0 : containerPadR);
+      const gap = 12;                                       // 与按钮之间的呼吸空隙
+      const need = Math.round(baseRight - db.left + gap);
+      const cap = Math.round(db.width + gap);               // 最多让出一条按钮宽度
+      root.style.setProperty('--float-safe', Math.max(0, Math.min(need, cap)) + 'px');
+    }
+
+    /*
+     * 悬浮按钮固定贴角，视口一变化它相对内容容器的位置就变了，
+     * 所以避让量必须重算。resize 会连发，用 rAF 节流到每帧一次。
+     */
+    (function watchFloatSafe() {
+      let raf = 0;
+      const run = () => {
+        if (raf) return;
+        raf = requestAnimationFrame(() => { raf = 0; measureFloatSafe(); });
+      };
+      window.addEventListener('resize', run);
+      window.addEventListener('orientationchange', run);
+    })();
 
     function applyHomepage(h, settings) {
       // 记下最近一次的渲染输入，供「库晚到后重渲染」用（见 retryRenderWhenLibsReady）
@@ -2019,8 +2067,21 @@
         applyBlockAlign(el, b.id, b.align, b.columns);
 
         // 5) 自定义背景色
+        //    ⚠️ 行内 padding 会盖掉样式表里的避让规则（header 的
+        //    `padding-right: var(--float-safe)`），所以避让要在这里一起写进去：
+        //    右内边距 = 背景留白 + 悬浮按钮安全区。
+        //    （曾经只写 padding:20px，导致移动端页头右端紧贴卡片边缘，
+        //      汉堡按钮被右上角悬浮按钮压住。）
         el.style.backgroundColor = b.bg || '';
-        el.style.padding = b.bg ? '20px' : '';
+        el.classList.toggle('has-bg', !!b.bg);
+        if (b.bg) {
+          el.style.padding = '20px';
+          // 用 CSS 变量而非算死的像素，悬浮按钮关掉时避让会自动归零
+          el.style.paddingRight = 'calc(20px + var(--float-safe, 0px))';
+        } else {
+          el.style.padding = '';
+          el.style.paddingRight = '';
+        }
         el.style.borderRadius = b.bg ? 'var(--radius)' : '';
         el.style.backgroundClip = '';
 
