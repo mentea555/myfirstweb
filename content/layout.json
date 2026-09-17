@@ -20,18 +20,18 @@
   },
   "blocks": [
     {
-      "id": "announce",
-      "enabled": true,
-      "align": "left",
-      "gap": 34,
-      "bg": ""
-    },
-    {
       "id": "header",
       "enabled": true,
       "align": "left",
       "gap": 50,
       "bg": "#222325"
+    },
+    {
+      "id": "announce",
+      "enabled": true,
+      "align": "left",
+      "gap": 34,
+      "bg": ""
     },
     {
       "id": "hero",
