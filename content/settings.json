@@ -23,6 +23,10 @@
       "url": "/#feed"
     },
     {
+      "label": "画廊",
+      "url": "/gallery/"
+    },
+    {
       "label": "我的B站",
       "url": "https://space.bilibili.com/434856923?spm_id_from=333.1007.0.0"
     },
