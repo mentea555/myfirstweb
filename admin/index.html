@@ -59,6 +59,25 @@
 
   <script>
     /*
+     * 「🎨 文字颜色」按钮：给正文编辑器（richtext）的工具栏补一个调色按钮。
+     *
+     * 为什么不用 Decap 官方 API：richtext 的 buttons 白名单里没有颜色，
+     * 也没有「行内工具栏按钮」的注册接口。所以这里用 MutationObserver
+     * 等工具栏渲染出来，再往里 append 一个原生按钮，点一下就把选中的
+     * 文字包成短代码 {{<c:#ff7a7a>}}…{{</c>}}，前台渲染时还原成彩色文字。
+     *
+     * 这个文件独立放在 /admin/color-button.js，改它不影响后台加载逻辑。
+     */
+    (function () {
+      var s = document.createElement('script');
+      s.src = '/admin/color-button.js';
+      s.async = true;
+      document.head.appendChild(s);
+    })();
+  </script>
+
+  <script>
+    /*
      * Decap CMS 主脚本体积约 5MB，加载源很关键：
      *   1. unpkg.com 在国内经常很慢，且带 `^` 范围写法会多一次 302 跳转；
      *   2. 这里按 jsDelivr → unpkg(精确版本) → unpkg(范围) 依次回退，

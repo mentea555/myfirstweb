@@ -53,7 +53,15 @@ collections:
           default: false,
           required: false,
         }
-      - { label: "正文内容", name: "body", widget: "markdown" }
+      - {
+          label: "正文内容",
+          name: "body",
+          widget: "richtext",
+          buttons: ["bold", "italic", "strikethrough", "code", "link", "heading-two", "heading-three", "quote", "bulleted-list", "numbered-list"],
+          modes: ["rich_text", "raw"],
+          editor_components: ["image", "code-block"],
+          hint: "想给某段文字上色：先选中那几句话，再点工具栏最右边的「🎨 颜色」按钮选色。文字会变成 {{<c:#ff7a7a>}}像这样{{</c>}} 的标记（这是正常的，发布到网站后就是彩色字）。想撤掉就把带颜色的那段重新选中，点「无」。（另外，编辑器里粉色高亮只是它自带的样式，与文字颜色无关）",
+        }
 
   # ==================== 前端页面设置（改前端的工具） ====================
   - name: "pages"
