@@ -755,24 +755,35 @@
     };
 
     /* ==========================================================
-       内容源：多路回退 + 竞速
+       内容源：多路回退
        ----------------------------------------------------------
        实测（本机 + 国内网络）：
-         · raw.githubusercontent.com  —— 会「时通时断」，断开时 fetch 直接
-           抛 TypeError: Failed to fetch，页面表现为长时间空白。
-         · cdn.jsdelivr.net/gh/…      —— 稳定，且是国内可达的公共 CDN。
+         · raw.githubusercontent.com  —— 延迟最低，但会「时通时断」，
+           断开时 fetch 直接抛 TypeError: Failed to fetch。
+         · cdn.jsdelivr.net/gh/…      —— 稳定，但带 CDN 缓存，刚改完可能还是旧内容。
          · cdn.statically.io          —— 40 秒超时，不可用。
          · raw.githack.com            —— 失败，不可用。
-       因此策略是：jsDelivr 打头阵，raw 作后备。任何一路先给出结果就用它，
-       两路都失败也不会卡住页面（有本地缓存 + 内置默认值兜底）。
+
+       所以顺序是 raw → jsDelivr → 代理：
+       先要「改完立刻可见」，raw 不行再退到「稳定但可能滞后」的 jsDelivr。
+       全部失败也不会卡住页面（有本地缓存 + 内置默认值兜底）。
        ========================================================== */
     const GH_SLUG = `${SITE.user}/${SITE.repo}@${SITE.branch}`;
 
+    /*
+     * 内容源顺序：raw → jsDelivr → 代理。
+     *
+     * 为什么把 raw 放第一（之前是 jsDelivr 第一）：
+     *   jsDelivr 是缓存 CDN，主人刚在后台改完文章/配置，它可能还在吐旧版本，
+     *   表现就是「明明改了，刷新还是老样子」。raw 带 ?t= 时间戳绕开缓存，改完即见。
+     *   代价是 raw 在本机网络下时通时断 —— 所以下面 fetchTextMulti 会顺序回退，
+     *   断了就自动走 jsDelivr，两个诉求都保住。
+     */
     const textSources = [
-      // 第 1 路：jsDelivr —— CDN 缓存，国内可达，稳定
-      (path) => `https://cdn.jsdelivr.net/gh/${GH_SLUG}/${path}`,
-      // 第 2 路：GitHub 官方 raw —— 通了就最快，但不可依赖
+      // 第 1 路：GitHub 官方 raw（带时间戳，改完立刻可见）
       (path) => `https://raw.githubusercontent.com/${SITE.user}/${SITE.repo}/${SITE.branch}/${path}?t=${Date.now()}`,
+      // 第 2 路：jsDelivr —— 缓存 CDN，国内可达、稳定，作为兜底
+      (path) => `https://cdn.jsdelivr.net/gh/${GH_SLUG}/${path}`,
       // 第 3 路：公共加速代理
       (path) => `https://ghproxy.net/https://raw.githubusercontent.com/${SITE.user}/${SITE.repo}/${SITE.branch}/${path}`
     ];
@@ -1577,36 +1588,52 @@
        少一次限流风险，也更快），失败再退回官方 API。
        文章正文同样走多源，并且并发抓取。
        -------------------------------------------- */
+    /**
+     * 列出内容目录下的所有 .md 文件。
+     *
+     * 两条路同时走，但**以 GitHub API 为准**：
+     *   · jsDelivr 的 /flat 清单是静态索引，对新提交有明显延迟（几十分钟都可能），
+     *     只认它会导致「刚发的文章迟迟不出现」——主人就踩过这个坑；
+     *   · GitHub Contents API 是实时的，但有匿名限流（60 次/小时/IP）。
+     * 所以：API 成功就用 API；API 挂了才退回 jsDelivr 清单。
+     */
     async function listPostFiles(dir) {
       const clean = String(dir || 'content/notes').replace(/^\/+|\/+$/g, '');
 
-      // 第 1 路：jsDelivr 静态文件清单
-      try {
+      const viaApi = async () => {
+        const api = `https://api.github.com/repos/${SITE.user}/${SITE.repo}/contents/${clean}?ref=${SITE.branch}&t=${Date.now()}`;
+        const res = await fetch(api, { headers: { Accept: 'application/vnd.github+json' } });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const files = await res.json();
+        if (!Array.isArray(files)) throw new Error('返回格式异常');
+        return files
+          .filter((f) => f && f.type === 'file' && /\.mdx?$/i.test(f.name))
+          .map((f) => ({ name: f.name, path: f.path }));
+      };
+
+      const viaJsdelivr = async () => {
         const res = await fetch(`https://data.jsdelivr.com/v1/package/gh/${GH_SLUG}/flat`, { cache: 'default' });
-        if (res.ok) {
-          const data = await res.json();
-          const files = (data && Array.isArray(data.files)) ? data.files : [];
-          const hits = files
-            .filter((f) => f && typeof f.name === 'string')
-            .filter((f) => f.name.indexOf('/' + clean + '/') === 0 && /\.mdx?$/i.test(f.name))
-            .map((f) => ({ name: f.name.split('/').pop(), path: f.name.replace(/^\//, '') }));
-          if (hits.length) return hits;
-        }
-      } catch (e) { /* 落到下一路 */ }
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        const files = (data && Array.isArray(data.files)) ? data.files : [];
+        return files
+          .filter((f) => f && typeof f.name === 'string')
+          .filter((f) => f.name.indexOf('/' + clean + '/') === 0 && /\.mdx?$/i.test(f.name))
+          .map((f) => ({ name: f.name.split('/').pop(), path: f.name.replace(/^\//, '') }));
+      };
 
-      // 第 2 路：GitHub Contents API
-      const api = `https://api.github.com/repos/${SITE.user}/${SITE.repo}/contents/${clean}?ref=${SITE.branch}&t=${Date.now()}`;
-      const res = await fetch(api, { headers: { Accept: 'application/vnd.github+json' } });
+      // 优先：GitHub API（实时）。它出问题才退到 jsDelivr 清单。
+      try {
+        const hits = await viaApi();
+        if (hits.length) return hits;
+      } catch (e) { /* 落到 jsDelivr */ }
 
-      if (res.status === 403) throw new Error('GitHub 接口访问过于频繁，请稍后刷新');
-      if (res.status === 404) throw new Error(`未找到内容目录 ${clean}，请在后台检查「内容目录」设置`);
-      if (!res.ok) throw new Error('内容目录读取失败（HTTP ' + res.status + '）');
+      try {
+        const hits = await viaJsdelivr();
+        if (hits.length) return hits;
+      } catch (e) { /* 两路都挂 */ }
 
-      const files = await res.json();
-      if (!Array.isArray(files)) throw new Error('内容目录返回格式异常');
-      return files
-        .filter((f) => f && f.type === 'file' && /\.mdx?$/i.test(f.name))
-        .map((f) => ({ name: f.name, path: f.path }));
+      throw new Error('内容目录读取失败，可能是内容源暂时不可达');
     }
 
     async function fetchPosts(dir) {
