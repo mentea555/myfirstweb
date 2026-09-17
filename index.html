@@ -175,6 +175,17 @@
       flex-wrap: wrap;
       min-width: 0;
     }
+    /* ⚠️ #navLinks 是包着导航链接的 span，.nav 的 gap 管不到它内部。
+       不把它也设成 flex 容器，几个链接就会作为 inline 元素紧挨着排，
+       看着挤成一团（实测间距几乎为 0）。 */
+    #navLinks {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      row-gap: 10px;
+      min-width: 0;
+    }
     .nav a, .admin-btn {
       padding: 8px 16px;
       border-radius: 9999px;
