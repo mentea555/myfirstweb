@@ -229,6 +229,59 @@ collections:
             }
           - { label: "显示标签筛选", name: "show_tags", widget: "boolean", default: true }
           - {
+              label: "显示右上角悬浮按钮",
+              name: "float_buttons_enabled",
+              widget: "boolean",
+              default: true,
+              required: false,
+              hint: "总开关。关掉后下面两个按钮都不显示",
+            }
+          - {
+              label: "① 首页按钮",
+              name: "float_home_enabled",
+              widget: "boolean",
+              default: true,
+              required: false,
+              hint: "固定在屏幕右上角、滚动时不动",
+            }
+          - {
+              label: "　　首页按钮链接",
+              name: "float_home_url",
+              widget: "string",
+              default: "/",
+              required: false,
+              hint: "一般不用改，/ 就是站点首页",
+            }
+          - {
+              label: "　　首页按钮悬停提示",
+              name: "float_home_label",
+              widget: "string",
+              default: "回到首页",
+              required: false,
+            }
+          - {
+              label: "② 外链按钮（跳转到另一个网站）",
+              name: "float_link_enabled",
+              widget: "boolean",
+              default: true,
+              required: false,
+            }
+          - {
+              label: "　　外链按钮网址",
+              name: "float_link_url",
+              widget: "string",
+              default: "https://anxcye.com/articles",
+              required: false,
+              hint: "留空则自动隐藏这个按钮，不会留个点了没反应的死按钮",
+            }
+          - {
+              label: "　　外链按钮悬停提示",
+              name: "float_link_label",
+              widget: "string",
+              default: "关于我",
+              required: false,
+            }
+          - {
               label: "自定义 CSS",
               name: "custom_css",
               widget: "code",
