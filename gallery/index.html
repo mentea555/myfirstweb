@@ -1,0 +1,1503 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>画廊 | Mentea</title>
+  <meta name="description" content="插画作品画廊 —— 点开图片阅读笔记">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Noto+Serif+SC:wght@400;600&family=JetBrains+Mono:wght@400;600&display=swap">
+
+  <!-- Markdown 渲染 + HTML 消毒，与主站同一套「多源顺序回退」加载。
+       笔记正文必须过 DOMPurify 才能进 innerHTML。 -->
+  <script>
+    (function () {
+      var LIBS = [
+        {
+          name: 'marked',
+          ok: function () { return !!window.marked; },
+          urls: [
+            'https://cdn.jsdelivr.net/npm/marked/marked.min.js',
+            'https://unpkg.com/marked/marked.min.js',
+            'https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js'
+          ]
+        },
+        {
+          name: 'DOMPurify',
+          ok: function () { return !!window.DOMPurify; },
+          urls: [
+            'https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js',
+            'https://unpkg.com/dompurify@3/dist/purify.min.js',
+            'https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.9/purify.min.js'
+          ]
+        }
+      ];
+      LIBS.forEach(function (lib) {
+        if (lib.ok()) return;
+        var i = 0;
+        (function tryNext() {
+          if (lib.ok()) return;
+          if (i >= lib.urls.length) return;
+          var s = document.createElement('script');
+          s.src = lib.urls[i++];
+          s.onload = function () {
+            // UMD 包在 onload 这一刻全局导出可能还没挂上，让出一个事件循环再判断
+            setTimeout(function () { if (!lib.ok()) tryNext(); }, 0);
+          };
+          s.onerror = function () { tryNext(); };
+          document.head.appendChild(s);
+        })();
+      });
+    })();
+  </script>
+
+  <style>
+    /* ============================================================
+       刻意**复用主站 index.html 的同一套 CSS 变量**，
+       并从 content/layout.json 的外观令牌 + content/settings.json 读主题，
+       这样主站在可视化编辑器里改配色/字体/圆角，画廊会跟着一起变。
+       ============================================================ */
+
+    :root {
+      --accent: #6366f1;
+      --accent-soft: rgba(99, 102, 241, 0.25);
+      --radius: 16px;
+      --page-width: 900px;
+      --font: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      --card-padding: 26px;
+      --line-height: 1.78;
+      /* 瀑布流列间距。用变量方便在窄屏收紧 */
+      --masonry-gap: 16px;
+      --masonry-radius: 14px;
+    }
+    html[data-theme="dark"] {
+      --bg: #0f1117;
+      --card-bg: rgba(26, 29, 39, 0.7);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --text: #e2e8f0;
+      --text-strong: #ffffff;
+      --text-dim: #94a3b8;
+      --body-text: #cbd5e1;
+      --glow-1: rgba(99, 102, 241, 0.15);
+      --glow-2: rgba(236, 72, 153, 0.10);
+      --shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      --hover-border: rgba(255, 255, 255, 0.15);
+      --chip-bg: rgba(255, 255, 255, 0.06);
+      /* 抽屉里图片那侧的底色：比页面稍暗，衬托图片 */
+      --sheet-img-bg: rgba(0, 0, 0, 0.35);
+      --skeleton-a: rgba(255, 255, 255, 0.05);
+      --skeleton-b: rgba(255, 255, 255, 0.11);
+    }
+    html[data-theme="light"] {
+      --bg: #f6f7fb;
+      --card-bg: rgba(255, 255, 255, 0.85);
+      --card-border: rgba(15, 23, 42, 0.08);
+      --text: #25303f;
+      --text-strong: #0f172a;
+      --text-dim: #6b7788;
+      --body-text: #3d4855;
+      --glow-1: rgba(99, 102, 241, 0.12);
+      --glow-2: rgba(236, 72, 153, 0.08);
+      --shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+      --hover-border: rgba(15, 23, 42, 0.16);
+      --chip-bg: rgba(15, 23, 42, 0.05);
+      --sheet-img-bg: rgba(15, 23, 42, 0.06);
+      --skeleton-a: rgba(15, 23, 42, 0.05);
+      --skeleton-b: rgba(15, 23, 42, 0.11);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    [hidden] { display: none !important; }
+
+    body {
+      font-family: var(--font);
+      background-color: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      background-image:
+        radial-gradient(at 0% 0%, var(--glow-1) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, var(--glow-2) 0px, transparent 50%);
+      background-attachment: fixed;
+      -webkit-font-smoothing: antialiased;
+      line-height: var(--line-height);
+    }
+    a { color: inherit; }
+
+    /* 抽屉打开时锁住页面滚动 */
+    body.sheet-locked { overflow: hidden; }
+
+    .container {
+      max-width: var(--page-width);
+      margin: 0 auto;
+      padding: 40px 24px 80px;
+    }
+
+    /* ---------- 顶部返回条 ---------- */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 26px;
+    }
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 16px 9px 12px;
+      border-radius: 999px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      color: var(--text);
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 600;
+      box-shadow: var(--shadow);
+      -webkit-backdrop-filter: blur(14px) saturate(150%);
+      backdrop-filter: blur(14px) saturate(150%);
+      transition: transform 0.18s ease, border-color 0.18s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .back-link svg { width: 17px; height: 17px; }
+    .back-link:hover { transform: translateX(-2px); border-color: var(--hover-border); }
+    .back-link:active { transform: scale(0.97); }
+    .back-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+    .site-name { font-size: 0.88rem; color: var(--text-dim); letter-spacing: 0.02em; }
+
+    /* ---------- 页头 ---------- */
+    .page-head { margin-bottom: 30px; }
+    .page-title {
+      font-size: 2.05rem;
+      font-weight: 800;
+      letter-spacing: -0.6px;
+      color: var(--text-strong);
+      line-height: 1.25;
+    }
+    .page-sub {
+      margin-top: 8px;
+      font-size: 0.96rem;
+      color: var(--text-dim);
+    }
+    /* 标签筛选条：只列出本页出现的标签，不做全站标签 */
+    .filter-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 9px;
+      margin-top: 18px;
+    }
+    .chip {
+      padding: 7px 15px;
+      border-radius: 999px;
+      background: var(--chip-bg);
+      border: 1px solid var(--card-border);
+      color: var(--text);
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .chip:hover { border-color: var(--hover-border); }
+    .chip.is-active {
+      background: var(--accent);
+      border-color: var(--accent);
+      /* 强调色上的字要读得清 —— 由脚本算出这一对的前景色 */
+      color: var(--accent-on, #fff);
+    }
+    .chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+    /* ============================================================
+       瀑布流
+       ----------------------------------------------------------
+       用 CSS 多列（column-count）而不是 JS 定位：
+         · 纯 CSS，缩放窗口自动重排，不用监听尺寸重算坐标；
+         · 卡片设置 break-inside: avoid，就不会被拆到两列。
+       代价是「从上到下再从左到右」的阅读顺序（不是横向逐行），
+       对图片墙来说无所谓 —— Pinterest 本身也是纵向堆积。
+       ============================================================ */
+    .masonry {
+      column-gap: var(--masonry-gap);
+      /* 列数由脚本按宽度写进 --cols，这里给个安全默认 */
+      column-count: var(--cols, 3);
+    }
+
+    .tile {
+      /* 关键：不让卡片被分列切断 */
+      break-inside: avoid;
+      -webkit-column-break-inside: avoid;
+      page-break-inside: avoid;
+      margin: 0 0 var(--masonry-gap);
+      border-radius: var(--masonry-radius);
+      overflow: hidden;
+      position: relative;
+      background: var(--skeleton-a);
+      border: 1px solid var(--card-border);
+      cursor: zoom-in;
+      display: block;
+      width: 100%;
+      padding: 0;
+      font-family: inherit;
+      color: inherit;
+      text-align: left;
+      -webkit-tap-highlight-color: transparent;
+      transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    .tile:hover {
+      transform: translateY(-3px);
+      border-color: var(--hover-border);
+      box-shadow: var(--shadow);
+    }
+    .tile:active { transform: scale(0.99); }
+    .tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+    .tile-img {
+      display: block;
+      width: 100%;
+      /* 高度交给图片自身比例 —— 这样才是错落的瀑布流。
+         不加 aspect-ratio / object-fit，保持原始纵横比。 */
+      height: auto;
+      background: var(--skeleton-a);
+      transition: opacity 0.35s ease;
+    }
+    /* 图没加载出来前先压成骨架高度，避免列高剧烈跳动 */
+    .tile-img[data-state="loading"] { opacity: 0; }
+    .tile-fallback {
+      width: 100%;
+      aspect-ratio: 3 / 4;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, var(--skeleton-a), var(--skeleton-b));
+      color: var(--text-dim);
+      font-size: 0.82rem;
+    }
+    .tile-fallback svg { width: 30px; height: 30px; opacity: 0.55; }
+
+    /* 悬停时右下角浮出一个小小的「可点开放大」提示（纯装饰，不影响点击） */
+    .tile-hint {
+      position: absolute;
+      right: 10px;
+      bottom: 10px;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.55);
+      color: #fff;
+      opacity: 0;
+      transform: translateY(4px);
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      pointer-events: none;
+      -webkit-backdrop-filter: blur(8px);
+      backdrop-filter: blur(8px);
+    }
+    .tile-hint svg { width: 16px; height: 16px; }
+    .tile:hover .tile-hint { opacity: 1; transform: translateY(0); }
+    /* 触屏没有 hover，别留个永远不出现的元素占位 */
+    @media (hover: none) { .tile-hint { display: none; } }
+
+    /* ---------- 状态提示 ---------- */
+    .status-box {
+      text-align: center;
+      padding: 60px 16px;
+      color: var(--text-dim);
+      line-height: 1.7;
+      font-size: 0.94rem;
+    }
+    .status-box p { margin-bottom: 10px; white-space: pre-line; }
+    .status-box p:last-child { margin-bottom: 0; }
+    .spinner {
+      width: 28px; height: 28px;
+      border: 3px solid var(--card-border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ============================================================
+       展开抽屉：左大图 + 右文字
+       ============================================================ */
+    .sheet {
+      position: fixed;
+      inset: 0;
+      z-index: 80;
+      display: flex;
+      background: rgba(0, 0, 0, 0.72);
+      -webkit-backdrop-filter: blur(6px);
+      backdrop-filter: blur(6px);
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.22s ease, visibility 0.22s;
+    }
+    .sheet.show { opacity: 1; visibility: visible; }
+
+    .sheet-panel {
+      margin: auto;
+      width: min(1360px, calc(100vw - 40px));
+      height: min(880px, calc(100vh - 40px));
+      display: grid;
+      /* 左边图片自适应，右边文字固定一个舒服的宽度 —— 和 Pinterest 一致 */
+      grid-template-columns: minmax(0, 1fr) minmax(0, 400px);
+      border-radius: calc(var(--radius) + 4px);
+      overflow: hidden;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
+      -webkit-backdrop-filter: blur(20px) saturate(140%);
+      backdrop-filter: blur(20px) saturate(140%);
+      transform: scale(0.97);
+      transition: transform 0.24s cubic-bezier(0.2, 0.9, 0.3, 1);
+    }
+    .sheet.show .sheet-panel { transform: scale(1); }
+
+    /* ---- 左：大图 ---- */
+    .sheet-media {
+      position: relative;
+      background: var(--sheet-img-bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden;
+    }
+    .sheet-media img {
+      max-width: 100%;
+      max-height: 100%;
+      width: auto;
+      height: auto;
+      object-fit: contain;
+      display: block;
+    }
+    .sheet-media.is-loading img { opacity: 0; }
+    .sheet-media img { transition: opacity 0.25s ease; }
+
+    .sheet-media-msg {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-dim);
+      font-size: 0.9rem;
+      text-align: center;
+      padding: 20px;
+    }
+
+    /* 图片左右切换箭头 */
+    .sheet-nav {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.5);
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      -webkit-backdrop-filter: blur(10px);
+      backdrop-filter: blur(10px);
+      transition: background 0.18s ease, transform 0.18s ease;
+      -webkit-tap-highlight-color: transparent;
+      z-index: 2;
+    }
+    .sheet-nav svg { width: 19px; height: 19px; }
+    .sheet-nav:hover { background: rgba(0, 0, 0, 0.72); }
+    .sheet-nav:active { transform: translateY(-50%) scale(0.93); }
+    .sheet-nav:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .sheet-nav[disabled] { opacity: 0.28; cursor: default; }
+    .sheet-nav.prev { left: 14px; }
+    .sheet-nav.next { right: 14px; }
+
+    /* ---- 右：文字 ---- */
+    .sheet-side {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      min-height: 0;
+      border-left: 1px solid var(--card-border);
+      background: var(--card-bg);
+    }
+    .sheet-side-scroll {
+      flex: 1;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      padding: calc(var(--card-padding) + 4px) var(--card-padding);
+      /* 滚动条收窄一点，别抢戏 */
+      scrollbar-width: thin;
+    }
+    .sheet-side-scroll::-webkit-scrollbar { width: 9px; }
+    .sheet-side-scroll::-webkit-scrollbar-thumb {
+      background: var(--card-border);
+      border-radius: 9px;
+      border: 2px solid transparent;
+      background-clip: content-box;
+    }
+    .sheet-side-scroll::-webkit-scrollbar-thumb:hover { background: var(--hover-border); background-clip: content-box; }
+
+    .sheet-title {
+      font-size: 1.32rem;
+      font-weight: 800;
+      letter-spacing: -0.3px;
+      color: var(--text-strong);
+      line-height: 1.4;
+      margin-bottom: 10px;
+    }
+    .sheet-meta {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 9px;
+      font-size: 0.82rem;
+      color: var(--text-dim);
+      margin-bottom: 18px;
+    }
+    .sheet-tag {
+      padding: 3px 11px;
+      border-radius: 999px;
+      background: var(--chip-bg);
+      border: 1px solid var(--card-border);
+      font-size: 0.76rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+    /* 点标签 → 回到瀑布流并按该标签筛选 */
+    .sheet-tag.is-link { cursor: pointer; font-family: inherit; }
+    .sheet-tag.is-link:hover { border-color: var(--hover-border); }
+
+    .sheet-body {
+      font-size: 0.96rem;
+      color: var(--body-text);
+      line-height: var(--line-height);
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+    }
+    .sheet-body p { margin: 0 0 14px; }
+    .sheet-body p:last-child { margin-bottom: 0; }
+    .sheet-body h1, .sheet-body h2, .sheet-body h3, .sheet-body h4 {
+      color: var(--text-strong);
+      font-weight: 700;
+      line-height: 1.4;
+      margin: 22px 0 10px;
+    }
+    .sheet-body h1 { font-size: 1.24rem; }
+    .sheet-body h2 { font-size: 1.13rem; }
+    .sheet-body h3 { font-size: 1.02rem; }
+    .sheet-body h4 { font-size: 0.96rem; }
+    .sheet-body > :first-child { margin-top: 0; }
+    .sheet-body ul, .sheet-body ol { margin: 0 0 14px; padding-left: 22px; }
+    .sheet-body li { margin-bottom: 5px; }
+    .sheet-body a {
+      color: var(--link-color, var(--accent));
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .sheet-body strong { color: var(--text-strong); font-weight: 700; }
+    .sheet-body em { font-style: italic; }
+    .sheet-body img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 10px;
+      margin: 6px 0 14px;
+      display: block;
+    }
+    .sheet-body code {
+      font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.86em;
+      padding: 2px 6px;
+      border-radius: 6px;
+      background: var(--chip-bg);
+    }
+    .sheet-body pre {
+      background: var(--chip-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 14px;
+      overflow-x: auto;
+      margin: 0 0 14px;
+    }
+    .sheet-body pre code { background: none; padding: 0; font-size: 0.84rem; }
+    .sheet-body blockquote {
+      margin: 0 0 14px;
+      padding: 2px 0 2px 14px;
+      border-left: 3px solid var(--accent);
+      color: var(--text-dim);
+    }
+    .sheet-body blockquote > :last-child { margin-bottom: 0; }
+    .sheet-body hr {
+      border: none;
+      border-top: 1px solid var(--card-border);
+      margin: 20px 0;
+    }
+    .sheet-body table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0 0 14px;
+      font-size: 0.88rem;
+    }
+    .sheet-body th, .sheet-body td {
+      border: 1px solid var(--card-border);
+      padding: 7px 10px;
+      text-align: left;
+    }
+    .sheet-body th { color: var(--text-strong); font-weight: 700; }
+
+    /* 正文为空时的提示，别留一大片空白 */
+    .sheet-body-empty { color: var(--text-dim); font-size: 0.9rem; }
+
+    /* ---- 关闭按钮 ---- */
+    .sheet-close {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.55);
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      z-index: 4;
+      -webkit-backdrop-filter: blur(10px);
+      backdrop-filter: blur(10px);
+      transition: background 0.18s ease, transform 0.18s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .sheet-close svg { width: 19px; height: 19px; }
+    .sheet-close:hover { background: rgba(0, 0, 0, 0.75); }
+    .sheet-close:active { transform: scale(0.92); }
+    .sheet-close:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+    /* ---- 窄屏：改成上下堆叠 ---- */
+    @media (max-width: 820px) {
+      :root { --masonry-gap: 12px; --masonry-radius: 12px; }
+      .container { padding: 26px 18px 60px; }
+      .page-title { font-size: 1.65rem; }
+
+      .sheet-panel {
+        width: 100vw;
+        height: 100vh;
+        height: 100dvh;
+        max-width: none;
+        border-radius: 0;
+        border: none;
+        /* 图片占上方约一半，文字在下方滚动 */
+        grid-template-columns: 1fr;
+        grid-template-rows: minmax(0, 46%) minmax(0, 1fr);
+      }
+      .sheet-side { border-left: none; border-top: 1px solid var(--card-border); }
+      .sheet-side-scroll { padding: 22px 20px 40px; }
+      .sheet-close { top: 10px; right: 10px; }
+      .sheet-nav { width: 38px; height: 38px; }
+      .sheet-nav.prev { left: 10px; }
+      .sheet-nav.next { right: 10px; }
+      .sheet-title { font-size: 1.16rem; }
+    }
+
+    @media (max-width: 420px) {
+      .page-title { font-size: 1.45rem; }
+      .chip { padding: 6px 13px; font-size: 0.78rem; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .tile, .tile-img, .tile-hint, .back-link, .chip, .sheet, .sheet-panel, .sheet-nav, .sheet-close {
+        transition: none;
+      }
+      .tile:hover { transform: none; }
+      .sheet-nav:active { transform: translateY(-50%); }
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <div class="topbar">
+      <a class="back-link" href="/">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M15 18l-6-6 6-6"/>
+        </svg>
+        <span>返回首页</span>
+      </a>
+      <span class="site-name" id="siteName"></span>
+    </div>
+
+    <div class="page-head">
+      <h1 class="page-title" id="pageTitle">画廊</h1>
+      <p class="page-sub" id="pageSub"></p>
+      <div class="filter-bar" id="filterBar" hidden></div>
+    </div>
+
+    <div id="galleryHost">
+      <div class="status-box"><div class="spinner"></div><p>正在加载画廊…</p></div>
+    </div>
+  </main>
+
+  <!-- ============ 展开抽屉：左大图 + 右文字 ============ -->
+  <div class="sheet" id="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+    <div class="sheet-panel">
+      <button class="sheet-close" id="sheetClose" type="button" aria-label="关闭">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+             stroke-linecap="round" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19"/></svg>
+      </button>
+
+      <div class="sheet-media" id="sheetMedia">
+        <img id="sheetImg" alt="">
+        <div class="sheet-media-msg" id="sheetMediaMsg" hidden></div>
+        <button class="sheet-nav prev" id="sheetPrev" type="button" aria-label="上一张">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <button class="sheet-nav next" id="sheetNext" type="button" aria-label="下一张">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+        </button>
+      </div>
+
+      <div class="sheet-side">
+        <div class="sheet-side-scroll">
+          <h2 class="sheet-title" id="sheetTitle"></h2>
+          <div class="sheet-meta">
+            <span id="sheetDate"></span>
+            <span id="sheetTags"></span>
+          </div>
+          <div class="sheet-body" id="sheetBody"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ============================================================
+       基础配置：与主站 index.html 保持一致
+       ============================================================ */
+    const SITE = {
+      user: 'mentea555',
+      repo: 'myfirstweb',
+      branch: 'main',
+      settingsFile: 'content/settings.json',
+      layoutFile: 'content/layout.json',
+      galleryFile: 'content/gallery.json'
+    };
+    const GH_SLUG = SITE.user + '/' + SITE.repo;
+
+    /* 内容源：与主站同一套「实时优先、稳定兜底」顺序 */
+    const textSources = [
+      (path) => `https://raw.githubusercontent.com/${SITE.user}/${SITE.repo}/${SITE.branch}/${path}?t=${Date.now()}`,
+      (path) => `https://cdn.jsdelivr.net/gh/${GH_SLUG}/${path}`,
+      (path) => `https://ghproxy.net/https://raw.githubusercontent.com/${SITE.user}/${SITE.repo}/${SITE.branch}/${path}`
+    ];
+
+    async function fetchTextMulti(path) {
+      let lastErr = null;
+      for (const build of textSources) {
+        const url = build(path);
+        try {
+          const res = await fetch(url, { cache: 'default' });
+          if (!res.ok) { lastErr = new Error('HTTP ' + res.status); continue; }
+          const text = await res.text();
+          if (text && text.trim()) return { text, from: url };
+          lastErr = new Error('空响应');
+        } catch (e) { lastErr = e; }
+      }
+      throw lastErr || new Error('所有内容源均不可用');
+    }
+
+    async function fetchJSON(path, fallback) {
+      try {
+        const { text } = await fetchTextMulti(path);
+        return text.trim() ? repairDeep(JSON.parse(text)) : fallback;
+      } catch (e) {
+        console.warn('读取配置失败：' + path, e);
+        return fallback;
+      }
+    }
+
+    /* ---------------- 乱码自愈（与主站同款判据） ----------------
+       UTF-8 中文被按 Latin-1 逐字节解读会变成「æ•°å—」，
+       再按 UTF-8 写回就成了双重编码。这里检测并还原。
+       判据从严，避免误伤 Café / © 这类正常文本。 */
+    function repairMojibake(text) {
+      if (typeof text !== 'string' || !/[\u00C0-\u00FF]/.test(text)) return text;
+      try {
+        const bytes = new Uint8Array(text.length);
+        for (let i = 0; i < text.length; i++) {
+          const c = text.charCodeAt(i);
+          if (c > 255) return text;              // 真乱码一定是纯字节值
+          bytes[i] = c;
+        }
+        const fixed = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+        const cjkCount = (s) => (s.match(/[\u4E00-\u9FFF]/g) || []).length;
+        return cjkCount(fixed) > cjkCount(text) ? fixed : text;
+      } catch (e) { return text; }
+    }
+    function repairDeep(value) {
+      if (typeof value === 'string') return repairMojibake(value);
+      if (Array.isArray(value)) return value.map(repairDeep);
+      if (value && typeof value === 'object') {
+        const out = {};
+        Object.keys(value).forEach((k) => { out[k] = repairDeep(value[k]); });
+        return out;
+      }
+      return value;
+    }
+
+    /* ---------------- 图片地址处理（与主站一致） ----------------
+       GitHub 的 blob/raw 链接换成 jsDelivr；部分图床 CDN 不可达时
+       由 onerror 兜底走图片代理。 */
+    const IMG_PROXY = 'https://wsrv.nl/?url=';
+
+    function normalizeImageUrl(raw) {
+      const url = String(raw || '').trim();
+      if (!url) return '';
+      let m;
+      m = url.match(/^https?:\/\/github\.com\/([^/]+)\/([^/]+)\/(?:blob|raw)\/([^/]+)\/(.+)$/i);
+      if (m) return `https://cdn.jsdelivr.net/gh/${m[1]}/${m[2]}@${m[3]}/${m[4]}`;
+      m = url.match(/^https?:\/\/raw\.githubusercontent\.com\/([^/]+)\/([^/]+)\/([^/]+)\/(.+)$/i);
+      if (m) return `https://cdn.jsdelivr.net/gh/${m[1]}/${m[2]}@${m[3]}/${m[4]}`;
+      return url;
+    }
+    function proxiableImage(url) {
+      if (!/^https?:\/\//i.test(url)) return false;
+      return !/^https?:\/\/(localhost|127\.0\.0\.1|\[?::1\]?)[:/]/i.test(url);
+    }
+
+    /* ============================================================
+       外观：读取主站的 layout.json 令牌 + settings.json
+       —— 与主站 applyTokens 保持同一套变量名与求解方式
+       ============================================================ */
+    const DEFAULT_LAYOUT_TOKENS = { theme: 'dark', accent: '#2d2d2f', background: '', font: 'jakarta', radius: 5, pageWidth: 1020, cardPadding: 26, lineHeight: 192 };
+
+    const FONTS = {
+      jakarta: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif",
+      serif: "'Noto Serif SC', Georgia, 'Songti SC', serif",
+      mono: "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace"
+    };
+
+    const num = (v, d) => { const n = parseFloat(v); return isNaN(n) ? d : n; };
+
+    function hexToRgba(hex, alpha) {
+      const h = String(hex || '').replace('#', '');
+      if (h.length !== 6) return `rgba(99,102,241,${alpha})`;
+      const n = parseInt(h, 16);
+      return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`;
+    }
+    function srgbToLin(c) { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+    function relLum(hex) {
+      const h = String(hex || '').replace('#', '');
+      if (h.length !== 6) return 0;
+      const n = parseInt(h, 16);
+      return 0.2126 * srgbToLin((n >> 16) & 255) + 0.7152 * srgbToLin((n >> 8) & 255) + 0.0722 * srgbToLin(n & 255);
+    }
+    function contrastRatio(a, b) {
+      const la = relLum(a), lb = relLum(b);
+      return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+    }
+    function readableOn(bg, light, dark) { return contrastRatio(bg, light) >= contrastRatio(bg, dark) ? light : dark; }
+    function mixHex(a, b, t) {
+      const pa = String(a).replace('#', ''), pb = String(b).replace('#', '');
+      const na = parseInt(pa, 16), nb = parseInt(pb, 16);
+      const ch = (sh) => {
+        const va = (na >> sh) & 255, vb = (nb >> sh) & 255;
+        return Math.round(va + (vb - va) * t);
+      };
+      return '#' + [16, 8, 0].map((sh) => ch(sh).toString(16).padStart(2, '0')).join('');
+    }
+
+    const COLOR_RE = /^(#([0-9a-f]{3}|[0-9a-f]{6})|rgba?\(\s*[\d.\s,%]+\)|hsla?\([\d.\s,%deg]+\)|[a-z]+)$/i;
+    const TEXT_COLOR_SLOTS = [
+      ['bodyColor', 'body_color', '--body-text'],
+      ['textColor', 'text_color', '--text'],
+      ['dimColor', 'dim_color', '--text-dim']
+    ];
+    const BADGE_SLOT = ['badgeColor', 'badge_color', '--accent-ink'];
+
+    function resolveTextColor(tk, settings, camelKey, snakeKey) {
+      const a = tk && tk[camelKey];
+      if (a && COLOR_RE.test(String(a).trim())) return String(a).trim();
+      const b = settings && settings[snakeKey];
+      if (b && COLOR_RE.test(String(b).trim())) return String(b).trim();
+      return '';
+    }
+
+    function applyTokens(t, settings) {
+      const root = document.documentElement;
+      const tk = Object.assign({}, DEFAULT_LAYOUT_TOKENS, t || {});
+      const isLight = tk.theme === 'light';
+
+      root.setAttribute('data-theme', isLight ? 'light' : 'dark');
+
+      const bgColor = tk.background || (isLight ? '#f6f7fb' : '#0f1117');
+      const themeFg = isLight ? '#0f172a' : '#ffffff';
+
+      if (tk.accent) {
+        root.style.setProperty('--accent', tk.accent);
+        root.style.setProperty('--accent-soft', hexToRgba(tk.accent, isLight ? 0.14 : 0.22));
+        /* 选中态筛选按钮上的字：强调色可能是近黑色，白字会看不见，
+           所以按对比度自动挑黑白里读得清的那个。 */
+        root.style.setProperty('--accent-on', readableOn(tk.accent, '#ffffff', '#0b0d12'));
+        root.style.setProperty('--accent-edge', hexToRgba(tk.accent, 0.45));
+      } else {
+        ['--accent', '--accent-soft', '--accent-on', '--accent-ink', '--accent-edge']
+          .forEach((v) => root.style.removeProperty(v));
+      }
+
+      if (tk.background) root.style.setProperty('--bg', tk.background);
+      else root.style.removeProperty('--bg');
+
+      // 文字颜色槽位（留空 = 跟随主题默认）
+      const headingResolved = resolveTextColor(tk, settings, 'headingColor', 'heading_color');
+      TEXT_COLOR_SLOTS.forEach(([camelKey, snakeKey, cssVar]) => {
+        const val = resolveTextColor(tk, settings, camelKey, snakeKey);
+        if (val) root.style.setProperty(cssVar, val);
+        else root.style.removeProperty(cssVar);
+      });
+
+      // 徽标/强调色系文字色
+      const badgeRaw = resolveTextColor(tk, settings, BADGE_SLOT[0], BADGE_SLOT[1]);
+      if (badgeRaw) {
+        root.style.setProperty(BADGE_SLOT[2], badgeRaw);
+      } else if (tk.accent) {
+        const softSolid = mixHex(tk.accent, bgColor, isLight ? 0.14 : 0.22);
+        root.style.setProperty(BADGE_SLOT[2], readableOn(softSolid, tk.accent, themeFg));
+      } else {
+        root.style.removeProperty(BADGE_SLOT[2]);
+      }
+
+      // 链接色：强调色够清楚就用它，否则退回标题色
+      const linkRaw = resolveTextColor(tk, settings, 'linkColor', 'link_color');
+      if (linkRaw) {
+        root.style.setProperty('--link-color', linkRaw);
+      } else if (tk.accent && contrastRatio(tk.accent, bgColor) >= 3) {
+        root.style.setProperty('--link-color', tk.accent);
+      } else {
+        root.style.setProperty('--link-color', headingResolved || themeFg);
+      }
+
+      root.style.setProperty('--font', FONTS[tk.font] || FONTS.jakarta);
+      root.style.setProperty('--radius', num(tk.radius, 16) + 'px');
+      root.style.setProperty('--page-width', num(tk.pageWidth, 900) + 'px');
+      root.style.setProperty('--card-padding', num(tk.cardPadding, 26) + 'px');
+      root.style.setProperty('--line-height', num(tk.lineHeight, 178) / 100);
+    }
+
+    /* ============================================================
+       frontmatter 解析 + 文章拉取
+       ----------------------------------------------------------
+       与主站同一套逻辑：目录走 GitHub Contents API（实时），
+       挂了退回 jsDelivr 静态清单；正文多源并发抓取。
+       ============================================================ */
+    function parseFrontmatter(text) {
+      const src = String(text || '').replace(/^\uFEFF/, '');
+      const m = src.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
+      if (!m) return { data: {}, body: src };
+
+      const data = {};
+      const lines = m[1].split(/\r?\n/);
+      let key = null;
+      let listBuf = null;
+
+      const flushList = () => {
+        if (key && listBuf) data[key] = listBuf;
+        listBuf = null;
+      };
+
+      for (const rawLine of lines) {
+        const line = rawLine.replace(/\s+$/, '');
+        if (!line.trim()) continue;
+
+        // 列表项：  - 值   （属于上一个 key）
+        const li = line.match(/^\s*-\s+(.*)$/);
+        if (li && key) {
+          if (!listBuf) listBuf = [];
+          listBuf.push(unquote(li[1]));
+          continue;
+        }
+
+        const kv = line.match(/^([A-Za-z0-9_-]+)\s*:\s*(.*)$/);
+        if (!kv) continue;
+        flushList();
+        key = kv[1];
+        const val = kv[2].trim();
+        if (val === '') {
+          // 可能是「后面跟列表」或者空值 —— 先记着，等下一行决定
+          data[key] = '';
+          listBuf = null;
+          continue;
+        }
+        // 行内数组： tags: [a, b]
+        const inline = val.match(/^\[(.*)\]$/);
+        if (inline) {
+          data[key] = inline[1].split(',').map((s) => unquote(s)).filter(Boolean);
+          key = null;
+        } else {
+          data[key] = unquote(val);
+          key = null;
+        }
+      }
+      flushList();
+
+      return { data, body: src.slice(m[0].length) };
+    }
+
+    function unquote(s) {
+      let v = String(s == null ? '' : s).trim();
+      if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
+        v = v.slice(1, -1);
+      }
+      return v;
+    }
+
+    async function listPostFiles(dir) {
+      const clean = String(dir || 'content/notes').replace(/^\/+|\/+$/g, '');
+
+      const viaApi = async () => {
+        const api = `https://api.github.com/repos/${SITE.user}/${SITE.repo}/contents/${clean}?ref=${SITE.branch}&t=${Date.now()}`;
+        const res = await fetch(api, { headers: { Accept: 'application/vnd.github+json' } });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const files = await res.json();
+        if (!Array.isArray(files)) throw new Error('返回格式异常');
+        return files
+          .filter((f) => f && f.type === 'file' && /\.mdx?$/i.test(f.name))
+          .map((f) => ({ name: f.name, path: f.path }));
+      };
+
+      const viaJsdelivr = async () => {
+        const res = await fetch(`https://data.jsdelivr.com/v1/package/gh/${GH_SLUG}/flat`, { cache: 'default' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        const files = (data && Array.isArray(data.files)) ? data.files : [];
+        return files
+          .filter((f) => f && typeof f.name === 'string')
+          .filter((f) => f.name.indexOf('/' + clean + '/') === 0 && /\.mdx?$/i.test(f.name))
+          .map((f) => ({ name: f.name.split('/').pop(), path: f.name.replace(/^\//, '') }));
+      };
+
+      try {
+        const hits = await viaApi();
+        if (hits.length) return hits;
+      } catch (e) { /* 落到 jsDelivr */ }
+
+      try {
+        const hits = await viaJsdelivr();
+        if (hits.length) return hits;
+      } catch (e) { /* 两路都挂 */ }
+
+      throw new Error('内容目录读取失败，可能是内容源暂时不可达');
+    }
+
+    async function fetchPosts(dir) {
+      const mdFiles = await listPostFiles(dir);
+
+      const settled = await Promise.allSettled(mdFiles.map(async (file) => {
+        const { text } = await fetchTextMulti(file.path);
+        const { data, body } = parseFrontmatter(text);
+        if (data.draft === true || data.draft === 'true') return null;   // 草稿不上前台
+
+        return repairDeep({
+          title: data.title || file.name.replace(/\.mdx?$/i, ''),
+          date: data.date || '',
+          cover: data.thumbnail || data.cover || data.image || '',
+          description: data.description || data.summary || '',
+          tags: Array.isArray(data.tags) ? data.tags : (data.tags ? [data.tags] : []),
+          featured: data.featured === true || data.featured === 'true',
+          body: body.trim(),
+          filename: file.name
+        });
+      }));
+
+      const posts = [];
+      settled.forEach((r, i) => {
+        if (r.status === 'fulfilled') {
+          if (r.value) posts.push(r.value);
+        } else {
+          console.warn('跳过无法解析的文件：' + mdFiles[i].path, r.reason);
+        }
+      });
+
+      if (mdFiles.length && posts.length === 0) {
+        throw new Error('文章内容读取失败，可能是内容源暂时不可达');
+      }
+
+      posts.sort((a, b) => {
+        if (a.featured !== b.featured) return a.featured ? -1 : 1;
+        return new Date(b.date || 0) - new Date(a.date || 0);
+      });
+      return posts;
+    }
+
+    /* ============================================================
+       正文渲染
+       ----------------------------------------------------------
+       与主站一致：marked + DOMPurify。
+       另需支持主站特有的内联颜色短代码：
+           {{<c:#ff7a7a>}}这句话是红的{{</c>}}
+       —— 先占位、交给 marked、再把占位换成 span，
+       这样短代码写在加粗/链接内部也能生效。
+       ============================================================ */
+    const TC_RE = /\{\{(?:<c:|c:)\s*(#[0-9a-fA-F]{3,8}|[a-zA-Z]{3,20})\s*>?\}\}([\s\S]*?)\{\{(?:<\/c>|\/c)\}\}/g;
+    const TC_SAFE = /^(#[0-9a-fA-F]{3,8}|[a-zA-Z]{3,20})$/;
+
+    function escapeHtml(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    function protectColorTags(md) {
+      const store = [];
+      const out = String(md || '').replace(TC_RE, (full, color, inner) => {
+        if (!TC_SAFE.test(String(color).trim())) return full;   // 非法颜色 → 原样留着（后面会被转义）
+        const idx = store.push({ color: String(color).trim(), inner }) - 1;
+        return '\u0000TC' + idx + '\u0000';
+      });
+      return { out, store };
+    }
+
+    function restoreColorTags(html, store) {
+      return String(html).replace(/\u0000TC(\d+)\u0000/g, (full, i) => {
+        const it = store[Number(i)];
+        if (!it) return '';
+        // inner 已经过 marked → 是 HTML 片段；颜色白名单已校验
+        return '<span style="color:' + it.color + '">' + it.inner + '</span>';
+      });
+    }
+
+    function md2html(md) {
+      const src = String(md || '');
+      const { out, store } = protectColorTags(src);
+
+      let html;
+      if (window.marked && window.DOMPurify) {
+        try {
+          const raw = window.marked.parse(out, { breaks: true, gfm: true });
+          html = window.DOMPurify.sanitize(restoreColorTags(raw, store), {
+            USE_PROFILES: { html: true },
+            ADD_ATTR: ['style', 'target', 'rel'],
+            /* 只放行 color，挡掉 position/url() 这类可用于劫持的样式 */
+            ALLOWED_ATTR: ['href', 'title', 'alt', 'src', 'class', 'style', 'target', 'rel', 'colspan', 'rowspan', 'align']
+          });
+          // 富文本里残留的 position:fixed 之类 —— 再收一遍 style
+          html = html.replace(/style="([^"]*)"/gi, (full, css) => {
+            const safe = String(css).split(';')
+              .map((d) => d.trim())
+              .filter((d) => /^color\s*:/i.test(d))
+              .join('; ');
+            return safe ? 'style="' + safe + '"' : '';
+          });
+          return html;
+        } catch (e) { /* 落到下面 */ }
+      }
+
+      // 库没到位：退化成纯文本 + 保留换行（不裸露 markdown 记号）
+      return restoreColorTags(escapeHtml(out), store)
+        .split(/\n{2,}/).map((p) => '<p>' + p.replace(/\n/g, '<br>') + '</p>').join('');
+    }
+
+    function formatDate(value) {
+      if (!value) return '';
+      const d = new Date(value);
+      if (isNaN(d.getTime())) return String(value);
+      const p = (n) => String(n).padStart(2, '0');
+      return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
+    }
+
+    /* ============================================================
+       渲染：瀑布流
+       ----------------------------------------------------------
+       ⚠️ 「只收录带插画标签的笔记」——
+       必须是**显式打了标签**的。只是恰好有封面图、没打标签的，
+       这个页面**不显示**。所以筛选条件是「tags 命中 galleryTag」，
+       不是「有 cover」。
+       ============================================================ */
+    const $ = (id) => document.getElementById(id);
+
+    const DEFAULT_GALLERY = {
+      title: '画廊',
+      subtitle: '只收录带插画的笔记',
+      tag: '插画',
+      empty_text: ''
+    };
+
+    let allItems = [];       // 全部通过筛选的条目
+    let activeTag = '全部';
+    let currentIndex = -1;   // 抽屉里正在看的条目索引（相对 visibleItems）
+
+    function buildItems(posts, galleryTag) {
+      const want = String(galleryTag || '').trim();
+      if (!want) return [];
+      return posts
+        .filter((p) => {
+          // 标签必须显式命中（大小写不敏感，去掉首尾空格）
+          const tags = (p.tags || []).map((t) => String(t).trim());
+          return tags.some((t) => t.toLowerCase() === want.toLowerCase());
+        })
+        .map((p) => {
+          const cover = normalizeImageUrl(p.cover);
+          return {
+            title: p.title || '无标题',
+            date: p.date || '',
+            cover: cover,
+            tags: (p.tags || []).map((t) => String(t).trim()).filter(Boolean),
+            body: p.body || '',
+            filename: p.filename || ''
+          };
+        })
+        // 没有有效封面的条目这个页面无法展示（卡片就是图片本身）
+        .filter((it) => it.cover);
+    }
+
+    /* 列数：按可用宽度自适应。
+       ⚠️ 这里必须用**容器宽度**而不是 window.innerWidth ——
+       容器有 max-width 和左右内边距，宽屏下窗口再宽列宽也不该继续长。 */
+    function applyColumns() {
+      const host = $('galleryHost');
+      if (!host) return;
+      const w = host.clientWidth || window.innerWidth;
+      let cols = 2;
+      if (w >= 1400) cols = 5;
+      else if (w >= 1080) cols = 4;
+      else if (w >= 760) cols = 3;
+      else if (w >= 460) cols = 2;
+      else cols = 2;          // 再窄也保 2 列，1 列会显得很空洞
+      document.documentElement.style.setProperty('--cols', String(cols));
+    }
+
+    function visibleItems() {
+      if (activeTag === '全部') return allItems;
+      return allItems.filter((it) => it.tags.some((t) => t === activeTag));
+    }
+
+    function renderGallery() {
+      const host = $('galleryHost');
+      applyColumns();
+
+      const items = visibleItems();
+      if (!items.length) {
+        host.innerHTML = '<div class="status-box"><p>' +
+          escapeHtml((galleryEmptyText || '').trim() || '这里还没有内容。') + '</p></div>';
+        return;
+      }
+
+      const html = items.map((it, i) => {
+        const alt = it.title ? it.title : '插画';
+        return '<button class="tile" type="button" data-idx="' + i + '" ' +
+          'aria-label="' + escapeHtml('打开：' + alt) + '">' +
+          '<img class="tile-img" data-state="loading" alt="' + escapeHtml(alt) + '" ' +
+          'loading="lazy" decoding="async" src="' + escapeHtml(it.cover) + '">' +
+          '<span class="tile-hint" aria-hidden="true">' +
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ' +
+            'stroke-linecap="round" stroke-linejoin="round">' +
+            '<path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>' +
+          '</span>' +
+        '</button>';
+      }).join('');
+
+      host.innerHTML = '<div class="masonry" id="masonry">' + html + '</div>';
+      bindTileImages();
+    }
+
+    /* 图片加载：失败先走代理，再失败换成占位块。
+       加载成功后才淡入，避免半张图闪出来。 */
+    function bindTileImages() {
+      const host = $('galleryHost');
+      if (!host) return;
+      Array.from(host.querySelectorAll('.tile-img')).forEach((img) => {
+        const settle = (ok) => {
+          if (ok) { img.dataset.state = 'ok'; return; }
+          // 试一次图片代理
+          if (!img.dataset.triedProxy && proxiableImage(img.src)) {
+            img.dataset.triedProxy = '1';
+            img.src = IMG_PROXY + encodeURIComponent(img.src);
+            return;
+          }
+          // 彻底失败 → 换成占位块（保留原尺寸比例，列高不跳）
+          const ph = document.createElement('div');
+          ph.className = 'tile-fallback';
+          ph.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" ' +
+            'stroke-linecap="round" stroke-linejoin="round">' +
+            '<rect x="3" y="4.5" width="18" height="15" rx="2.6"/>' +
+            '<circle cx="8.6" cy="10" r="1.6"/><path d="m4 17 5-4.6 4.2 3.6L17 12l3 3"/></svg>';
+          img.replaceWith(ph);
+        };
+
+        if (img.complete && img.naturalWidth > 0) { settle(true); return; }
+        if (img.complete && img.naturalWidth === 0) { settle(false); return; }
+        img.addEventListener('load', () => settle(img.naturalWidth > 0), { once: true });
+        img.addEventListener('error', () => settle(false), { once: true });
+      });
+    }
+
+    function renderFilters() {
+      const bar = $('filterBar');
+      // 只统计本页出现过的标签，不做全站标签
+      const counts = new Map();
+      allItems.forEach((it) => it.tags.forEach((t) => counts.set(t, (counts.get(t) || 0) + 1)));
+      const tags = Array.from(counts.keys());
+
+      // 标签只有一个（就是画廊标签本身）时没必要显示筛选条
+      if (tags.length < 2) { bar.hidden = true; bar.innerHTML = ''; return; }
+
+      const mk = (label, active) =>
+        '<button class="chip' + (active ? ' is-active' : '') + '" type="button" ' +
+        'data-tag="' + escapeHtml(label) + '">' + escapeHtml(label) + '</button>';
+
+      bar.innerHTML = mk('全部', activeTag === '全部') +
+        tags.map((t) => mk(t, activeTag === t)).join('');
+      bar.hidden = false;
+    }
+
+    /* ============================================================
+       抽屉：左大图 + 右文字
+       ============================================================ */
+    let lastFocus = null;
+
+    function openSheet(idx) {
+      const items = visibleItems();
+      if (idx < 0 || idx >= items.length) return;
+      currentIndex = idx;
+      lastFocus = document.activeElement;
+
+      const it = items[idx];
+      const sheet = $('sheet');
+      const media = $('sheetMedia');
+      const img = $('sheetImg');
+      const msg = $('sheetMediaMsg');
+
+      // ---- 图 ----
+      media.classList.add('is-loading');
+      msg.hidden = true;
+      img.removeAttribute('data-tried-proxy');
+      img.alt = it.title || '插画';
+      img.onload = () => {
+        if (img.naturalWidth > 0) { media.classList.remove('is-loading'); }
+      };
+      img.onerror = () => {
+        // 先试代理，再失败给个文字提示（不留白）
+        if (!img.dataset.triedProxy && proxiableImage(img.src)) {
+          img.dataset.triedProxy = '1';
+          img.src = IMG_PROXY + encodeURIComponent(img.src);
+          return;
+        }
+        media.classList.remove('is-loading');
+        img.removeAttribute('src');
+        msg.textContent = '图片加载失败，换个网络试试';
+        msg.hidden = false;
+      };
+      img.src = it.cover;
+
+      // ---- 文字 ----
+      $('sheetTitle').textContent = it.title || '无标题';
+      $('sheetDate').textContent = formatDate(it.date);
+
+      const tagsEl = $('sheetTags');
+      if (it.tags.length) {
+        tagsEl.innerHTML = it.tags.map((t) =>
+          '<button class="sheet-tag is-link" type="button" data-tag="' + escapeHtml(t) + '">' +
+          '#' + escapeHtml(t) + '</button>').join('');
+        tagsEl.hidden = false;
+      } else {
+        tagsEl.innerHTML = '';
+        tagsEl.hidden = true;
+      }
+
+      const bodyEl = $('sheetBody');
+      const body = String(it.body || '').trim();
+      if (body) {
+        bodyEl.innerHTML = md2html(body);          // 已过 DOMPurify
+        bodyEl.classList.remove('sheet-body-empty');
+      } else {
+        bodyEl.textContent = '这篇笔记还没有写正文。';
+        bodyEl.classList.add('sheet-body-empty');
+      }
+      // 换条目时正文回到顶部
+      const scroller = document.querySelector('.sheet-side-scroll');
+      if (scroller) scroller.scrollTop = 0;
+
+      // ---- 左右切换按钮的可用状态 ----
+      $('sheetPrev').disabled = idx <= 0;
+      $('sheetNext').disabled = idx >= items.length - 1;
+
+      // ---- 显示 ----
+      sheet.hidden = false;
+      // 强制一次 reflow，保证 transition 从初始态开始（否则会是瞬开）
+      void sheet.offsetWidth;
+      sheet.classList.add('show');
+      document.body.classList.add('sheet-locked');
+
+      // 焦点移进抽屉（可访问性）
+      $('sheetClose').focus({ preventScroll: true });
+    }
+
+    function closeSheet() {
+      const sheet = $('sheet');
+      if (!sheet || sheet.hidden) return;
+      sheet.classList.remove('show');
+      document.body.classList.remove('sheet-locked');
+      currentIndex = -1;
+      const finish = () => {
+        sheet.hidden = true;
+        const img = $('sheetImg');
+        img.removeAttribute('src');
+        $('sheetBody').innerHTML = '';
+      };
+      // 等淡出动画结束再真正隐藏；同时留一个兜底定时器，
+      // 万一 transitionend 不触发（元素被隐藏等），也能收尾。
+      let done = false;
+      const once = () => { if (done) return; done = true; finish(); };
+      sheet.addEventListener('transitionend', once, { once: true });
+      setTimeout(once, 320);
+
+      if (lastFocus && typeof lastFocus.focus === 'function') {
+        lastFocus.focus({ preventScroll: true });
+      }
+    }
+
+    function stepSheet(delta) {
+      const items = visibleItems();
+      const next = currentIndex + delta;
+      if (next < 0 || next >= items.length) return;
+      openSheet(next);
+    }
+
+    /* ============================================================
+       初始化
+       ============================================================ */
+    let galleryEmptyText = '';
+
+    const DEFAULT_SETTINGS = { site_title: 'Mentea Website', posts_dir: 'content/notes' };
+
+    (async function init() {
+      const [settings, layout, gallery] = await Promise.all([
+        fetchJSON(SITE.settingsFile, {}),
+        fetchJSON(SITE.layoutFile, {}),
+        fetchJSON(SITE.galleryFile, DEFAULT_GALLERY)
+      ]);
+
+      const s = Object.assign({}, DEFAULT_SETTINGS, settings);
+      const l = { tokens: Object.assign({}, DEFAULT_LAYOUT_TOKENS, (layout && layout.tokens) || {}) };
+      const g = Object.assign({}, DEFAULT_GALLERY, gallery);
+
+      applyTokens(l.tokens, s);
+      $('siteName').textContent = s.site_title || '';
+
+      // 页面标题 / 副标题 / 空状态文案
+      galleryEmptyText = String(g.empty_text || '').trim();
+      $('pageTitle').textContent = String(g.title || '画廊');
+      const sub = String(g.subtitle || '').trim();
+      if (sub) { $('pageSub').textContent = sub; $('pageSub').hidden = false; }
+      else $('pageSub').hidden = true;
+      document.title = String(g.title || '画廊') + ' | ' + (s.site_title || 'Mentea');
+
+      // ---- 拉文章 ----
+      let posts = [];
+      try {
+        posts = await fetchPosts(s.posts_dir || 'content/notes');
+      } catch (e) {
+        $('galleryHost').innerHTML = '<div class="status-box"><p>' +
+          '画廊加载失败，可能是内容源暂时不可达。<br>刷新一下再试试。</p></div>';
+        return;
+      }
+
+      allItems = buildItems(posts, g.tag);
+      renderFilters();
+      renderGallery();
+      // marked/DOMPurify 晚到不影响这里（正文是点击时才渲染的）
+    })();
+
+    /* ============================================================
+       事件绑定
+       ============================================================ */
+    // 瀑布流点击（事件委托：卡片是动态生成的）
+    $('galleryHost').addEventListener('click', (e) => {
+      const tile = e.target.closest('.tile');
+      if (!tile) return;
+      const idx = parseInt(tile.dataset.idx, 10);
+      if (!isNaN(idx)) openSheet(idx);
+    });
+
+    // 筛选
+    $('filterBar').addEventListener('click', (e) => {
+      const chip = e.target.closest('.chip');
+      if (!chip) return;
+      activeTag = chip.dataset.tag || '全部';
+      renderFilters();
+      renderGallery();
+    });
+
+    // 抽屉内点标签 → 关闭抽屉并按该标签筛选
+    $('sheetTags').addEventListener('click', (e) => {
+      const btn = e.target.closest('.sheet-tag');
+      if (!btn) return;
+      activeTag = btn.dataset.tag || '全部';
+      closeSheet();
+      renderFilters();
+      renderGallery();
+      // 滚回顶部让主人看到筛选结果
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    $('sheetClose').addEventListener('click', closeSheet);
+    $('sheetPrev').addEventListener('click', () => stepSheet(-1));
+    $('sheetNext').addEventListener('click', () => stepSheet(1));
+
+    // 点遮罩（面板外的区域）关闭
+    $('sheet').addEventListener('click', (e) => {
+      if (e.target === $('sheet')) closeSheet();
+    });
+
+    // 键盘：Esc 关闭 / ←→ 切换
+    document.addEventListener('keydown', (e) => {
+      const sheet = $('sheet');
+      if (!sheet || sheet.hidden) return;
+      if (e.key === 'Escape') { closeSheet(); return; }
+      if (e.key === 'ArrowLeft') { e.preventDefault(); stepSheet(-1); return; }
+      if (e.key === 'ArrowRight') { e.preventDefault(); stepSheet(1); }
+    });
+
+    /* 左右滑动手势（触屏） */
+    (function swipe() {
+      const sheet = $('sheet');
+      let x0 = null, y0 = null;
+      sheet.addEventListener('touchstart', (e) => {
+        if (e.touches.length !== 1) return;
+        x0 = e.touches[0].clientX; y0 = e.touches[0].clientY;
+      }, { passive: true });
+      sheet.addEventListener('touchend', (e) => {
+        if (x0 == null) return;
+        const t = e.changedTouches[0];
+        const dx = t.clientX - x0, dy = t.clientY - y0;
+        x0 = null; y0 = null;
+        // 横向位移要够大、且明显大于纵向，避免和竖向滚动打架
+        if (Math.abs(dx) < 55 || Math.abs(dx) < Math.abs(dy) * 1.6) return;
+        stepSheet(dx < 0 ? 1 : -1);
+      }, { passive: true });
+    })();
+
+    // 窗口尺寸变化 → 重算列数（rAF 节流）
+    (function watchColumns() {
+      let raf = 0;
+      const run = () => {
+        if (raf) return;
+        raf = requestAnimationFrame(() => { raf = 0; applyColumns(); });
+      };
+      window.addEventListener('resize', run);
+      window.addEventListener('orientationchange', run);
+    })();
+  </script>
+</body>
+</html>
