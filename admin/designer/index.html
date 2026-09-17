@@ -271,6 +271,28 @@
     .swatch-clear:hover { color: var(--ui-text); border-color: var(--ui-accent); }
     .swatch-clear:disabled { opacity: .35; cursor: default; border-color: var(--ui-border); color: var(--ui-dim); }
 
+    /* 从画布点文字跳过来时，让对应的设置行闪一下，方便一眼找到 */
+    @keyframes partFlash {
+      0%   { background: transparent; }
+      18%  { background: color-mix(in srgb, var(--ui-accent) 26%, transparent); }
+      100% { background: transparent; }
+    }
+    .row.part-flash {
+      animation: partFlash 1.8s ease-out;
+      border-radius: 8px;
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--ui-accent) 55%, transparent);
+      margin-left: -6px; margin-right: -6px; padding-left: 6px; padding-right: 6px;
+    }
+    /* 部分环境不支持 color-mix，退回到半透明描边，保证高亮仍可见 */
+    @supports not (background: color-mix(in srgb, red 10%, transparent)) {
+      @keyframes partFlash {
+        0%   { background: transparent; }
+        18%  { background: rgba(99, 102, 241, 0.22); }
+        100% { background: transparent; }
+      }
+      .row.part-flash { box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.5); }
+    }
+
     /* 配色对比度提醒：只提示、不阻止 —— 主人有权调任何颜色 */
     .warn-box {
       margin-top: 10px;
@@ -451,7 +473,10 @@
         radius: 16, pageWidth: 900, cardPadding: 26, cardGap: 30,
         lineHeight: 178, titleScale: 100,
         // 文字颜色：留空 = 跟随主题默认
-        headingColor: '', bodyColor: '', textColor: '', dimColor: '', linkColor: ''
+        headingColor: '', bodyColor: '', textColor: '', dimColor: '', linkColor: '',
+        // 徽标（首屏那个小圆角标签）的文字色。留空 = 自动按强调色算一个读得清的，
+        // 所以它留空时也不会「看不见」。
+        badgeColor: ''
       },
       blocks: [
         { id: 'announce', enabled: true, align: 'left', gap: 24, bg: '' },
@@ -933,6 +958,7 @@
         <div class="hint">留空 = 跟随当前配色模式的默认值。改完如果对比度太低，下面会出现提醒。</div>
 
         ${colorRow('标题与强调文字', 'headingColor', t.headingColor, '留空 = 默认', isLightTheme() ? '#0f172a' : '#ffffff')}
+        ${colorRow('首屏徽标文字',   'badgeColor',   t.badgeColor,   '留空 = 自动适配', t.accent || '#6366f1')}
         ${colorRow('正文段落',       'bodyColor',    t.bodyColor,    '留空 = 默认', isLightTheme() ? '#3d4855' : '#cbd5e1')}
         ${colorRow('一般文字',       'textColor',    t.textColor,    '留空 = 默认', isLightTheme() ? '#25303f' : '#e2e8f0')}
         ${colorRow('次要文字（日期等）', 'dimColor', t.dimColor,     '留空 = 默认', isLightTheme() ? '#6b7788' : '#94a3b8')}
@@ -981,6 +1007,18 @@
       const hi = Math.max(la, lb), lo = Math.min(la, lb);
       return (hi + 0.05) / (lo + 0.05);
     }
+    /* 把 hexA 按 weightA 的比例混到 hexB 上，得到等效实色。
+       用来「解开」半透明层：徽标底色是 accent 按透明度叠在页面背景上，
+       要算它的对比度就得先还原成不透明的颜色，否则结论会偏。
+       ⚠️ 与首页 index.html 里的同名函数保持同一套实现，改一处要同步另一处。 */
+    function mixHex(hexA, hexB, weightA) {
+      const a = hexToRgb(hexA), b = hexToRgb(hexB);
+      if (!a || !b) return hexA;
+      const w = Math.max(0, Math.min(1, weightA));
+      const clamp255 = (v) => Math.max(0, Math.min(255, Math.round(v)));
+      const to = (x, y) => clamp255(x * w + y * (1 - w)).toString(16).padStart(2, '0');
+      return '#' + to(a.r, b.r) + to(a.g, b.g) + to(a.b, b.b);
+    }
     function isLightTheme() {
       return draft && draft.tokens && draft.tokens.theme === 'light';
     }
@@ -1012,6 +1050,17 @@
         // 3 是 WCAG 大字门槛；低于它基本就是「看不见」了
         if (r != null && r < 3) bad.push(label + '（' + r.toFixed(1) + ':1）');
       });
+
+      /* 徽标单独算：它的底色不是页面背景，而是 accent-soft
+         （强调色按透明度叠在背景上）。拿页面背景去比会得出错误结论。 */
+      (() => {
+        const raw = draft.tokens.badgeColor;
+        if (!raw) return;
+        const accent = draft.tokens.accent || '#6366f1';
+        const softSolid = mixHex(accent, bg, draft.tokens.theme === 'light' ? 0.14 : 0.22);
+        const r = contrastRatio(raw, softSolid);
+        if (r != null && r < 3) bad.push('首屏徽标文字（' + r.toFixed(1) + ':1）');
+      })();
 
       // 顺带提醒：链接色留空时走强调色，如果强调色本身对比太低，链接会不好认
       const accentHint = (() => {
@@ -1276,7 +1325,7 @@
         }
         if (act === 'textcolor-reset') {
           el.onclick = () => {
-            const keys = ['headingColor', 'bodyColor', 'textColor', 'dimColor', 'linkColor'];
+            const keys = ['headingColor', 'badgeColor', 'bodyColor', 'textColor', 'dimColor', 'linkColor'];
             if (!keys.some((k) => draft.tokens[k])) return;
             const snap = JSON.stringify(draft);
             keys.forEach((k) => { draft.tokens[k] = ''; });
@@ -1317,12 +1366,161 @@
 
       if (msg.type === 'designer:clicked') {
         if (Date.now() - lastDragAt < 350) return;   // 刚拖完的那一下点击不算选中
-        selectedId = (selectedId === msg.id) ? null : msg.id;
+        // 点了区块里的具体元素时，永远保持选中（否则「点一下取消、再点又选中」
+        // 会让「跳到对应设置」这件事变得时灵时不灵）。
+        const isPart = !!msg.part;
+        selectedId = (selectedId === msg.id && !isPart) ? null : msg.id;
         renderBlockList();
         renderInspector();
         frame.contentWindow.postMessage({ type: 'designer:select', id: selectedId }, location.origin);
+        if (msg.part) focusPart(msg.part);
       }
     });
+
+    /* ==========================================================
+       点画布文字 → 跳到右栏对应的设置项
+       ----------------------------------------------------------
+       PART_HINTS 把「画布上点到的语义元素」翻译成「右栏哪个设置项」。
+         scope: block  → 该区块的分组（会自动带上「区块名」标题）
+                token  → 全站外观
+                textcolor → 文字颜色分组里的某个色槽
+         selector: 右栏里能定位到的 CSS 选择器
+         label:    没找到控件时给用户的提示（例如它其实在别处调）
+       ========================================================== */
+    const PART_HINTS = {
+      // ---- Hero 首屏区 ----
+      heroBadge: {
+        label: '徽标文字（「不可见的滚木」这类小标签）',
+        selector: '[data-act="textcolor-text"][data-key="badgeColor"]',
+        fallbackHint: '在「文字颜色」分组里找「徽标文字」',
+      },
+      heroTitle: {
+        label: '首屏大标题',
+        selector: '[data-scope="block"][data-key="titleSize"]',
+        fallbackHint: '首屏标题的字号在区块属性里；文字内容在「首页内容」',
+      },
+      heroSubtitle: {
+        label: '首屏副标题',
+        selector: '[data-act="textcolor-text"][data-key="dimColor"]',
+        fallbackHint: '在「文字颜色」分组里找「次要文字」',
+      },
+      // ---- 页头 ----
+      siteTitle: {
+        label: '站点标题',
+        selector: '[data-act="textcolor-text"][data-key="headingColor"]',
+        fallbackHint: '站点标题的文字内容在「全站外观与设置」里改',
+      },
+      siteSubtitle: {
+        label: '站点副标题',
+        selector: '[data-act="textcolor-text"][data-key="dimColor"]',
+        fallbackHint: '站点副标题的文字内容在「全站外观与设置」里改',
+      },
+      nav: {
+        label: '导航菜单',
+        selector: '[data-act="textcolor-text"][data-key="textColor"]',
+        fallbackHint: '导航项在「全站外观与设置」里增删',
+      },
+      // ---- 关于我 ----
+      aboutTitle: {
+        label: '「关于我」标题',
+        selector: '[data-act="textcolor-text"][data-key="headingColor"]',
+        fallbackHint: '文字内容在「首页内容」里改',
+      },
+      aboutBody: {
+        label: '「关于我」正文',
+        selector: '[data-act="textcolor-text"][data-key="bodyColor"]',
+        fallbackHint: '文字内容在「首页内容」里改',
+      },
+      // ---- 公告条 ----
+      announce: {
+        label: '公告条',
+        selector: '[data-act="textcolor-text"][data-key="textColor"]',
+        fallbackHint: '公告文字在「首页内容」里改',
+      },
+      // ---- 内容流 ----
+      feed: {
+        label: '内容流',
+        selector: '[data-act="columns"]',
+        fallbackHint: '单列 / 双列在这里切',
+      },
+      postTitle: {
+        label: '文章标题',
+        selector: '[data-act="textcolor-text"][data-key="headingColor"]',
+        fallbackHint: '文章内容本身在「笔记」里写',
+      },
+      postExcerpt: {
+        label: '文章摘要',
+        selector: '[data-act="textcolor-text"][data-key="dimColor"]',
+        fallbackHint: '摘要内容在「笔记」里写',
+      },
+      postMeta: {
+        label: '文章日期等次要信息',
+        selector: '[data-act="textcolor-text"][data-key="dimColor"]',
+        fallbackHint: '在「文字颜色」分组里找「次要文字」',
+      },
+      postTag: {
+        label: '标签',
+        selector: '[data-act="textcolor-text"][data-key="dimColor"]',
+        fallbackHint: '标签内容在「笔记」里写',
+      },
+      // ---- 页脚 ----
+      footer: {
+        label: '页脚',
+        selector: '[data-act="textcolor-text"][data-key="dimColor"]',
+        fallbackHint: '页脚文字在「首页内容」里改',
+      },
+      // ---- 标签筛选 ----
+      toolbar: {
+        label: '标签筛选栏',
+        selector: '[data-act="textcolor-text"][data-key="dimColor"]',
+        fallbackHint: '',
+      },
+    };
+
+    let partFlashTimer = null;
+    /**
+     * 把右栏滚到某个设置项并高亮一下。
+     * 找不到控件时（例如它其实是内容字段、不在这个面板里），
+     * 退回到「滚到它所属的分组」并给一句说明，而不是静默无反应。
+     */
+    function focusPart(part) {
+      const hint = PART_HINTS[part];
+      if (!hint) return;
+
+      const panel = document.getElementById('inspector');
+      if (!panel) return;
+
+      let target = hint.selector ? panel.querySelector(hint.selector) : null;
+      let row = target ? target.closest('.row') : null;
+
+      // 找不到具体控件 → 退到分组标题
+      if (!row) {
+        const groups = panel.querySelectorAll('.group');
+        for (const g of groups) {
+          const title = g.querySelector('.group-title');
+          if (title && hint.label && title.textContent.indexOf(hint.label) >= 0) { row = g; break; }
+        }
+      }
+      if (!row) {
+        // 再退一步：滚到面板顶部，至少提示一下去哪找
+        panel.scrollTo({ top: 0, behavior: 'smooth' });
+        if (hint.fallbackHint) toast(hint.label + '：' + hint.fallbackHint);
+        return;
+      }
+
+      row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+
+      // 高亮：先把上一次的清掉，避免多处同时闪
+      clearTimeout(partFlashTimer);
+      panel.querySelectorAll('.part-flash').forEach((el) => el.classList.remove('part-flash'));
+      // 等滚动起步后再加类，否则用户看不到闪烁（元素还在视口外就闪完了）
+      setTimeout(() => {
+        row.classList.add('part-flash');
+        partFlashTimer = setTimeout(() => row.classList.remove('part-flash'), 1800);
+      }, 260);
+
+      if (hint.fallbackHint && target) toast(hint.label + '：' + hint.fallbackHint);
+    }
 
     /* ---------------- 设备宽度 ---------------- */
     $('deviceSeg').addEventListener('click', (e) => {
@@ -1490,6 +1688,7 @@
             page_width: num(draft.tokens.pageWidth, 900),
             // 文字颜色（留空 = 跟随主题默认）
             heading_color: draft.tokens.headingColor || '',
+            badge_color: draft.tokens.badgeColor || '',
             body_color: draft.tokens.bodyColor || '',
             text_color: draft.tokens.textColor || '',
             dim_color: draft.tokens.dimColor || '',

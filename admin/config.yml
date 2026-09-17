@@ -162,6 +162,14 @@ collections:
               hint: "留空 = 跟随配色模式默认",
             }
           - {
+              label: "首屏徽标文字颜色（可选）",
+              name: "badge_color",
+              widget: "color",
+              required: false,
+              allowInput: true,
+              hint: "首屏那个小圆角标签（如「不可见的滚木」）的文字色。留空 = 按强调色自动算一个看得清的",
+            }
+          - {
               label: "正文里的链接颜色（可选）",
               name: "link_color",
               widget: "color",

@@ -711,7 +711,9 @@
         headingColor: '',
         dimColor: '',
         bodyColor: '',
-        linkColor: ''
+        linkColor: '',
+        // 首屏徽标（那个小圆角标签）的文字色。留空 = 按强调色自动算一个读得清的。
+        badgeColor: ''
       },
       blocks: [
         { id: 'announce', enabled: true, align: 'left', gap: 34, bg: '' },
@@ -1523,6 +1525,11 @@
       ['dimColor',     'dim_color',     '--text-dim'],      // 次要文字（日期、说明）
       ['bodyColor',    'body_color',    '--body-text']      // 正文段落
     ];
+
+    /* 徽标（Hero 上那个小圆角标签，如「不可见的滚木」）的文字色是单独一个槽位。
+       它的底是半透明的 accent-soft，所以默认值不能简单跟随某个文字色 ——
+       由 readableOn() 在强调色/主题前景色里挑一个读得清的。留空时走这套自动逻辑。 */
+    const BADGE_SLOT = ['badgeColor', 'badge_color', '--accent-ink'];
     const COLOR_RE = /^#[0-9a-fA-F]{3}$|^#[0-9a-fA-F]{6}$/;
 
     /**
@@ -1555,11 +1562,9 @@
         // 1) 塞在强调色实心块上的文字（置顶徽章、选中的筛选按钮）
         root.style.setProperty('--accent-on', readableOn(tk.accent, '#ffffff', '#0b0d12'));
 
-        // 2) 徽标：底色是 accent-soft（= 强调色 26% 叠在页面背景上），
-        //    这里先把这层半透明「解」成等效实色再算对比度，否则算出来的前景色会偏。
-        const softSolid = mixHex(tk.accent, bgColor, isLight ? 0.14 : 0.22);
-        root.style.setProperty('--accent-ink', readableOn(softSolid, tk.accent, themeFg));
-        // 3) 徽标描边：强调色太淡看不见时补一点存在感
+        // 2) 徽标底色 accent-soft 与描边。
+        //    ⚠️ 徽标「文字色」不在这里设 —— 它现在是一个可调槽位（badgeColor），
+        //    统一在下面处理，免得两处互相覆盖。
         root.style.setProperty('--accent-edge', hexToRgba(tk.accent, 0.45));
       } else {
         root.style.removeProperty('--accent');
@@ -1584,6 +1589,19 @@
         if (val) root.style.setProperty(cssVar, val);
         else root.style.removeProperty(cssVar);
       });
+
+      /* 徽标文字色：放在这里（而不是上面的 if (tk.accent) 分支里）统一处理。
+         因为它在两处都要生效：手动指定时覆盖，留空时回调自动值。 */
+      const badgeRaw = resolveTextColor(tk, settings, BADGE_SLOT[0], BADGE_SLOT[1]);
+      if (badgeRaw) {
+        root.style.setProperty(BADGE_SLOT[2], badgeRaw);
+      } else if (tk.accent) {
+        // 留空 → 用强调色算「在半透明底上读得清」的那个颜色（这是原来的默认行为）
+        const softSolid = mixHex(tk.accent, bgColor, isLight ? 0.14 : 0.22);
+        root.style.setProperty(BADGE_SLOT[2], readableOn(softSolid, tk.accent, themeFg));
+      } else {
+        root.style.removeProperty(BADGE_SLOT[2]);
+      }
 
       // 链接单独处理：留空时不直接拿强调色用 ——
       // 强调色常是深灰/低饱和的装饰色（主人现在就是 #2d2d2f），
@@ -1882,14 +1900,59 @@
     });
 
     if (IS_DESIGNER) {
-      // 点击画布里的区块 → 通知编辑器选中它
+      /* 点击画布 → 通知编辑器选中它。
+         除了区块 id，还上报「点到的是区块里哪个具体元素」（part），
+         这样编辑器能把右栏滚到对应的那个设置项并高亮。
+         约定：part 是语义化的 key，与编辑器侧的 PART_HINTS 对应；
+         拿不到具体元素时留空，编辑器就只做区块级定位。 */
       document.addEventListener('click', (e) => {
         const block = e.target.closest('[data-block]');
         if (!block) return;
         e.preventDefault();
         e.stopPropagation();
-        postToParent({ type: 'designer:clicked', id: block.dataset.block });
+        postToParent({
+          type: 'designer:clicked',
+          id: block.dataset.block,
+          part: identifyPart(e.target, block)
+        });
       }, true);
+    }
+
+    /**
+     * 判断画布上被点中的元素属于哪个「可调项」。
+     * 只认那些确实有对应设置项的元素 —— 认不出来就返回空，
+     * 不要瞎猜，否则编辑器会跳到一个跟用户预期无关的位置。
+     */
+    function identifyPart(target, block) {
+      if (!target || !target.closest) return '';
+      // 从被点元素向上找第一个带 id 的祖先（区块内的文字元素都挂了 id）
+      const hit = (sel) => !!target.closest(sel);
+
+      if (block.dataset.block === 'hero') {
+        if (hit('#heroBadge')) return 'heroBadge';
+        if (hit('#heroTitle')) return 'heroTitle';
+        if (hit('#heroSubtitle')) return 'heroSubtitle';
+      }
+      if (block.dataset.block === 'header') {
+        if (hit('#siteTitle')) return 'siteTitle';
+        if (hit('#siteSubtitle')) return 'siteSubtitle';
+        if (hit('.nav') || hit('#navLinks') || hit('#navToggle')) return 'nav';
+      }
+      if (block.dataset.block === 'about') {
+        if (hit('#aboutTitle')) return 'aboutTitle';
+        if (hit('#aboutBody')) return 'aboutBody';
+      }
+      if (block.dataset.block === 'announce') return 'announce';
+      if (block.dataset.block === 'toolbar') return 'toolbar';
+      if (block.dataset.block === 'feed') {
+        if (hit('.post-title')) return 'postTitle';
+        if (hit('.post-excerpt') || hit('.post-summary')) return 'postExcerpt';
+        if (hit('.post-meta') || hit('.post-date')) return 'postMeta';
+        if (hit('.post-tag') || hit('.chip')) return 'postTag';
+        return 'feed';
+      }
+      if (block.dataset.block === 'footer') return 'footer';
+      return '';
     }
 
     /* ---------------- 启动 ----------------
