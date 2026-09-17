@@ -260,22 +260,23 @@ collections:
               required: false,
             }
           - {
-              label: "② 外链按钮（跳转到另一个网站）",
+              label: "② 关于我按钮（跳转到个人介绍页）",
               name: "float_link_enabled",
               widget: "boolean",
               default: true,
               required: false,
+              hint: "指向本站的 /about/ 页面，就是在「关于我页面」里编辑的那个",
             }
           - {
-              label: "　　外链按钮网址",
+              label: "　　关于我按钮网址",
               name: "float_link_url",
               widget: "string",
-              default: "https://anxcye.com/articles",
+              default: "/about/",
               required: false,
-              hint: "留空则自动隐藏这个按钮，不会留个点了没反应的死按钮",
+              hint: "默认指向本站的「关于我」页面 /about/。改成别的网址也行；留空则会自动隐藏这个按钮，不会留个点了没反应的死按钮",
             }
           - {
-              label: "　　外链按钮悬停提示",
+              label: "　　关于我按钮悬停提示",
               name: "float_link_label",
               widget: "string",
               default: "关于我",
@@ -300,4 +301,87 @@ collections:
               output_code_only: true,
               allow_language_selection: false,
               hint: "高级：可插入统计脚本、自定义 meta 等",
+            }
+
+      # ==================== 关于我页面（个人介绍） ====================
+      - name: "about"
+        label: "关于我页面"
+        file: "content/about.json"
+        description: "这个页面的网址是 /about/（右上角悬浮按钮会跳到这里）。头像、简介、下方的那排图标链接都在这里改。"
+        fields:
+          - {
+              label: "头像",
+              name: "avatar",
+              widget: "image",
+              required: false,
+              hint: "推荐点「上传」把图片存进本站仓库（assets/images），最稳也最快。不填则显示名字首字母的圆形占位。",
+            }
+          - {
+              label: "头像替代文字（无障碍）",
+              name: "avatar_alt",
+              widget: "string",
+              required: false,
+              default: "我的头像",
+              hint: "给读屏软件用，可以不填",
+            }
+          - {
+              label: "显示名字",
+              name: "display_name",
+              widget: "string",
+              default: "Mentea",
+              hint: "页面上最大的那个名字",
+            }
+          - {
+              label: "一句话简介",
+              name: "tagline",
+              widget: "string",
+              required: false,
+              hint: "名字下方的小字，例如「画画的、写字的」。留空则不显示",
+            }
+          - {
+              label: "自我介绍",
+              name: "bio",
+              widget: "markdown",
+              required: false,
+              hint: "支持换行、**加粗**、（链接）等写法。想给文字上色可先在主站文章里试好格式再粘过来。",
+            }
+          - label: "图标链接（下方那一排）"
+            name: "links"
+            widget: "list"
+            required: false
+            label_singular: "一个链接"
+            summary: "{{fields.label}} → {{fields.url}}"
+            hint: "点「+ 添加一个链接」增加，拖动左侧圆点可调整顺序。图标从下拉里选即可。"
+            fields:
+              - { label: "名称", name: "label", widget: "string", hint: "显示在图标右边的文字，例如「B 站」" }
+              - { label: "网址", name: "url", widget: "string", hint: "完整网址，需要以 https:// 开头" }
+              - {
+                  label: "图标",
+                  name: "icon",
+                  widget: "select",
+                  default: "link",
+                  options:
+                    [
+                      { label: "B 站", value: "bilibili" },
+                      { label: "osu!", value: "osu" },
+                      { label: "GitHub", value: "github" },
+                      { label: "邮箱", value: "mail" },
+                      { label: "X / Twitter", value: "twitter" },
+                      { label: "微博", value: "weibo" },
+                      { label: "YouTube", value: "youtube" },
+                      { label: "QQ", value: "qq" },
+                      { label: "Pixiv", value: "pixiv" },
+                      { label: "Telegram", value: "telegram" },
+                      { label: "Discord", value: "discord" },
+                      { label: "网易云音乐", value: "music" },
+                      { label: "Steam", value: "steam" },
+                      { label: "通用链接", value: "link" },
+                    ],
+                }
+          - {
+              label: "页脚文字",
+              name: "footer_text",
+              widget: "string",
+              required: false,
+              hint: "页面最下方的小字，留空则不显示",
             }
