@@ -36,5 +36,12 @@
   "body_color": "",
   "text_color": "",
   "dim_color": "",
-  "link_color": ""
+  "link_color": "",
+  "float_buttons_enabled": true,
+  "float_home_enabled": true,
+  "float_home_url": "/",
+  "float_home_label": "回到首页",
+  "float_link_enabled": true,
+  "float_link_url": "https://anxcye.com/articles",
+  "float_link_label": "关于我"
 }
