@@ -499,6 +499,9 @@
     .post-body ul, .post-body ol { margin: 0 0 12px 22px; }
     .post-body li { margin-bottom: 6px; }
     .post-body a { color: var(--link-color, var(--accent)); }
+    /* 正文局部上色：颜色由内联 style 给，这里只做一个兜底，
+       万一内联被剥掉（极端情况）也不至于变成不可读的透明字 */
+    .post-body .text-color { color: inherit; }
     .post-body img { max-width: 100%; border-radius: 8px; margin: 12px 0; }
     .post-body blockquote {
       border-left: 3px solid var(--accent);
@@ -1178,11 +1181,96 @@
       });
     }
 
+    /* ==========================================================
+       正文局部文字颜色
+       ----------------------------------------------------------
+       后台写文章时，选中文字点调色按钮 → 插入：
+           {{<c:#ff7a7a>}}这句话是红的{{</c>}}
+       （也接受更短的写法 {{c:#ff7a7a}}…{{/c}}）
+
+       实现上刻意**不改 marked 的扩展 API**（不同版本接口不一致，容易踩坑），
+       而是「先占位 → 交给 marked → 再把占位换回 span」：
+         · 占位符用纯 ASCII 且不会被 markdown 语法误伤的形式；
+         · 这样短代码即使写在**加粗/斜体/链接内部**也能正常渲染。
+       ========================================================== */
+    const TC_RE = /\{\{(?:<c:|c:)\s*(#[0-9a-fA-F]{3,8}|[a-zA-Z]{3,20})\s*>?\}\}([\s\S]*?)\{\{(?:<\/c>|\/c)\}\}/g;
+
+    // 只允许 #hex 或纯字母的颜色名（这条白名单 + DOMPurify 双保险）
+    const TC_COLOR_RE = /^(#[0-9a-fA-F]{3,8}|[a-zA-Z]{3,20})$/;
+
+    function tcPlaceholder(i) {
+      return 'xTcPlchldrx' + i + 'x';
+    }
+
+    /**
+     * 把正文里的颜色短代码替换成占位符，返回替换后的文本 + 待还原的配对表。
+     * 未闭合的短代码原样保留（主人可能正写到一半），不报错、不吞内容。
+     */
+    function extractTextColors(md) {
+      const pairs = [];
+      const out = String(md || '').replace(TC_RE, (whole, color, inner) => {
+        const c = String(color).trim();
+        if (!TC_COLOR_RE.test(c)) return whole;      // 颜色不合法 → 原样输出
+        const idx = pairs.length;
+        pairs.push({ i: idx, color: c, text: inner });
+        return tcPlaceholder(idx);
+      });
+      return { text: out, pairs };
+    }
+
+    /**
+     * 把 marked 输出里的占位符换回真正的 <span>。
+     * 注意：占位符可能被 marked 包在 <p> / <strong> / <em> 里，所以用纯文本替换。
+     */
+    function restoreTextColors(html, pairs) {
+      if (!pairs.length) return html;
+      let out = html;
+      pairs.forEach((p) => {
+        const ph = tcPlaceholder(p.i);
+        // 颜色值在 extractTextColors 已过白名单，这里再兜一次引号转义
+        const safe = String(p.color).replace(/["'<>\\]/g, '');
+        const span = '<span class="text-color" style="color:' + safe + '">' + p.text + '</span>';
+        out = out.split(ph).join(span);
+      });
+      return out;
+    }
+
+    /*
+     * DOMPurify 钩子：只保留 style 里的 color / text-decoration-color 声明。
+     *
+     * 为什么要这个：DOMPurify 默认会剥掉整个 style 属性，颜色就不生效；
+     * 但一旦无脑放行 style，就等于把「用 CSS 搞事」的口子打开
+     * （background:url(...) 外链、position:fixed 盖住页面等）。
+     * 所以这里做**声明级白名单**：除了颜色，其余声明一律丢弃。
+     */
+    let tcHookReady = false;
+    function setupPurifyHook() {
+      if (tcHookReady || !window.DOMPurify || !DOMPurify.addHook) return;
+      DOMPurify.addHook('uponSanitizeAttribute', (node, data) => {
+        if (data.attrName !== 'style') return;
+        const kept = String(data.attrValue || '')
+          .split(';')
+          .map((s) => s.trim())
+          .filter((s) => /^(color|text-decoration-color)\s*:/i.test(s))
+          // 再挡一次 url()/expression() 这类载荷
+          .filter((s) => !/url\s*\(|expression\s*\(|@import/i.test(s));
+        if (kept.length) data.attrValue = kept.join('; ');
+        else data.keepAttr = false;
+      });
+      tcHookReady = true;
+    }
+
     function md2html(md) {
-      const html = window.marked ? marked.parse(String(md || '')) : escapeHtml(md);
+      const { text, pairs } = extractTextColors(md);
+      let html = window.marked ? marked.parse(text) : escapeHtml(text);
+      html = restoreTextColors(html, pairs);
       if (!window.DOMPurify) return html;
+
+      setupPurifyHook();
       return DOMPurify.sanitize(html, {
-        ADD_ATTR: ['target', 'loading', 'decoding', 'referrerpolicy']
+        ADD_ATTR: ['target', 'loading', 'decoding', 'referrerpolicy', 'style'],
+        FORBID_ATTR: ['onerror', 'onload', 'onclick'],
+        FORBID_TAGS: ['script', 'style', 'iframe', 'object', 'embed', 'form']
       });
     }
 
