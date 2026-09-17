@@ -185,6 +185,8 @@
       font-size: 0.9rem;
       color: var(--text);
       line-height: 1.6;
+      /* 右端避开右上角的悬浮按钮（详见 .float-dock 附近的「避让」说明） */
+      padding-right: calc(18px + var(--float-safe, 0px));
     }
 
     /* ============ 顶部导航 ============ */
@@ -428,6 +430,87 @@
       color: rgba(255, 255, 255, 0.62);
       font-size: 0.82rem;
       pointer-events: none;
+    }
+
+    /* ============ 悬浮快捷按钮 ============
+       position: fixed → 页面怎么滚都咬在右上角不动。
+       毛玻璃质感与站点卡片保持一致；深/浅主题都靠令牌自动适配。 */
+    .float-dock {
+      position: fixed;
+      top: 18px;
+      right: 18px;
+      /*
+       * 层级要低于所有浮层，否则点开作品放大/看大图时，
+       * 右上角会戳着这两个按钮，盖在遮罩上还可能被误点。
+       * 站内层级：导航抽屉 50 · 放大背景 60 · 放大卡片 70 · 灯箱 90
+       * → 这里取 40，永远待在它们下面。
+       */
+      z-index: 40;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .float-btn {
+      width: 46px;
+      height: 46px;                      /* 正方形 + 50% 圆角 = 正圆 */
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      color: var(--text-strong);
+      text-decoration: none;
+      /* 毛玻璃：Safari 需要 -webkit- 前缀 */
+      -webkit-backdrop-filter: blur(14px) saturate(150%);
+      backdrop-filter: blur(14px) saturate(150%);
+      box-shadow: var(--shadow);
+      transition: transform 0.18s ease, border-color 0.18s ease,
+                  color 0.18s ease, background 0.18s ease;
+      /* 触屏上点按不该出现灰色高亮块 */
+      -webkit-tap-highlight-color: transparent;
+    }
+    .float-btn svg { width: 21px; height: 21px; }
+    .float-btn:hover {
+      transform: translateY(-2px);
+      border-color: var(--hover-border);
+      color: var(--accent-ink, var(--text-strong));
+    }
+    .float-btn:active { transform: scale(0.94); }
+    .float-btn:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    /* 窄屏：缩小一点、贴角更近，避免挡住正文和页头操作 */
+    @media (max-width: 720px) {
+      .float-dock { top: 12px; right: 12px; gap: 8px; }
+      .float-btn { width: 40px; height: 40px; }
+      .float-btn svg { width: 18px; height: 18px; }
+    }
+
+    /* ---------- 避让 ----------
+       悬浮按钮是 fixed 的，会盖在页面顶部区域上。
+       窗口越窄，公告条越宽（撑满容器），按钮就会压到它右端的文字。
+       --float-safe = 按钮总宽 + 右边距 + 一点呼吸空间。
+       具体避让规则写在 .announce 和 header 的媒体查询里；
+       JS 关掉悬浮按钮时会清掉 --float-safe，避让自动失效。 */
+    :root { --float-safe: 76px; }
+    @media (max-width: 720px) { :root { --float-safe: 66px; } }
+
+    /* 页头在窄屏/中屏会换行堆叠，右端也要避让，
+       否则导航或汉堡按钮会被悬浮按钮压住 */
+    @media (max-width: 960px) {
+      header { padding-right: var(--float-safe); }
+    }
+
+    /* 可视化编辑器画布里不显示（它不属于任何可排布区块，会干扰点选） */
+    html.designer-mode .float-dock { display: none !important; }
+
+    /* 尊重「减少动效」偏好 */
+    @media (prefers-reduced-motion: reduce) {
+      .float-btn { transition: none; }
+      .float-btn:hover { transform: none; }
     }
 
     /* ============ Hero ============ */
@@ -700,6 +783,27 @@
     <div class="lb-hint">点击任意空白处返回 · Esc 也可退出</div>
   </div>
 
+  <!-- 悬浮快捷按钮：position:fixed，滚动时固定挂在右上角不动。
+       内容由 applyFloatButtons() 按 settings.json 的配置填充。 -->
+  <div class="float-dock" id="floatDock" hidden>
+    <a class="float-btn" id="floatHome" href="/" aria-label="回到首页" title="回到首页">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M3 10.2 12 3l9 7.2"/>
+        <path d="M5.5 9.4V20h13V9.4"/>
+        <path d="M9.6 20v-5.6h4.8V20"/>
+      </svg>
+    </a>
+    <a class="float-btn" id="floatLink" href="#" target="_blank" rel="noopener noreferrer"
+       aria-label="关于我" title="关于我">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="8.2" r="3.6"/>
+        <path d="M4.8 20.2c0-3.8 3.2-6.1 7.2-6.1s7.2 2.3 7.2 6.1"/>
+      </svg>
+    </a>
+  </div>
+
   <script>
     /* ==========================================================
        基础配置：与 admin/config.yml 里的 repo / branch 保持一致
@@ -730,6 +834,19 @@
       posts_dir: 'content/notes',
       posts_limit: 0,
       show_tags: true,
+      /*
+       * 悬浮按钮（固定定位，随页面滚动始终停在右上角）。
+       * 做成配置项而不是写死，是为了让主人能在后台自己改链接/图标/开关。
+       *   home_*    首页按钮（固定指向站点首页，一般不用改）
+       *   link_*    跳转到「我的另一个站点」
+       */
+      float_buttons_enabled: true,
+      float_home_enabled: true,
+      float_home_url: '/',
+      float_home_label: '回到首页',
+      float_link_enabled: true,
+      float_link_url: 'https://anxcye.com/articles',
+      float_link_label: '关于我',
       custom_css: '',
       custom_head: ''
     };
@@ -1502,6 +1619,9 @@
         adminBtn.textContent = s.admin_button_text || '管理后台 →';
       }
 
+      // 右上角悬浮按钮
+      applyFloatButtons(s);
+
       // 自定义 CSS / 注入 head（幂等，重复调用不会叠加）
       ensureStyleTag('custom-css').textContent = s.custom_css || '';
       const headHolder = document.getElementById('custom-head-holder');
@@ -1512,6 +1632,72 @@
         wrap.innerHTML = s.custom_head;
         Array.from(wrap.children).forEach((node) => document.head.appendChild(node));
       }
+    }
+
+    /**
+     * 右上角悬浮快捷按钮。
+     *
+     * 两台按钮各自可单独开关：
+     *   float_home_enabled / float_home_url / float_home_label
+     *   float_link_enabled / float_link_url / float_link_label
+     * 总开关 float_buttons_enabled 关掉就整体不显示。
+     *
+     * 链接一律校验协议（只放行 http/https/相对路径），
+     * 防止有人在配置里塞 javascript: 之类的载荷。
+     */
+    function applyFloatButtons(s) {
+      const dock = $('floatDock');
+      if (!dock) return;
+
+      const homeBtn = $('floatHome');
+      const linkBtn = $('floatLink');
+
+      const safeUrl = (raw) => {
+        const u = String(raw || '').trim();
+        if (!u) return '';
+        if (/^(https?:\/\/|\/|#|\.\/|\.\.\/)/i.test(u)) return u;
+        return '';                                  // 其他协议一律拒绝
+      };
+
+      const total = s.float_buttons_enabled !== false;
+      const homeOn = total && s.float_home_enabled !== false;
+      const linkOn = total && s.float_link_enabled !== false;
+
+      // ---- 首页按钮 ----
+      if (homeOn) {
+        const url = safeUrl(s.float_home_url) || '/';
+        const label = s.float_home_label || '回到首页';
+        homeBtn.setAttribute('href', url);
+        homeBtn.setAttribute('title', label);
+        homeBtn.setAttribute('aria-label', label);
+        homeBtn.hidden = false;
+      } else {
+        homeBtn.hidden = true;
+      }
+
+      // ---- 外链按钮 ----
+      // 没有配置有效链接时直接隐藏 —— 比留一个点了没反应的死按钮好。
+      const linkUrl = safeUrl(s.float_link_url);
+      if (linkOn && linkUrl) {
+        const label = s.float_link_label || '关于我';
+        linkBtn.setAttribute('href', linkUrl);
+        linkBtn.setAttribute('title', label);
+        linkBtn.setAttribute('aria-label', label);
+        linkBtn.hidden = false;
+      } else {
+        linkBtn.hidden = true;
+      }
+
+      // 两个都关了 → 整个 dock 不占位、不响应点击
+      const showDock = !!(homeOn || (linkOn && linkUrl));
+      dock.hidden = !showDock;
+
+      /*
+       * 同步「避让距离」。
+       * 公告条 / 页头的右侧内边距靠 --float-safe 撑开；
+       * 悬浮按钮不显示时把它清零，否则会白白留一条空隙。
+       */
+      document.documentElement.style.setProperty('--float-safe', showDock ? '' : '0px');
     }
 
     function applyHomepage(h, settings) {
