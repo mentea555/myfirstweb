@@ -10,7 +10,13 @@
     "cardPadding": 26,
     "cardGap": 46,
     "lineHeight": 192,
-    "titleScale": 92
+    "titleScale": 92,
+    "headingColor": "",
+    "bodyColor": "",
+    "textColor": "",
+    "dimColor": "",
+    "linkColor": "",
+    "badgeColor": "#262636"
   },
   "blocks": [
     {
