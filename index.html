@@ -8,9 +8,56 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Noto+Serif+SC:wght@400;600&family=JetBrains+Mono:wght@400;600&display=swap">
-  <!-- Markdown 渲染 + HTML 消毒 -->
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
+  <!-- Markdown 渲染 + HTML 消毒。
+       刻意**不用 <script src> 直接引**，改成下面那段「多源顺序回退」加载：
+       这两个库一旦加载失败，正文就会退化成纯文本（颜色短代码会原样露出来），
+       而 jsDelivr 在部分网络下并不总是可达，所以备了 unpkg / cdnjs 两条后路。 -->
+  <script>
+    (function () {
+      var LIBS = [
+        {
+          name: 'marked',
+          ok: function () { return !!window.marked; },
+          urls: [
+            'https://cdn.jsdelivr.net/npm/marked/marked.min.js',
+            'https://unpkg.com/marked/marked.min.js',
+            'https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js'
+          ]
+        },
+        {
+          name: 'DOMPurify',
+          ok: function () { return !!window.DOMPurify; },
+          urls: [
+            'https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js',
+            'https://unpkg.com/dompurify@3/dist/purify.min.js',
+            'https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.9/purify.min.js'
+          ]
+        }
+      ];
+
+      // 页面上屏不等它：只是把脚本插进去，谁先回来谁生效。
+      // 正文渲染处的 md2html() 自己会判断库到位没有，不会读到半截状态。
+      LIBS.forEach(function (lib) {
+        if (lib.ok()) return;
+        var i = 0;
+        (function tryNext() {
+          if (lib.ok()) return;
+          if (i >= lib.urls.length) return;              // 全挂了 → md2html 会走降级分支
+          var s = document.createElement('script');
+          s.src = lib.urls[i++];
+          s.onload = function () {
+            // ⚠️ 不能在 onload 里同步判定：UMD 包在 onload 触发的这一刻，
+            //    全局导出**可能还没挂上**（实测会导致误判成"失败"，于是把
+            //    unpkg / cdnjs 几个源全都重复拉一遍，白白浪费流量）。
+            //    让出一个事件循环再检查，判据就准了。
+            setTimeout(function () { if (!lib.ok()) tryNext(); }, 0);
+          };
+          s.onerror = function () { tryNext(); };
+          document.head.appendChild(s);
+        })();
+      });
+    })();
+  </script>
 
   <style>
     /* ============ 主题变量 ============ */
@@ -1273,9 +1320,34 @@
       tcHookReady = true;
     }
 
+    // 最近一次渲染的输入，供「库晚到后重渲染」复用（见 retryRenderWhenLibsReady）
+    let lastHomepage = null;
+    let lastSettings = null;
+    let lastPosts = null;
+    let lastActiveTag = '全部';
+    let degradedCount = 0;         // 有多少次渲染因为 marked 不可用而走了降级
+
     function md2html(md) {
       const { text, pairs } = extractTextColors(md);
-      let html = window.marked ? marked.parse(text) : escapeHtml(text);
+
+      /*
+       * marked 没就绪（CDN 全挂 / 还在路上）时的降级路径。
+       *
+       * 两个坑都要避开：
+       *   ✗ 直接 escapeHtml(text) —— 占位符会原样显示成「xTcPlchldrx0x」；
+       *   ✗ 直接 escapeHtml(md)   —— 颜色短代码 {{<c:#xxx>}} 会漏出来
+       *                             （主人就在手机上看到过这个，很难看）。
+       *
+       * 所以这里自己走一遍「转义 → 换行 → 把占位符换成 span」，
+       * 只是不做 markdown 语法解析。颜色依然生效，正文依然是人话。
+       * 等 marked 到位后 retryRenderWhenLibsReady() 会自动重渲染成完整效果。
+       */
+      if (!window.marked) {
+        degradedCount++;                    // 记一笔，方便库到位后重渲染
+        return renderPlainWithColors(md);
+      }
+
+      let html = marked.parse(text);
       html = restoreTextColors(html, pairs);
       if (!window.DOMPurify) return html;
 
@@ -1285,6 +1357,63 @@
         FORBID_ATTR: ['onerror', 'onload', 'onclick'],
         FORBID_TAGS: ['script', 'style', 'iframe', 'object', 'embed', 'form']
       });
+    }
+
+    /**
+     * 无 marked 时的纯文本渲染：转义 HTML、换行转 <br>，
+     * 但**保留颜色短代码的效果**，同时把短代码本身从可见文本里去掉。
+     *
+     * 注意顺序：先做「颜色 → 占位符」，再整体 escapeHtml，
+     * 最后把占位符换回 span（span 是自己拼的、颜色值已过白名单，可安全插入）。
+     * 这样短代码里若含 <a> 这类标签，会被转义成纯文本展示 —— 降级时宁可保守。
+     */
+    function renderPlainWithColors(md) {
+      const { text, pairs } = extractTextColors(md);
+      let out = escapeHtml(text).replace(/\n/g, '<br>');
+      pairs.forEach((p) => {
+        const ph = tcPlaceholder(p.i);
+        const safe = String(p.color).replace(/["'<>\\]/g, '');
+        const body = escapeHtml(p.text);
+        out = out.split(ph).join('<span class="text-color" style="color:' + safe + '">' + body + '</span>');
+      });
+      return out;
+    }
+
+    /*
+     * 库「晚到」的补救。
+     *
+     * marked / DOMPurify 是异步回退加载的，有可能 init() 跑完时它还在路上
+     * —— 那一轮正文就是降级的纯文本。等它们到位后重渲染一次，页面自动变正常，
+     * 不需要用户刷新。
+     *
+     * ⚠️ 触发条件不能用「库当前是否就绪」来判断：
+     *    init 早于库加载完成 → 已降级渲染 → 库随后到位
+     *    此时若用 `if (ready) return`，就会**直接返回、永不重渲染**，
+     *    页面永远停在降级版（实测踩到过）。
+     *    正确判据是「这一轮渲染有没有真的降级过」（degradedCount > 0）。
+     *
+     * 只重渲染「由配置/文章驱动」的几块，不动用户交互状态（标签筛选、放大层等）。
+     */
+    let libsRetried = false;
+
+    function retryRenderWhenLibsReady() {
+      if (degradedCount === 0) return;               // 没降级过就不用管
+      if (libsRetried) return;
+      libsRetried = true;
+
+      let tries = 0;
+      const timer = setInterval(() => {
+        tries++;
+        const ready = !!(window.marked && window.DOMPurify);
+        if (!ready && tries < 40) return;              // 最多等 ~8 秒
+        clearInterval(timer);
+        if (!ready) return;                            // 还是没来就作罢，已降级但可读
+        try {
+          if (lastHomepage) applyHomepage(lastHomepage, lastSettings || DEFAULT_SETTINGS);
+          if (lastPosts && lastPosts.length) renderPosts(lastPosts, lastSettings || DEFAULT_SETTINGS, lastActiveTag);
+          if (IS_DESIGNER) postToParent({ type: 'designer:rendered' });
+        } catch (e) { console.warn('库就绪后重渲染失败：', e); }
+      }, 200);
     }
 
     /* ---------------- Frontmatter 解析 ---------------- */
@@ -1386,6 +1515,10 @@
     }
 
     function applyHomepage(h, settings) {
+      // 记下最近一次的渲染输入，供「库晚到后重渲染」用（见 retryRenderWhenLibsReady）
+      lastHomepage = h || {};
+      if (settings) lastSettings = settings;
+
       const badge = $('heroBadge');
       if (h.hero_badge) { badge.textContent = h.hero_badge; badge.hidden = false; }
       else { badge.hidden = true; }
@@ -1807,6 +1940,11 @@
     }
 
     function renderPosts(posts, settings, activeTag) {
+      // 记下渲染输入，供「库晚到后重渲染」复用
+      lastPosts = posts;
+      lastSettings = settings;
+      lastActiveTag = activeTag || '全部';
+
       const feed = $('feed');
       const showTags = settings.show_tags !== false;
 
@@ -1976,6 +2114,29 @@
     (async function init() {
       const feed = $('feed');
 
+      /*
+       * 稍等一下 marked / DOMPurify。
+       *
+       * 为什么值得等：它们是异步回退加载的，若渲染时还没到位，
+       * 正文会先以「纯文本 + 无 markdown」上屏，等库回来再重画一次
+       * ——用户看到的就是一次可见的闪动（链接和颜色先消失再出现）。
+       *
+       * 等地很克制：最多 1.2 秒，且只要两库都齐就立刻继续。
+       * 真等不到也不卡住（后面 renderPlainWithColors 兜底，颜色仍生效）。
+       */
+      await (function waitLibs() {
+        return new Promise((resolve) => {
+          if (window.marked && window.DOMPurify) return resolve();
+          const t0 = Date.now();
+          const tick = setInterval(() => {
+            if ((window.marked && window.DOMPurify) || Date.now() - t0 > 1200) {
+              clearInterval(tick);
+              resolve();
+            }
+          }, 60);
+        });
+      })();
+
       // ---- A. 先用内置默认值上屏（0 请求，立即有内容可看）----
       applySettings(DEFAULT_SETTINGS);
       applyHomepage(DEFAULT_HOMEPAGE, DEFAULT_SETTINGS);
@@ -2075,6 +2236,9 @@
       }
 
       feed.classList.add('is-ready');
+
+      // marked / DOMPurify 若还没到位，等它们回来再补渲染一次（自动，无需刷新）
+      retryRenderWhenLibsReady();
 
       // 通知编辑器：画布已就绪，可以开始拖拽了
       postToParent({
