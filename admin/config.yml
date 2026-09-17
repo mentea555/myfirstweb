@@ -122,6 +122,46 @@ collections:
               hint: "留空则跟随配色模式的默认背景",
             }
           - {
+              label: "标题与强调文字颜色（可选）",
+              name: "heading_color",
+              widget: "color",
+              required: false,
+              allowInput: true,
+              hint: "留空 = 跟随配色模式默认。改完记得看下和背景的对比度够不够",
+            }
+          - {
+              label: "正文段落颜色（可选）",
+              name: "body_color",
+              widget: "color",
+              required: false,
+              allowInput: true,
+              hint: "留空 = 跟随配色模式默认",
+            }
+          - {
+              label: "一般文字颜色（可选）",
+              name: "text_color",
+              widget: "color",
+              required: false,
+              allowInput: true,
+              hint: "留空 = 跟随配色模式默认",
+            }
+          - {
+              label: "次要文字颜色（日期等，可选）",
+              name: "dim_color",
+              widget: "color",
+              required: false,
+              allowInput: true,
+              hint: "留空 = 跟随配色模式默认",
+            }
+          - {
+              label: "正文里的链接颜色（可选）",
+              name: "link_color",
+              widget: "color",
+              required: false,
+              allowInput: true,
+              hint: "留空 = 跟随强调色；强调色太暗时会自动换成能看清的颜色",
+            }
+          - {
               label: "字体",
               name: "font_family",
               widget: "select",

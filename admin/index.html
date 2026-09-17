@@ -45,7 +45,11 @@
 <body>
   <div id="boot">
     正在加载内容管理后台...<br />
-    如果长时间没有反应，请检查浏览器是否拦截了 unpkg.com 的脚本。
+    <span id="bootHint">如果 15 秒后还停在这一步，可以点下面的按钮换个线路重试。</span>
+    <br /><br />
+    <button id="bootRetry" style="display:none;padding:9px 18px;border:0;border-radius:8px;background:#6366f1;color:#fff;font-size:13px;font-weight:600;cursor:pointer;">
+      换线路重试
+    </button>
   </div>
 
   <a id="designer-entry" href="/admin/designer/">
@@ -53,13 +57,87 @@
     <span>可视化布局编辑器</span>
   </a>
 
-  <script src="https://unpkg.com/decap-cms@^3.0.0/dist/decap-cms.js"></script>
   <script>
-    // 脚本加载成功后，Decap 会自行接管页面，移除提示层
-    if (window.CMS) {
-      var boot = document.getElementById("boot");
-      if (boot) boot.remove();
-    }
+    /*
+     * Decap CMS 主脚本体积约 5MB，加载源很关键：
+     *   1. unpkg.com 在国内经常很慢，且带 `^` 范围写法会多一次 302 跳转；
+     *   2. 这里按 jsDelivr → unpkg(精确版本) → unpkg(范围) 依次回退，
+     *      任一加载成功即接管页面，避免单点故障把后台卡死。
+     */
+    (function () {
+      var SRC = {
+        jsdelivr: 'https://cdn.jsdelivr.net/npm/decap-cms@3/dist/decap-cms.js',
+        unpkgPin: 'https://unpkg.com/decap-cms@3/dist/decap-cms.js',
+        unpkgRange: 'https://unpkg.com/decap-cms@^3.0.0/dist/decap-cms.js'
+      };
+      var order = ['jsdelivr', 'unpkgPin', 'unpkgRange'];
+      var idx = 0;
+      var done = false;
+      var timer = null;
+
+      function boot() {
+        var el = document.getElementById('boot');
+        if (el) el.remove();
+      }
+
+      function hint(text) {
+        var el = document.getElementById('bootHint');
+        if (el) el.textContent = text;
+        var btn = document.getElementById('bootRetry');
+        if (btn) btn.style.display = 'inline-block';
+      }
+
+      function next() {
+        if (done) return;
+        if (idx >= order.length) {
+          hint('所有线路都没连上，点下面按钮重试。');
+          return;
+        }
+        var key = order[idx++];
+        var s = document.createElement('script');
+        s.src = SRC[key];
+        s.async = false;
+        var settled = false;
+        timer = setTimeout(function () {
+          if (settled || done) return;
+          settled = true;
+          s.onload = s.onerror = null;
+          next();
+        }, 12000);
+        s.onload = function () {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          if (window.CMS) { done = true; boot(); }
+          else next();
+        };
+        s.onerror = function () {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          next();
+        };
+        document.head.appendChild(s);
+      }
+
+      window.addEventListener('load', function () {
+        setTimeout(function () {
+          if (!done && !window.CMS) hint('加载有点久，还在尝试换个线路...');
+        }, 15000);
+      });
+
+      var btn = document.getElementById('bootRetry');
+      if (btn) {
+        btn.onclick = function () {
+          idx = 0; done = false;
+          this.style.display = 'none';
+          hint('正在重新尝试...');
+          next();
+        };
+      }
+
+      next();
+    })();
   </script>
 </body>
 </html>

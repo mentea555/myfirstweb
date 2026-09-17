@@ -26,6 +26,9 @@
       --line-height: 1.78;
       --title-scale: 1;
       --hero-title-size: 2.15rem;
+      /* 文字颜色令牌：留空表示「跟随主题默认」。
+         这里不预设值，而是在 applyTokens 里按需写入或清除 ——
+         只有用户真去改过颜色，才覆盖主题自带的配色。 */
     }
     html[data-theme="dark"] {
       --bg: #0f1117;
@@ -371,14 +374,19 @@
 
     /* ============ Hero ============ */
     .hero { margin-bottom: 34px; }
+    /* 徽标用「强调色」做文字时有个坑：强调色一旦调成近黑色（例如 #2d2d2f），
+       文字就和浅色底几乎同色 → 整个徽标看不见。
+       所以这里不写死用 accent 当字色，而是用 --accent-ink：
+       由脚本算出「在 accent-soft 底色上读得清」的那个颜色，随主题自适应。 */
     .hero-badge {
       display: inline-block;
       font-size: 0.75rem;
       font-weight: 700;
       letter-spacing: 0.08em;
       text-transform: uppercase;
-      color: var(--accent);
+      color: var(--accent-ink, var(--accent));
       background: var(--accent-soft);
+      border: 1px solid var(--accent-edge, transparent);
       padding: 5px 12px;
       border-radius: 9999px;
       margin-bottom: 14px;
@@ -414,7 +422,7 @@
       font-family: inherit;
     }
     .chip:hover { color: var(--text-strong); border-color: var(--accent); }
-    .chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .chip.active { background: var(--accent); border-color: var(--accent); color: var(--accent-on, #fff); }
 
     /* ============ 作品卡片流 ============ */
     .feed { display: flex; flex-direction: column; gap: var(--card-gap, 30px); }
@@ -465,7 +473,7 @@
     .pin {
       font-size: 0.72rem;
       font-weight: 700;
-      color: #fff;
+      color: var(--accent-on, #fff);
       background: var(--accent);
       border-radius: 9999px;
       padding: 2px 10px;
@@ -490,7 +498,7 @@
     .post-body h1, .post-body h2, .post-body h3 { color: var(--text-strong); margin: 20px 0 10px; line-height: 1.4; }
     .post-body ul, .post-body ol { margin: 0 0 12px 22px; }
     .post-body li { margin-bottom: 6px; }
-    .post-body a { color: var(--accent); }
+    .post-body a { color: var(--link-color, var(--accent)); }
     .post-body img { max-width: 100%; border-radius: 8px; margin: 12px 0; }
     .post-body blockquote {
       border-left: 3px solid var(--accent);
@@ -693,7 +701,14 @@
         cardPadding: 26,
         cardGap: 46,
         lineHeight: 192,
-        titleScale: 92
+        titleScale: 92,
+        // 文字颜色：留空表示跟随主题默认。
+        // 填了才覆盖，所以老配置不受影响。
+        textColor: '',
+        headingColor: '',
+        dimColor: '',
+        bodyColor: '',
+        linkColor: ''
       },
       blocks: [
         { id: 'announce', enabled: true, align: 'left', gap: 34, bg: '' },
@@ -1320,20 +1335,171 @@
       return out;
     }
 
-    function applyTokens(t) {
+    /* ---------------- 颜色工具 ----------------
+       都是纯函数，供「文字颜色」功能做对比度判定与自动取反。
+       -------------------------------------------- */
+    function clamp255(n) { return Math.max(0, Math.min(255, Math.round(n))); }
+
+    function hexToRgb(hex) {
+      let h = String(hex || '').trim().replace(/^#/, '');
+      if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+      if (!/^[0-9a-fA-F]{6}$/.test(h)) return null;
+      const n = parseInt(h, 16);
+      return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+    }
+
+    // 相对亮度（WCAG 公式），用于判断「两种颜色放一起读不读得清」
+    function luminance(hex) {
+      const c = hexToRgb(hex);
+      if (!c) return null;
+      const f = (v) => {
+        v /= 255;
+        return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+      };
+      return 0.2126 * f(c.r) + 0.7152 * f(c.g) + 0.0722 * f(c.b);
+    }
+
+    // WCAG 对比度，1 ~ 21。AA 正文要求 ≥ 4.5，大字/粗体 ≥ 3
+    function contrastRatio(a, b) {
+      const la = luminance(a), lb = luminance(b);
+      if (la == null || lb == null) return null;
+      const hi = Math.max(la, lb), lo = Math.min(la, lb);
+      return (hi + 0.05) / (lo + 0.05);
+    }
+
+    function mixHex(hexA, hexB, weightA) {
+      const a = hexToRgb(hexA), b = hexToRgb(hexB);
+      if (!a || !b) return hexA;
+      const w = Math.max(0, Math.min(1, weightA));
+      const to = (x, y) => clamp255(x * w + y * (1 - w)).toString(16).padStart(2, '0');
+      return '#' + to(a.r, b.r) + to(a.g, b.g) + to(a.b, b.b);
+    }
+
+    /**
+     * 求「叠在该底色上读得清」的文字色。
+     *
+     * 策略（按审美优先级，不是能读就行）：
+     *   1. 纯黑 / 纯白 里只要有一个达标，直接用（黑白最干净，也最有对比）；
+     *   2. 否则试 preferHex（一般是强调色本身）；
+     *   3. 再不够就在 preferHex 与 themeFg 之间逐档插值，取第一个达标的；
+     *   4. 最后按对比度在纯黑 / 纯白 里挑高的那个兜底。
+     * 这样无论主人把强调色调成多亮多暗，徽标和按钮上的字都不会消失。
+     */
+    function readableOn(bgHex, preferHex, themeFg) {
+      const bg = bgHex;
+      const want = 4.5;
+      const ratio = (c) => contrastRatio(c, bg);
+      const ok = (c) => {
+        const r = ratio(c);
+        return r != null && r >= want;
+      };
+
+      // 1) 黑白优先（视觉上最干净）
+      const bw = ['#000000', '#ffffff'].filter(ok);
+      if (bw.length) {
+        // 两个都达标时，选对比度更高的那个
+        if (bw.length === 2) return ratio('#000000') >= ratio('#ffffff') ? '#000000' : '#ffffff';
+        return bw[0];
+      }
+
+      // 2) 强调色本身
+      if (preferHex && ok(preferHex)) return preferHex;
+
+      // 3) 从 preferHex 朝 themeFg 插值，越往后越像 themeFg
+      const from = preferHex || themeFg;
+      for (let i = 1; i <= 20; i++) {
+        const c = mixHex(themeFg, from, i / 20);
+        if (ok(c)) return c;
+      }
+
+      // 4) 兜底
+      return themeFg;
+    }
+
+    /* 文字颜色槽位：layout.json 用驼峰，settings.json 用下划线。
+       两份配置都可能有值 —— 布局优先，布局留空才看设置，两边都空就跟随主题默认。 */
+    const TEXT_COLOR_SLOTS = [
+      ['textColor',    'text_color',    '--text'],          // 一般文字
+      ['headingColor', 'heading_color', '--text-strong'],   // 标题 / 强调文字
+      ['dimColor',     'dim_color',     '--text-dim'],      // 次要文字（日期、说明）
+      ['bodyColor',    'body_color',    '--body-text']      // 正文段落
+    ];
+    const COLOR_RE = /^#[0-9a-fA-F]{3}$|^#[0-9a-fA-F]{6}$/;
+
+    /**
+     * 取某个文字颜色槽位的最终值。
+     * 优先级：布局令牌 → 全站设置 → 空（空 = 用主题默认）。
+     */
+    function resolveTextColor(tk, settings, camelKey, snakeKey) {
+      const a = tk && tk[camelKey];
+      if (a && COLOR_RE.test(String(a).trim())) return String(a).trim();
+      const b = settings && settings[snakeKey];
+      if (b && COLOR_RE.test(String(b).trim())) return String(b).trim();
+      return '';
+    }
+
+    function applyTokens(t, settings) {
       const root = document.documentElement;
       const tk = Object.assign({}, DEFAULT_LAYOUT.tokens, t || {});
+      const isLight = tk.theme === 'light';
 
-      root.setAttribute('data-theme', tk.theme === 'light' ? 'light' : 'dark');
+      root.setAttribute('data-theme', isLight ? 'light' : 'dark');
+
+      const bgColor = tk.background || (isLight ? '#f6f7fb' : '#0f1117');
+      const themeFg = isLight ? '#0f172a' : '#ffffff';
+
       if (tk.accent) {
         root.style.setProperty('--accent', tk.accent);
-        root.style.setProperty('--accent-soft', hexToRgba(tk.accent, 0.25));
+        root.style.setProperty('--accent-soft', hexToRgba(tk.accent, isLight ? 0.14 : 0.22));
+
+        // ---- 强调色相关的「可读前景色」自动求解 ----
+        // 1) 塞在强调色实心块上的文字（置顶徽章、选中的筛选按钮）
+        root.style.setProperty('--accent-on', readableOn(tk.accent, '#ffffff', '#0b0d12'));
+
+        // 2) 徽标：底色是 accent-soft（= 强调色 26% 叠在页面背景上），
+        //    这里先把这层半透明「解」成等效实色再算对比度，否则算出来的前景色会偏。
+        const softSolid = mixHex(tk.accent, bgColor, isLight ? 0.14 : 0.22);
+        root.style.setProperty('--accent-ink', readableOn(softSolid, tk.accent, themeFg));
+        // 3) 徽标描边：强调色太淡看不见时补一点存在感
+        root.style.setProperty('--accent-edge', hexToRgba(tk.accent, 0.45));
+      } else {
+        root.style.removeProperty('--accent');
+        root.style.removeProperty('--accent-soft');
+        root.style.removeProperty('--accent-on');
+        root.style.removeProperty('--accent-ink');
+        root.style.removeProperty('--accent-edge');
       }
+
       if (tk.background) {
         root.style.setProperty('--bg', tk.background);
       } else {
         root.style.removeProperty('--bg');
       }
+
+      /* ---- 文字颜色（留空 = 跟随主题默认）----
+         直接覆盖主题变量本身，这样页面上所有用 var(--text-*) 的地方
+         一起生效，不需要到处加规则。 */
+      const headingResolved = resolveTextColor(tk, settings, 'headingColor', 'heading_color');
+      TEXT_COLOR_SLOTS.forEach(([camelKey, snakeKey, cssVar]) => {
+        const val = resolveTextColor(tk, settings, camelKey, snakeKey);
+        if (val) root.style.setProperty(cssVar, val);
+        else root.style.removeProperty(cssVar);
+      });
+
+      // 链接单独处理：留空时不直接拿强调色用 ——
+      // 强调色常是深灰/低饱和的装饰色（主人现在就是 #2d2d2f），
+      // 直接当正文链接会「字和背景一个色」。分两种情况：
+      //   · 强调色本身在背景上够清楚  → 就用强调色（有品牌感）
+      //   · 不够清楚                  → 退回标题色，至少能认出来是个链接
+      const linkRaw = resolveTextColor(tk, settings, 'linkColor', 'link_color');
+      if (linkRaw) {
+        root.style.setProperty('--link-color', linkRaw);
+      } else if (tk.accent && contrastRatio(tk.accent, bgColor) >= 3) {
+        root.style.setProperty('--link-color', tk.accent);
+      } else {
+        root.style.setProperty('--link-color', headingResolved || themeFg);
+      }
+
       root.style.setProperty('--font', FONTS[tk.font] || FONTS.jakarta);
       root.style.setProperty('--radius', num(tk.radius, 16) + 'px');
       root.style.setProperty('--page-width', num(tk.pageWidth, 900) + 'px');
@@ -1583,6 +1749,9 @@
       if (!msg || typeof msg !== 'object' || !IS_DESIGNER) return;
 
       if (msg.type === 'designer:apply' && msg.layout) {
+        // 编辑器里改的是 layout.json，实时预览必须「所见即所改」——
+        // 所以这里刻意不传 settings：否则编辑器把某个颜色清空后，
+        // 会被 settings.json 里的旧值顶回来，主人会以为「清除按钮坏了」。
         applyTokens(msg.layout.tokens);
         applyLayout(msg.layout);
         postToParent({ type: 'designer:applied' });
@@ -1622,7 +1791,7 @@
       applySettings(DEFAULT_SETTINGS);
       applyHomepage(DEFAULT_HOMEPAGE, DEFAULT_SETTINGS);
       applyLayout(mergeLayout(DEFAULT_LAYOUT));
-      applyTokens(DEFAULT_LAYOUT.tokens);
+      applyTokens(DEFAULT_LAYOUT.tokens, DEFAULT_SETTINGS);
       setupNavToggle();
       setupZoom();
       setupZoomKeyboard();
@@ -1637,7 +1806,7 @@
         applySettings(cs);
         applyHomepage(ch, cs);
         applyLayout(cl);
-        applyTokens(cl.tokens);
+        applyTokens(cl.tokens, cs);
 
         const cachedPosts = normalizeCachedPosts(cache.posts);
         if (cachedPosts && cachedPosts.length) {
@@ -1673,7 +1842,7 @@
           applySettings(settings);
           applyHomepage(homepage, settings);
           applyLayout(layout);
-          applyTokens(layout.tokens);
+          applyTokens(layout.tokens, settings);
         }
 
         try {

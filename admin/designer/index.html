@@ -256,12 +256,43 @@
       width: 34px; height: 32px; padding: 0; border: 1px solid var(--ui-border);
       border-radius: 8px; background: var(--ui-panel-2); cursor: pointer; flex-shrink: 0;
     }
+    /* 未设置状态：斜纹 + 半透明，一眼看出来「这里还没填」 */
+    .color-row.is-empty input[type="color"] {
+      opacity: .45;
+      background-image: repeating-linear-gradient(45deg,
+        transparent 0 4px, rgba(148, 163, 184, .45) 4px 6px);
+    }
+    .color-row.is-empty input[type="color"]:hover { opacity: .8; }
     .color-row input[type="text"] { flex: 1; font-family: ui-monospace, Consolas, monospace; }
     .swatch-clear {
       border: 1px solid var(--ui-border); background: var(--ui-panel-2); color: var(--ui-dim);
       border-radius: 8px; cursor: pointer; padding: 6px 9px; font-size: 11px; font-family: inherit; flex-shrink: 0;
     }
     .swatch-clear:hover { color: var(--ui-text); border-color: var(--ui-accent); }
+    .swatch-clear:disabled { opacity: .35; cursor: default; border-color: var(--ui-border); color: var(--ui-dim); }
+
+    /* 配色对比度提醒：只提示、不阻止 —— 主人有权调任何颜色 */
+    .warn-box {
+      margin-top: 10px;
+      padding: 9px 11px;
+      border-radius: 8px;
+      font-size: 11.5px;
+      line-height: 1.65;
+      color: #fcd34d;
+      background: rgba(245, 158, 11, .1);
+      border: 1px solid rgba(245, 158, 11, .35);
+    }
+    /* 比警告弱一级：只是「留意一下」，不是「你搞坏了」 */
+    .tip-box {
+      margin-top: 10px;
+      padding: 9px 11px;
+      border-radius: 8px;
+      font-size: 11.5px;
+      line-height: 1.65;
+      color: #93c5fd;
+      background: rgba(59, 130, 246, .1);
+      border: 1px solid rgba(59, 130, 246, .3);
+    }
 
     .align-grid { display: flex; gap: 6px; }
     .align-grid button {
@@ -418,7 +449,9 @@
       tokens: {
         theme: 'dark', accent: '#6366f1', background: '', font: 'jakarta',
         radius: 16, pageWidth: 900, cardPadding: 26, cardGap: 30,
-        lineHeight: 178, titleScale: 100
+        lineHeight: 178, titleScale: 100,
+        // 文字颜色：留空 = 跟随主题默认
+        headingColor: '', bodyColor: '', textColor: '', dimColor: '', linkColor: ''
       },
       blocks: [
         { id: 'announce', enabled: true, align: 'left', gap: 24, bg: '' },
@@ -771,6 +804,30 @@
       </label>`;
     }
 
+    /**
+     * 「可留空」的颜色行：留空 = 跟随主题默认。
+     * 留空这点很关键 —— 主人不动它时，暗/亮色主题各自的默认配色仍然生效，
+     * 不会被一个写死的色值钉住。
+     */
+    /*
+     * 一行「可留空」的颜色设置。
+     * 留空时色板要显示成「虚位以待」的样子（斜纹 + 主题默认色打底），
+     * 否则主人会误以为「我的颜色已经设成白色了」。
+     */
+    function colorRow(label, key, value, placeholder, fallback) {
+      const v = value || '';
+      const empty = !v;
+      return `<label class="row">
+        <span class="lbl"><span>${label}</span>${empty ? '<span class="val">默认</span>' : ''}</span>
+        <span class="color-row${empty ? ' is-empty' : ''}">
+          <input type="color" value="${v || fallback}" data-act="textcolor-picker" data-key="${key}"
+                 title="${empty ? '尚未设置，点一下开始选色' : v}"${empty ? ' data-empty="1"' : ''}>
+          <input type="text" value="${v}" placeholder="${placeholder}" data-act="textcolor-text" data-key="${key}">
+          <button class="swatch-clear" data-act="textcolor-clear" data-key="${key}"${empty ? ' disabled' : ''}>清除</button>
+        </span>
+      </label>`;
+    }
+
     function renderInspector() {
       const sel = draft.blocks.find((b) => b.id === selectedId);
       const t = draft.tokens;
@@ -869,6 +926,22 @@
       </div>
 
       <div class="group">
+        <div class="group-title">
+          <span>文字颜色</span>
+          <button class="mini" data-act="textcolor-reset">全部恢复默认</button>
+        </div>
+        <div class="hint">留空 = 跟随当前配色模式的默认值。改完如果对比度太低，下面会出现提醒。</div>
+
+        ${colorRow('标题与强调文字', 'headingColor', t.headingColor, '留空 = 默认', isLightTheme() ? '#0f172a' : '#ffffff')}
+        ${colorRow('正文段落',       'bodyColor',    t.bodyColor,    '留空 = 默认', isLightTheme() ? '#3d4855' : '#cbd5e1')}
+        ${colorRow('一般文字',       'textColor',    t.textColor,    '留空 = 默认', isLightTheme() ? '#25303f' : '#e2e8f0')}
+        ${colorRow('次要文字（日期等）', 'dimColor', t.dimColor,     '留空 = 默认', isLightTheme() ? '#6b7788' : '#94a3b8')}
+        ${colorRow('正文里的链接',   'linkColor',    t.linkColor,    '留空 = 跟随强调色', t.accent || '#6366f1')}
+
+        <div id="colorWarn"></div>
+      </div>
+
+      <div class="group">
         <div class="group-title">间距与尺寸</div>
         ${rangeRow('内容区宽度', 'px', 'token', 'pageWidth', num(t.pageWidth, 900), 640, 1400, 10)}
         ${rangeRow('卡片圆角', 'px', 'token', 'radius', num(t.radius, 16), 0, 36, 1)}
@@ -880,11 +953,86 @@
 
       inspector.innerHTML = html;
       bindInspector();
+      renderColorWarnings();
       setStatusLineCount();
     }
 
     function alignLabel(a) {
       return ({ left: '左对齐', center: '居中', right: '右对齐', 'space-between': '两端', stretch: '撑满' })[a] || a;
+    }
+
+    /* ---------------- 颜色工具（与首页 index.html 同一套算法，保持判定一致）---------------- */
+    function hexToRgb(hex) {
+      let h = String(hex || '').trim().replace(/^#/, '');
+      if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+      if (!/^[0-9a-fA-F]{6}$/.test(h)) return null;
+      const n = parseInt(h, 16);
+      return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+    }
+    function luminance(hex) {
+      const c = hexToRgb(hex);
+      if (!c) return null;
+      const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+      return 0.2126 * f(c.r) + 0.7152 * f(c.g) + 0.0722 * f(c.b);
+    }
+    function contrastRatio(a, b) {
+      const la = luminance(a), lb = luminance(b);
+      if (la == null || lb == null) return null;
+      const hi = Math.max(la, lb), lo = Math.min(la, lb);
+      return (hi + 0.05) / (lo + 0.05);
+    }
+    function isLightTheme() {
+      return draft && draft.tokens && draft.tokens.theme === 'light';
+    }
+    function themeBg() {
+      const t = draft.tokens;
+      return t.background || (t.theme === 'light' ? '#f6f7fb' : '#0f1117');
+    }
+
+    // 对比度检查：允许自由调色，但把「快看不清」的组合明确指出来。
+    // 只检查主人「亲手动过」的槽位——留空的槽位跟随主题默认，不该反过来吓人。
+    function renderColorWarnings() {
+      const box = document.getElementById('colorWarn');
+      if (!box) return;
+      const bg = themeBg();
+
+      const SLOTS = [
+        ['headingColor', '标题与强调文字'],
+        ['bodyColor',    '正文段落'],
+        ['textColor',    '一般文字'],
+        ['dimColor',     '次要文字（日期等）'],
+        ['linkColor',    '正文里的链接']
+      ];
+
+      const bad = [];
+      SLOTS.forEach(([key, label]) => {
+        const raw = draft.tokens[key];
+        if (!raw) return;                       // 留空 = 跟随默认，不检查
+        const r = contrastRatio(raw, bg);
+        // 3 是 WCAG 大字门槛；低于它基本就是「看不见」了
+        if (r != null && r < 3) bad.push(label + '（' + r.toFixed(1) + ':1）');
+      });
+
+      // 顺带提醒：链接色留空时走强调色，如果强调色本身对比太低，链接会不好认
+      const accentHint = (() => {
+        if (draft.tokens.linkColor) return '';
+        const r = contrastRatio(draft.tokens.accent || '#6366f1', bg);
+        if (r != null && r < 3) {
+          return '<div class="tip-box">链接色没有单独设置，现在跟随强调色（对比度 ' +
+            r.toFixed(1) + ':1，偏低）。想让链接更清楚，可以单独给链接指定一个颜色。</div>';
+        }
+        return '';
+      })();
+
+      if (!bad.length && !accentHint) { box.innerHTML = ''; return; }
+
+      let html = '';
+      if (bad.length) {
+        html += '<div class="warn-box">⚠️ 这几种文字和背景色太接近，可能看不清：<br>' +
+          bad.join('、') + '<br><span style="opacity:.8">点上面的「清除」即可恢复默认。</span></div>';
+      }
+      html += accentHint;
+      box.innerHTML = html;
     }
 
     /* ---------------- 面板事件 ---------------- */
@@ -1057,6 +1205,81 @@
           el.onclick = () => {
             const snap = JSON.stringify(draft);
             draft.tokens.background = '';
+            pushHistory(snap);
+            syncAll();
+          };
+        }
+
+        /* ---------- 文字颜色 ---------- */
+        if (act === 'textcolor-picker') {
+          el.oninput = () => {
+            if (pendingSnapshot === null) pendingSnapshot = JSON.stringify(draft);
+            const key = el.dataset.key;
+            const wasEmpty = !draft.tokens[key];
+            draft.tokens[key] = el.value;
+
+            const txt = inspector.querySelector(`[data-act="textcolor-text"][data-key="${key}"]`);
+            if (txt) txt.value = el.value;
+
+            // 从「未设置」变成「已设置」时，把「默认」标签、斜纹状态、清除按钮一起更新，
+            // 不然面板上还写着「默认」，主人会以为没生效。
+            if (wasEmpty) {
+              const row = el.closest('.color-row');
+              if (row) row.classList.remove('is-empty');
+              el.removeAttribute('data-empty');
+              el.title = el.value;
+              const lbl = el.closest('.row');
+              const badge = lbl && lbl.querySelector('.lbl .val');
+              if (badge) badge.remove();
+              const clr = inspector.querySelector(`[data-act="textcolor-clear"][data-key="${key}"]`);
+              if (clr) clr.disabled = false;
+            }
+
+            pushToFrame();
+            renderColorWarnings();
+          };
+          el.onchange = () => {
+            if (pendingSnapshot !== null) { pushHistory(pendingSnapshot); pendingSnapshot = null; }
+          };
+        }
+        if (act === 'textcolor-text') {
+          el.onchange = () => {
+            const key = el.dataset.key;
+            const v = el.value.trim();
+            const snap = JSON.stringify(draft);
+            // 允许留空 = 恢复默认；填了就必须是合法色号，避免写坏配置
+            if (v === '') {
+              draft.tokens[key] = '';
+            } else if (/^#[0-9a-fA-F]{3}$|^#[0-9a-fA-F]{6}$/.test(v)) {
+              draft.tokens[key] = v;
+              // 手打色号后把旁边的色板也同步过去，别让两个控件显示的色不一样
+              const picker = inspector.querySelector(`[data-act="textcolor-picker"][data-key="${key}"]`);
+              if (picker) picker.value = v;
+            } else {
+              toast('色号格式应为 #RRGGBB', 'err');
+              renderInspector();
+              return;
+            }
+            pushHistory(snap);
+            syncAll();
+          };
+        }
+        if (act === 'textcolor-clear') {
+          el.onclick = () => {
+            const key = el.dataset.key;
+            if (!draft.tokens[key]) return;
+            const snap = JSON.stringify(draft);
+            draft.tokens[key] = '';
+            pushHistory(snap);
+            syncAll();
+          };
+        }
+        if (act === 'textcolor-reset') {
+          el.onclick = () => {
+            const keys = ['headingColor', 'bodyColor', 'textColor', 'dimColor', 'linkColor'];
+            if (!keys.some((k) => draft.tokens[k])) return;
+            const snap = JSON.stringify(draft);
+            keys.forEach((k) => { draft.tokens[k] = ''; });
             pushHistory(snap);
             syncAll();
           };
@@ -1264,7 +1487,13 @@
             accent_color: draft.tokens.accent,
             background_color: draft.tokens.background || '',
             font_family: draft.tokens.font,
-            page_width: num(draft.tokens.pageWidth, 900)
+            page_width: num(draft.tokens.pageWidth, 900),
+            // 文字颜色（留空 = 跟随主题默认）
+            heading_color: draft.tokens.headingColor || '',
+            body_color: draft.tokens.bodyColor || '',
+            text_color: draft.tokens.textColor || '',
+            dim_color: draft.tokens.dimColor || '',
+            link_color: draft.tokens.linkColor || ''
           });
           settingsText = JSON.stringify(merged, null, 2) + '\n';
         } catch (e) {
