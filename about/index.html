@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>关于我 | Mentea</title>
+  <meta name="description" content="关于 Mentea —— 头像、简介与我的其他主页链接">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Noto+Serif+SC:wght@400;600&family=JetBrains+Mono:wght@400;600&display=swap">
+
+  <!-- Markdown 渲染 + HTML 消毒，与主站同一套「多源顺序回退」加载。
+       简介正文必须过 DOMPurify 才能进 innerHTML。 -->
+  <script>
+    (function () {
+      var LIBS = [
+        {
+          name: 'marked',
+          ok: function () { return !!window.marked; },
+          urls: [
+            'https://cdn.jsdelivr.net/npm/marked/marked.min.js',
+            'https://unpkg.com/marked/marked.min.js',
+            'https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js'
+          ]
+        },
+        {
+          name: 'DOMPurify',
+          ok: function () { return !!window.DOMPurify; },
+          urls: [
+            'https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js',
+            'https://unpkg.com/dompurify@3/dist/purify.min.js',
+            'https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.9/purify.min.js'
+          ]
+        }
+      ];
+      LIBS.forEach(function (lib) {
+        if (lib.ok()) return;
+        var i = 0;
+        (function tryNext() {
+          if (lib.ok()) return;
+          if (i >= lib.urls.length) return;
+          var s = document.createElement('script');
+          s.src = lib.urls[i++];
+          s.onload = function () {
+            // UMD 包在 onload 这一刻全局导出可能还没挂上，让出一个事件循环再判断
+            setTimeout(function () { if (!lib.ok()) tryNext(); }, 0);
+          };
+          s.onerror = function () { tryNext(); };
+          document.head.appendChild(s);
+        })();
+      });
+    })();
+  </script>
+
+  <style>
+    /* ============================================================
+       这个页面刻意**复用主站 index.html 的同一套 CSS 变量**，
+       并从 content/layout.json 的外观令牌 + content/settings.json
+       读取主题，这样主站在可视化编辑器里改配色/字体/圆角，
+       这里会跟着一起变，不会两套长相。
+       ============================================================ */
+
+    :root {
+      --accent: #6366f1;
+      --accent-soft: rgba(99, 102, 241, 0.25);
+      --radius: 16px;
+      --page-width: 900px;
+      --font: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      --card-padding: 26px;
+      --line-height: 1.78;
+    }
+    html[data-theme="dark"] {
+      --bg: #0f1117;
+      --card-bg: rgba(26, 29, 39, 0.7);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --text: #e2e8f0;
+      --text-strong: #ffffff;
+      --text-dim: #94a3b8;
+      --body-text: #cbd5e1;
+      --glow-1: rgba(99, 102, 241, 0.15);
+      --glow-2: rgba(236, 72, 153, 0.10);
+      --shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      --hover-border: rgba(255, 255, 255, 0.15);
+      --chip-bg: rgba(255, 255, 255, 0.06);
+      --avatar-ring: rgba(255, 255, 255, 0.10);
+    }
+    html[data-theme="light"] {
+      --bg: #f6f7fb;
+      --card-bg: rgba(255, 255, 255, 0.85);
+      --card-border: rgba(15, 23, 42, 0.08);
+      --text: #25303f;
+      --text-strong: #0f172a;
+      --text-dim: #6b7788;
+      --body-text: #3d4855;
+      --glow-1: rgba(99, 102, 241, 0.12);
+      --glow-2: rgba(236, 72, 153, 0.08);
+      --shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+      --hover-border: rgba(15, 23, 42, 0.16);
+      --chip-bg: rgba(15, 23, 42, 0.05);
+      --avatar-ring: rgba(15, 23, 42, 0.10);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    [hidden] { display: none !important; }
+
+    body {
+      font-family: var(--font);
+      background-color: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      background-image:
+        radial-gradient(at 0% 0%, var(--glow-1) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, var(--glow-2) 0px, transparent 50%);
+      background-attachment: fixed;
+      -webkit-font-smoothing: antialiased;
+      line-height: var(--line-height);
+    }
+    a { color: inherit; }
+
+    .container {
+      max-width: var(--page-width);
+      margin: 0 auto;
+      padding: 40px 24px 80px;
+    }
+
+    /* ---------- 顶部返回条 ---------- */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 34px;
+    }
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 16px 9px 12px;
+      border-radius: 999px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      color: var(--text);
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 600;
+      box-shadow: var(--shadow);
+      /* 毛玻璃，与主站悬浮按钮同款质感；Safari 需 -webkit- 前缀 */
+      -webkit-backdrop-filter: blur(14px) saturate(150%);
+      backdrop-filter: blur(14px) saturate(150%);
+      transition: transform 0.18s ease, border-color 0.18s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .back-link svg { width: 17px; height: 17px; }
+    .back-link:hover { transform: translateX(-2px); border-color: var(--hover-border); }
+    .back-link:active { transform: scale(0.97); }
+    .back-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+    .site-name {
+      font-size: 0.88rem;
+      color: var(--text-dim);
+      letter-spacing: 0.02em;
+    }
+
+    /* ---------- 主卡片：头像 + 名字 + 简介 ---------- */
+    .profile-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+      padding: calc(var(--card-padding) + 10px) var(--card-padding);
+      box-shadow: var(--shadow);
+      text-align: center;
+      margin-bottom: 26px;
+    }
+
+    .avatar-wrap {
+      position: relative;
+      width: 132px;
+      height: 132px;
+      margin: 0 auto 20px;
+    }
+    .avatar {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+      display: block;
+      background: var(--chip-bg);
+      border: 3px solid var(--avatar-ring);
+      box-shadow: var(--shadow);
+    }
+    /* 没有头像时的占位：显示名字首字母，不出现破图 */
+    .avatar-fallback {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.6rem;
+      font-weight: 800;
+      color: var(--text-strong);
+      background: var(--accent-soft);
+      border: 3px solid var(--avatar-ring);
+      box-shadow: var(--shadow);
+      user-select: none;
+    }
+
+    .display-name {
+      font-size: 1.75rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      color: var(--text-strong);
+      line-height: 1.35;
+    }
+    .tagline {
+      margin-top: 8px;
+      font-size: 0.95rem;
+      color: var(--text-dim);
+    }
+
+    /* 简介正文（Markdown 渲染） */
+    .bio {
+      margin-top: 22px;
+      padding-top: 22px;
+      border-top: 1px solid var(--card-border);
+      text-align: left;
+      font-size: 0.98rem;
+      color: var(--body-text);
+      line-height: var(--line-height);
+    }
+    .bio p { margin: 0 0 12px; }
+    .bio p:last-child { margin-bottom: 0; }
+    .bio a { color: var(--link-color, var(--accent)); text-decoration: underline; text-underline-offset: 2px; }
+    .bio strong { color: var(--text-strong); font-weight: 700; }
+    .bio code {
+      font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.88em;
+      padding: 2px 6px;
+      border-radius: 6px;
+      background: var(--chip-bg);
+    }
+
+    /* ---------- 链接区 ---------- */
+    .links-title {
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin: 0 0 14px 4px;
+    }
+    .link-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+      margin-bottom: 34px;
+    }
+    .link-card {
+      display: flex;
+      align-items: center;
+      gap: 13px;
+      padding: 15px 17px;
+      border-radius: calc(var(--radius) + 2px);
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      color: var(--text);
+      text-decoration: none;
+      box-shadow: var(--shadow);
+      -webkit-backdrop-filter: blur(14px) saturate(150%);
+      backdrop-filter: blur(14px) saturate(150%);
+      transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+      -webkit-tap-highlight-color: transparent;
+      min-width: 0;
+    }
+    .link-card:hover {
+      transform: translateY(-3px);
+      border-color: var(--hover-border);
+    }
+    .link-card:active { transform: scale(0.985); }
+    .link-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+    .link-icon {
+      flex: 0 0 auto;
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--chip-bg);
+      color: var(--text-strong);
+      transition: color 0.18s ease, background 0.18s ease;
+    }
+    .link-icon svg { width: 21px; height: 21px; }
+    .link-card:hover .link-icon {
+      background: var(--accent-soft);
+      color: var(--accent-ink, var(--text-strong));
+    }
+
+    /* ⚠️ 这两层必须是块级/弹性容器：
+       .link-label 与 .link-host 都是 <span>，默认 inline，
+       不设成 flex 竖排就会在同一行挤成一团（实测「B 站」和
+       域名贴在一起，完全看不出层次）。 */
+    .link-text {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .link-label {
+      display: block;
+      font-size: 0.98rem;
+      font-weight: 700;
+      color: var(--text-strong);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .link-host {
+      display: block;
+      font-size: 0.79rem;
+      color: var(--text-dim);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* 没有任何链接时的提示 */
+    .empty-note {
+      padding: 20px;
+      border-radius: calc(var(--radius) + 2px);
+      border: 1px dashed var(--card-border);
+      color: var(--text-dim);
+      font-size: 0.9rem;
+      text-align: center;
+      margin-bottom: 34px;
+    }
+
+    /* ---------- 页脚 ---------- */
+    .page-footer {
+      text-align: center;
+      font-size: 0.82rem;
+      color: var(--text-dim);
+      line-height: 1.9;
+    }
+    .page-footer a { color: var(--link-color, var(--accent)); text-decoration: none; }
+    .page-footer a:hover { text-decoration: underline; }
+
+    @media (max-width: 520px) {
+      .container { padding: 26px 18px 60px; }
+      .avatar-wrap { width: 108px; height: 108px; }
+      .avatar-fallback { font-size: 2.1rem; }
+      .display-name { font-size: 1.45rem; }
+      .link-list { grid-template-columns: 1fr; }
+      .profile-card { padding: calc(var(--card-padding) - 2px) calc(var(--card-padding) - 6px); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .back-link, .link-card, .link-icon { transition: none; }
+      .back-link:hover, .link-card:hover { transform: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <div class="topbar">
+      <a class="back-link" href="/">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M15 18l-6-6 6-6"/>
+        </svg>
+        <span>返回首页</span>
+      </a>
+      <span class="site-name" id="siteName"></span>
+    </div>
+
+    <section class="profile-card">
+      <div class="avatar-wrap">
+        <img class="avatar" id="avatar" alt="" hidden>
+        <div class="avatar-fallback" id="avatarFallback" aria-hidden="true">M</div>
+      </div>
+      <h1 class="display-name" id="displayName">Mentea</h1>
+      <p class="tagline" id="tagline" hidden></p>
+      <div class="bio" id="bio" hidden></div>
+    </section>
+
+    <h2 class="links-title" id="linksTitle">找到我</h2>
+    <div class="link-list" id="linkList"></div>
+    <p class="empty-note" id="emptyNote" hidden>
+      还没有添加链接。可以去后台「关于我页面」里加，支持 B 站、osu!、GitHub 等图标。
+    </p>
+
+    <footer class="page-footer" id="pageFooter"></footer>
+  </main>
+
+  <script>
+    /* ============================================================
+       基础配置：与主站 index.html 保持一致
+       ============================================================ */
+    const SITE = {
+      user: 'mentea555',
+      repo: 'myfirstweb',
+      branch: 'main',
+      settingsFile: 'content/settings.json',
+      layoutFile: 'content/layout.json',
+      aboutFile: 'content/about.json'
+    };
+    const GH_SLUG = SITE.user + '/' + SITE.repo;
+
+    /* 内容源：与主站同一套「实时优先、稳定兜底」顺序 */
+    const textSources = [
+      (path) => `https://raw.githubusercontent.com/${SITE.user}/${SITE.repo}/${SITE.branch}/${path}?t=${Date.now()}`,
+      (path) => `https://cdn.jsdelivr.net/gh/${GH_SLUG}/${path}`,
+      (path) => `https://ghproxy.net/https://raw.githubusercontent.com/${SITE.user}/${SITE.repo}/${SITE.branch}/${path}`
+    ];
+
+    async function fetchTextMulti(path) {
+      let lastErr = null;
+      for (const build of textSources) {
+        const url = build(path);
+        try {
+          const res = await fetch(url, { cache: 'default' });
+          if (!res.ok) { lastErr = new Error('HTTP ' + res.status); continue; }
+          const text = await res.text();
+          if (text && text.trim()) return { text, from: url };
+          lastErr = new Error('空响应');
+        } catch (e) { lastErr = e; }
+      }
+      throw lastErr || new Error('所有内容源均不可用');
+    }
+
+    async function fetchJSON(path, fallback) {
+      try {
+        const { text } = await fetchTextMulti(path);
+        return text.trim() ? repairDeep(JSON.parse(text)) : fallback;
+      } catch (e) {
+        console.warn('读取配置失败：' + path, e);
+        return fallback;
+      }
+    }
+
+    /* ---------------- 乱码自愈（与主站同款判据） ----------------
+       UTF-8 中文被按 Latin-1 逐字节解读会变成「æ•°å—」，
+       再按 UTF-8 写回就成了双重编码。这里检测并还原。
+       判据从严，避免误伤 Café / © 这类正常文本。 */
+    function repairMojibake(text) {
+      if (typeof text !== 'string' || !/[\u00C0-\u00FF]/.test(text)) return text;
+      try {
+        const bytes = new Uint8Array(text.length);
+        for (let i = 0; i < text.length; i++) {
+          const c = text.charCodeAt(i);
+          if (c > 255) return text;              // 真乱码一定是纯字节值
+          bytes[i] = c;
+        }
+        const fixed = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+        const cjkCount = (s) => (s.match(/[\u4E00-\u9FFF]/g) || []).length;
+        return cjkCount(fixed) > cjkCount(text) ? fixed : text;
+      } catch (e) { return text; }
+    }
+    function repairDeep(value) {
+      if (typeof value === 'string') return repairMojibake(value);
+      if (Array.isArray(value)) return value.map(repairDeep);
+      if (value && typeof value === 'object') {
+        const out = {};
+        Object.keys(value).forEach((k) => { out[k] = repairDeep(value[k]); });
+        return out;
+      }
+      return value;
+    }
+
+    /* ---------------- 图片地址处理（与主站一致） ----------------
+       GitHub 的 blob/raw 链接换成 jsDelivr；部分图床 CDN 不可达时
+       由 onerror 兜底走图片代理。 */
+    const IMG_PROXY = 'https://wsrv.nl/?url=';
+
+    function normalizeImageUrl(raw) {
+      const url = String(raw || '').trim();
+      if (!url) return '';
+      let m;
+      m = url.match(/^https?:\/\/github\.com\/([^/]+)\/([^/]+)\/(?:blob|raw)\/([^/]+)\/(.+)$/i);
+      if (m) return `https://cdn.jsdelivr.net/gh/${m[1]}/${m[2]}@${m[3]}/${m[4]}`;
+      m = url.match(/^https?:\/\/raw\.githubusercontent\.com\/([^/]+)\/([^/]+)\/([^/]+)\/(.+)$/i);
+      if (m) return `https://cdn.jsdelivr.net/gh/${m[1]}/${m[2]}@${m[3]}/${m[4]}`;
+      return url;
+    }
+    function proxiableImage(url) {
+      if (!/^https?:\/\//i.test(url)) return false;
+      return !/^https?:\/\/(localhost|127\.0\.0\.1|\[?::1\]?)[:/]/i.test(url);
+    }
+
+    /* ============================================================
+       图标库：描边风格，与主站悬浮按钮的图标语言一致。
+       主人在后台只需选一个「图标名」，不用碰 SVG 代码。
+       ============================================================ */
+    const ICONS = {
+      bilibili: '<path d="M6.5 4.5 4 7h16l-2.5-2.5"/><rect x="3" y="7" width="18" height="13" rx="3.2"/><path d="M9 11.5v3.5M15 11.5v3.5"/>',
+      osu: '<circle cx="12" cy="12" r="8.6"/><circle cx="12" cy="12" r="3.1"/><path d="M12 3.4v3.2M12 17.4v3.2M3.4 12h3.2M17.4 12h3.2"/>',
+      github: '<path d="M9 19.2c-4.2 1.3-4.2-2.1-5.9-2.6m11.8 5.2v-3.5c0-1 .1-1.4-.5-2 2.3-.3 4.7-1.2 4.7-5.2a4 4 0 0 0-1.1-2.8 3.7 3.7 0 0 0-.1-2.8s-.9-.3-2.9 1.1a10 10 0 0 0-5.2 0C7.8 4.2 6.9 4.5 6.9 4.5a3.7 3.7 0 0 0-.1 2.8A4 4 0 0 0 5.7 10c0 4 2.4 4.9 4.7 5.2-.4.4-.5.9-.5 1.5v3.5"/>',
+      mail: '<rect x="3" y="5.5" width="18" height="13" rx="2.6"/><path d="m3.6 7.3 7.3 5.1a2 2 0 0 0 2.2 0l7.3-5.1"/>',
+      twitter: '<path d="M4 4.5 10.4 13 4.4 19.6M20 4.5 13.6 13l6 6.6"/><path d="M4 4.5h3.3l12.7 15.1H16.7"/>',
+      weibo: '<ellipse cx="10.5" cy="14.5" rx="7" ry="5.2"/><path d="M8.5 14.4c-.6 1 .1 2.1 1.5 2.3M17.6 5.2a4.4 4.4 0 0 1 3.3 4.6M17.2 8.3a1.9 1.9 0 0 1 1.3 1.8"/>',
+      youtube: '<rect x="2.8" y="5.5" width="18.4" height="13" rx="4"/><path d="m10.3 9.4 5 2.6-5 2.6z"/>',
+      qq: '<ellipse cx="12" cy="13.2" rx="5.4" ry="6.3"/><path d="M8.2 8.4C8.2 6 9.9 4.4 12 4.4s3.8 1.6 3.8 4"/><path d="M7.2 15.6 5.6 19.4M16.8 15.6l1.6 3.8"/>',
+      pixiv: '<path d="M4 19.5V8.2l5 3.6V8.2l5 3.6V6l6 4.2v9.3z"/>',
+      telegram: '<path d="M20.5 4.4 3.6 11.1c-.9.3-.9 1.5.1 1.7l3.6.8 1.3 4.3c.2.7 1.1.9 1.6.4l2.1-2 3.9 2.9c.6.4 1.4.1 1.6-.6l3.4-13c.2-.9-.7-1.6-1.5-1.2z"/>',
+      discord: '<path d="M8.5 18.5c-2.6-.8-4-2.2-4.6-4.1-.5-1.6-.7-3.4-.3-5.4.3-1.6 1.6-2.7 3.1-3l1.2 1.7a11 11 0 0 1 6.2 0l1.2-1.7c1.5.3 2.8 1.4 3.1 3 .4 2 .2 3.8-.3 5.4-.6 1.9-2 3.3-4.6 4.1l-1-1.6a8 8 0 0 1-4 0z"/><circle cx="9.3" cy="12.4" r="1.1"/><circle cx="14.7" cy="12.4" r="1.1"/>',
+      music: '<path d="M9 17.5V5.2l10-2.2v12.3"/><circle cx="6.8" cy="17.6" r="2.4"/><circle cx="16.8" cy="15.3" r="2.4"/>',
+      steam: '<circle cx="12" cy="12" r="8.8"/><circle cx="14.8" cy="9.6" r="2.7"/><path d="M3.6 13.6l4.2 1.7M10 17.9l1-2.1"/>',
+      link: '<path d="M10.2 13.8a4 4 0 0 0 5.7 0l2.6-2.6a4 4 0 1 0-5.7-5.7l-1 1"/><path d="M13.8 10.2a4 4 0 0 0-5.7 0l-2.6 2.6a4 4 0 1 0 5.7 5.7l1-1"/>'
+    };
+
+    function iconSvg(name) {
+      const body = ICONS[name] || ICONS.link;
+      return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" ' +
+             'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + body + '</svg>';
+    }
+
+    /* ============================================================
+       外观：读取主站的 layout.json 令牌 + settings.json
+       —— 与主站 applyTokens 保持同一套变量名与求解方式，
+          这样在可视化编辑器里改配色，这个页面会跟着变。
+       ============================================================ */
+    const DEFAULT_LAYOUT_TOKENS = { theme: 'dark', accent: '#2d2d2f', background: '', font: 'jakarta', radius: 5, pageWidth: 1020, cardPadding: 26, lineHeight: 192 };
+
+    const FONTS = {
+      jakarta: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif",
+      serif: "'Noto Serif SC', Georgia, 'Songti SC', serif",
+      mono: "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace"
+    };
+
+    const num = (v, d) => { const n = parseFloat(v); return isNaN(n) ? d : n; };
+
+    function hexToRgba(hex, alpha) {
+      const h = String(hex || '').replace('#', '');
+      if (h.length !== 6) return `rgba(99,102,241,${alpha})`;
+      const n = parseInt(h, 16);
+      return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`;
+    }
+    function srgbToLin(c) { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+    function relLum(hex) {
+      const h = String(hex || '').replace('#', '');
+      if (h.length !== 6) return 0;
+      const n = parseInt(h, 16);
+      return 0.2126 * srgbToLin((n >> 16) & 255) + 0.7152 * srgbToLin((n >> 8) & 255) + 0.0722 * srgbToLin(n & 255);
+    }
+    function contrastRatio(a, b) {
+      const la = relLum(a), lb = relLum(b);
+      return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+    }
+    function readableOn(bg, light, dark) { return contrastRatio(bg, light) >= contrastRatio(bg, dark) ? light : dark; }
+    function mixHex(a, b, t) {
+      const pa = String(a).replace('#', ''), pb = String(b).replace('#', '');
+      const na = parseInt(pa, 16), nb = parseInt(pb, 16);
+      const ch = (sh) => {
+        const va = (na >> sh) & 255, vb = (nb >> sh) & 255;
+        return Math.round(va + (vb - va) * t);
+      };
+      return '#' + [16, 8, 0].map((sh) => ch(sh).toString(16).padStart(2, '0')).join('');
+    }
+
+    const COLOR_RE = /^(#([0-9a-f]{3}|[0-9a-f]{6})|rgba?\(\s*[\d.\s,%]+\)|hsla?\([\d.\s,%deg]+\)|[a-z]+)$/i;
+    // [layout.json 里的驼峰名, settings.json 里的下划线名, 对应 CSS 变量]
+    const TEXT_COLOR_SLOTS = [
+      ['bodyColor', 'body_color', '--body-text'],
+      ['textColor', 'text_color', '--text'],
+      ['dimColor', 'dim_color', '--text-dim']
+    ];
+    const BADGE_SLOT = ['badgeColor', 'badge_color', '--accent-ink'];
+
+    function resolveTextColor(tk, settings, camelKey, snakeKey) {
+      const a = tk && tk[camelKey];
+      if (a && COLOR_RE.test(String(a).trim())) return String(a).trim();
+      const b = settings && settings[snakeKey];
+      if (b && COLOR_RE.test(String(b).trim())) return String(b).trim();
+      return '';
+    }
+
+    function applyTokens(t, settings) {
+      const root = document.documentElement;
+      const tk = Object.assign({}, DEFAULT_LAYOUT_TOKENS, t || {});
+      const isLight = tk.theme === 'light';
+
+      root.setAttribute('data-theme', isLight ? 'light' : 'dark');
+
+      const bgColor = tk.background || (isLight ? '#f6f7fb' : '#0f1117');
+      const themeFg = isLight ? '#0f172a' : '#ffffff';
+
+      if (tk.accent) {
+        root.style.setProperty('--accent', tk.accent);
+        root.style.setProperty('--accent-soft', hexToRgba(tk.accent, isLight ? 0.14 : 0.22));
+        root.style.setProperty('--accent-on', readableOn(tk.accent, '#ffffff', '#0b0d12'));
+        root.style.setProperty('--accent-edge', hexToRgba(tk.accent, 0.45));
+      } else {
+        ['--accent', '--accent-soft', '--accent-on', '--accent-ink', '--accent-edge']
+          .forEach((v) => root.style.removeProperty(v));
+      }
+
+      if (tk.background) root.style.setProperty('--bg', tk.background);
+      else root.style.removeProperty('--bg');
+
+      // 文字颜色槽位（留空 = 跟随主题默认）
+      const headingResolved = resolveTextColor(tk, settings, 'headingColor', 'heading_color');
+      TEXT_COLOR_SLOTS.forEach(([camelKey, snakeKey, cssVar]) => {
+        const val = resolveTextColor(tk, settings, camelKey, snakeKey);
+        if (val) root.style.setProperty(cssVar, val);
+        else root.style.removeProperty(cssVar);
+      });
+
+      // 徽标/强调色系文字色
+      const badgeRaw = resolveTextColor(tk, settings, BADGE_SLOT[0], BADGE_SLOT[1]);
+      if (badgeRaw) {
+        root.style.setProperty(BADGE_SLOT[2], badgeRaw);
+      } else if (tk.accent) {
+        const softSolid = mixHex(tk.accent, bgColor, isLight ? 0.14 : 0.22);
+        root.style.setProperty(BADGE_SLOT[2], readableOn(softSolid, tk.accent, themeFg));
+      } else {
+        root.style.removeProperty(BADGE_SLOT[2]);
+      }
+
+      // 链接色：强调色够清楚就用它，否则退回标题色
+      const linkRaw = resolveTextColor(tk, settings, 'linkColor', 'link_color');
+      if (linkRaw) {
+        root.style.setProperty('--link-color', linkRaw);
+      } else if (tk.accent && contrastRatio(tk.accent, bgColor) >= 3) {
+        root.style.setProperty('--link-color', tk.accent);
+      } else {
+        root.style.setProperty('--link-color', headingResolved || themeFg);
+      }
+
+      root.style.setProperty('--font', FONTS[tk.font] || FONTS.jakarta);
+      root.style.setProperty('--radius', num(tk.radius, 16) + 'px');
+      root.style.setProperty('--page-width', num(tk.pageWidth, 900) + 'px');
+      root.style.setProperty('--card-padding', num(tk.cardPadding, 26) + 'px');
+      root.style.setProperty('--line-height', num(tk.lineHeight, 178) / 100);
+    }
+
+    /* ---------------- 简介渲染：Markdown → HTML ----------------
+       必须过 marked + DOMPurify，不允许把未消毒内容塞进 innerHTML。
+       库没到位时退化成「纯文本 + 保留换行」，绝不裸露 markdown 记号。 */
+    function escapeHtml(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    function md2html(md) {
+      const src = String(md || '');
+      if (window.marked && window.DOMPurify) {
+        try {
+          const raw = window.marked.parse(src, { breaks: true, gfm: true });
+          return window.DOMPurify.sanitize(raw, { USE_PROFILES: { html: true } });
+        } catch (e) { /* 落到下面 */ }
+      }
+      return src.split(/\n{2,}/).map((p) => '<p>' + escapeHtml(p).replace(/\n/g, '<br>') + '</p>').join('');
+    }
+
+    /* ---------------- 链接地址安全校验 ----------------
+       只放行 http/https 与站内相对路径，挡掉 javascript: 之类的载荷。 */
+    function safeUrl(raw) {
+      const u = String(raw || '').trim();
+      if (!u) return '';
+      if (/^(https?:\/\/|\/|#|\.\/|\.\.\/)/i.test(u)) return u;
+      return '';
+    }
+    function hostOf(url) {
+      try {
+        const u = new URL(url, location.origin);
+        return u.host.replace(/^www\./, '');
+      } catch (e) { return ''; }
+    }
+
+    /* ============================================================
+       渲染
+       ============================================================ */
+    const $ = (id) => document.getElementById(id);
+
+    function renderAbout(about, settings) {
+      // ---- 站点名（顶部右侧）----
+      $('siteName').textContent = settings.site_title || '';
+
+      // ---- 头像 ----
+      const avatarEl = $('avatar');
+      const fallbackEl = $('avatarFallback');
+      const name = about.display_name || settings.site_title || 'M';
+      const src = normalizeImageUrl(about.avatar);
+
+      if (src) {
+        avatarEl.src = src;
+        avatarEl.alt = about.avatar_alt || (name + ' 的头像');
+        avatarEl.hidden = false;
+        fallbackEl.hidden = true;
+        // 加载失败 → 先试图片代理，再失败就退回占位字母
+        let triedProxy = false;
+        avatarEl.onerror = function () {
+          if (!triedProxy && proxiableImage(avatarEl.src)) {
+            triedProxy = true;
+            avatarEl.src = IMG_PROXY + encodeURIComponent(avatarEl.src);
+            return;
+          }
+          avatarEl.hidden = true;
+          fallbackEl.hidden = false;
+        };
+      } else {
+        avatarEl.hidden = true;
+        fallbackEl.hidden = false;
+      }
+      // 占位字母取第一个字符（中文/字母都行）
+      fallbackEl.textContent = [...String(name).trim()][0] || 'M';
+
+      // ---- 名字 / 副标题 ----
+      $('displayName').textContent = name;
+      const tagline = String(about.tagline || '').trim();
+      if (tagline) { $('tagline').textContent = tagline; $('tagline').hidden = false; }
+      else $('tagline').hidden = true;
+
+      // ---- 简介正文 ----
+      const bio = String(about.bio || '').trim();
+      if (bio) {
+        $('bio').innerHTML = md2html(bio);      // 已过 DOMPurify
+        $('bio').hidden = false;
+      } else {
+        $('bio').hidden = true;
+      }
+
+      // ---- 链接列表 ----
+      const list = $('linkList');
+      const items = (Array.isArray(about.links) ? about.links : [])
+        .map((it) => ({
+          label: String((it && it.label) || '').trim(),
+          url: safeUrl(it && it.url),
+          icon: String((it && it.icon) || 'link').trim()
+        }))
+        .filter((it) => it.url);                 // 没有有效链接的条目直接丢掉
+
+      if (items.length) {
+        list.innerHTML = items.map((it) => {
+          const host = hostOf(it.url);
+          const isExternal = /^https?:\/\//i.test(it.url);
+          return '<a class="link-card" href="' + escapeHtml(it.url) + '"' +
+            (isExternal ? ' target="_blank" rel="noopener noreferrer"' : '') +
+            ' title="' + escapeHtml(it.label || host) + '">' +
+              '<span class="link-icon">' + iconSvg(it.icon) + '</span>' +
+              '<span class="link-text">' +
+                '<span class="link-label">' + escapeHtml(it.label || host) + '</span>' +
+                (host && it.label ? '<span class="link-host">' + escapeHtml(host) + '</span>' : '') +
+              '</span>' +
+            '</a>';
+        }).join('');
+        list.hidden = false;
+        $('emptyNote').hidden = true;
+        $('linksTitle').hidden = false;
+      } else {
+        list.innerHTML = '';
+        list.hidden = true;
+        $('linksTitle').hidden = true;
+        $('emptyNote').hidden = false;
+      }
+
+      // ---- 页脚 ----
+      const foot = String(about.footer_text || '').trim();
+      const footerEl = $('pageFooter');
+      if (foot) {
+        // 页脚允许写成多段；单行内含 <a> 时按富文本处理（仍过消毒）
+        footerEl.innerHTML = window.DOMPurify
+          ? window.DOMPurify.sanitize(foot.replace(/\n/g, '<br>'), { USE_PROFILES: { html: true } })
+          : escapeHtml(foot).replace(/\n/g, '<br>');
+      } else {
+        footerEl.textContent = '';
+      }
+    }
+
+    /* ============================================================
+       初始化：先本地缓存秒开，再拉远端最新替换（与主站同策略）
+       ============================================================ */
+    const DEFAULT_ABOUT = {
+      avatar: '', avatar_alt: '', display_name: 'Mentea',
+      tagline: '', bio: '', links: [], footer_text: ''
+    };
+
+    function cacheKey() { return 'mentea_about_v1'; }
+    function readCache() {
+      try {
+        const raw = localStorage.getItem(cacheKey());
+        return raw ? JSON.parse(raw) : null;
+      } catch (e) { return null; }
+    }
+    function writeCache(settings, layout, about) {
+      try {
+        localStorage.setItem(cacheKey(), JSON.stringify({ settings, layout, about }));
+      } catch (e) { /* 隐私模式 / 超额，忽略 */ }
+    }
+
+    (async function init() {
+      const [settings, layout, about] = await Promise.all([
+        fetchJSON(SITE.settingsFile, {}),
+        fetchJSON(SITE.layoutFile, {}),
+        fetchJSON(SITE.aboutFile, DEFAULT_ABOUT)
+      ]);
+
+      const s = Object.assign({ site_title: 'Mentea Website' }, settings);
+      const l = { tokens: Object.assign({}, DEFAULT_LAYOUT_TOKENS, (layout && layout.tokens) || {}) };
+      const a = Object.assign({}, DEFAULT_ABOUT, about);
+
+      applyTokens(l.tokens, s);
+      renderAbout(a, s);
+      document.title = (a.display_name || '关于我') + ' | ' + (s.site_title || 'Mentea');
+      writeCache(settings, layout, about);
+
+      // marked / DOMPurify 可能还没到位 → 回来后再补渲染一次简介
+      if (!window.marked || !window.DOMPurify) {
+        const t0 = Date.now();
+        const tick = setInterval(() => {
+          if ((window.marked && window.DOMPurify) || Date.now() - t0 > 4000) {
+            clearInterval(tick);
+            if (window.marked && window.DOMPurify) renderAbout(a, s);
+          }
+        }, 80);
+      }
+    })();
+  </script>
+</body>
+</html>
