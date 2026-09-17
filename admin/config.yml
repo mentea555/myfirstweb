@@ -385,3 +385,39 @@ collections:
               required: false,
               hint: "页面最下方的小字，留空则不显示",
             }
+
+      # ==================== 画廊页面（Pinterest 风格图片墙） ====================
+      - name: "gallery"
+        label: "画廊页面"
+        file: "content/gallery.json"
+        description: "这个页面的网址是 /gallery/。它以瀑布流图片墙的方式展示作品，点开图片会在右侧显示笔记正文。注意：这里只会收录**打了下面这个标签**的笔记 —— 只是恰好有封面图、但没打标签的不会出现。"
+        fields:
+          - {
+              label: "页面标题",
+              name: "title",
+              widget: "string",
+              default: "画廊",
+              hint: "浏览器标签页与页面大标题",
+            }
+          - {
+              label: "页面副标题",
+              name: "subtitle",
+              widget: "string",
+              required: false,
+              default: "只收录带插画的笔记",
+              hint: "标题下方的小字，留空则不显示",
+            }
+          - {
+              label: "★ 收录标签",
+              name: "tag",
+              widget: "string",
+              default: "插画",
+              hint: "只有打了这个标签的笔记才会出现在画廊里。在「笔记与作品」里给文章加这个标签即可。改这里就能换一个标签（例如改成「作品」）。",
+            }
+          - {
+              label: "空画廊时的提示文字",
+              name: "empty_text",
+              widget: "text",
+              required: false,
+              hint: "还没有任何笔记打上这个标签时显示的话。可以换行。",
+            }
