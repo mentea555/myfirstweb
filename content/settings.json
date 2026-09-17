@@ -30,5 +30,11 @@
       "label": "我的Osu主页",
       "url": "https://osu.ppy.sh/users/8828088"
     }
-  ]
+  ],
+  "heading_color": "",
+  "badge_color": "#262636",
+  "body_color": "",
+  "text_color": "",
+  "dim_color": "",
+  "link_color": ""
 }
