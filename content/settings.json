@@ -42,6 +42,6 @@
   "float_home_url": "/",
   "float_home_label": "回到首页",
   "float_link_enabled": true,
-  "float_link_url": "https://anxcye.com/articles",
+  "float_link_url": "/about/",
   "float_link_label": "关于我"
 }
