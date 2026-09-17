@@ -794,7 +794,9 @@
         <path d="M9.6 20v-5.6h4.8V20"/>
       </svg>
     </a>
-    <a class="float-btn" id="floatLink" href="#" target="_blank" rel="noopener noreferrer"
+    <!-- target / rel 由 applyFloatButtons() 按链接是站内还是站外动态设置，
+         这里不写死（默认指向站内 /about/，应当同页跳转）。 -->
+    <a class="float-btn" id="floatLink" href="/about/"
        aria-label="关于我" title="关于我">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
            stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -1675,7 +1677,7 @@
         homeBtn.hidden = true;
       }
 
-      // ---- 外链按钮 ----
+      // ---- 关于我按钮 ----
       // 没有配置有效链接时直接隐藏 —— 比留一个点了没反应的死按钮好。
       const linkUrl = safeUrl(s.float_link_url);
       if (linkOn && linkUrl) {
@@ -1683,6 +1685,19 @@
         linkBtn.setAttribute('href', linkUrl);
         linkBtn.setAttribute('title', label);
         linkBtn.setAttribute('aria-label', label);
+        /*
+         * 站内页面（/about/ 这种）要**同页跳转**，另开标签页会莫名其妙
+         * 多留一个空白标签；只有真正的外部网址才新开窗口。
+         * 主人在后台随时可能把这里改成外链，所以按链接本身判断，不写死。
+         */
+        const isExternal = /^https?:\/\//i.test(linkUrl);
+        if (isExternal) {
+          linkBtn.setAttribute('target', '_blank');
+          linkBtn.setAttribute('rel', 'noopener noreferrer');
+        } else {
+          linkBtn.removeAttribute('target');
+          linkBtn.removeAttribute('rel');
+        }
         linkBtn.hidden = false;
       } else {
         linkBtn.hidden = true;
