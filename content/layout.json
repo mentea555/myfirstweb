@@ -9,8 +9,8 @@
     "pageWidth": 1020,
     "cardPadding": 26,
     "cardGap": 46,
-    "lineHeight": 192,
-    "titleScale": 92,
+    "lineHeight": 206,
+    "titleScale": 96,
     "headingColor": "",
     "bodyColor": "",
     "textColor": "",
@@ -20,17 +20,10 @@
   },
   "blocks": [
     {
-      "id": "announce",
-      "enabled": true,
-      "align": "left",
-      "gap": 34,
-      "bg": ""
-    },
-    {
       "id": "header",
       "enabled": true,
       "align": "left",
-      "gap": 50,
+      "gap": 16,
       "bg": "#222325"
     },
     {
@@ -39,7 +32,14 @@
       "align": "left",
       "gap": 34,
       "bg": "",
-      "titleSize": 44
+      "titleSize": 37
+    },
+    {
+      "id": "announce",
+      "enabled": true,
+      "align": "left",
+      "gap": 34,
+      "bg": ""
     },
     {
       "id": "toolbar",
