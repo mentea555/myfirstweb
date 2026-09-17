@@ -148,7 +148,7 @@
       padding-bottom: 22px;
       margin-bottom: 36px;
     }
-    .brand { text-decoration: none; display: block; }
+    .brand { text-decoration: none; display: block; min-width: 0; }
     .brand h1 {
       font-size: 1.45rem;
       font-weight: 800;
@@ -160,7 +160,18 @@
       font-size: 0.92rem;
       margin-top: 4px;
     }
-    .nav { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    /* 导航项换行时必须留出行距：只设 gap 时 flex 按「单行高度」算，
+       换行后的第二行会钻到第一行底下（实测压掉 14px）。
+       row-gap 与 align-content 一起写，才能让每一行各占各的位置。 */
+    .nav {
+      display: flex;
+      align-items: center;
+      align-content: center;
+      gap: 10px;
+      row-gap: 10px;
+      flex-wrap: wrap;
+      min-width: 0;
+    }
     .nav a, .admin-btn {
       padding: 8px 16px;
       border-radius: 9999px;
@@ -180,6 +191,183 @@
       transform: translateY(-1px);
     }
     .admin-btn { color: var(--text-strong); }
+
+    /* ---- 窄屏导航：收进汉堡菜单 ----
+       导航项一多，窄屏换行必然挤成一团。干脆收起来，
+       想加多少项都不用再担心排版。 */
+    .nav-toggle {
+      display: none;
+      width: 42px; height: 42px;
+      align-items: center; justify-content: center;
+      border-radius: 12px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      color: var(--text-strong);
+      cursor: pointer;
+      padding: 0;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      flex-shrink: 0;
+      backdrop-filter: blur(10px);
+    }
+    .nav-toggle:hover { border-color: var(--accent); box-shadow: 0 0 15px var(--accent-soft); }
+    .nav-toggle svg { display: block; }
+    .nav-toggle .ico-close { display: none; }
+    header.nav-open .nav-toggle .ico-bars { display: none; }
+    header.nav-open .nav-toggle .ico-close { display: block; }
+
+    @media (max-width: 720px) {
+      /* 汉堡按钮出现，导航折叠成抽屉 */
+      .nav-toggle { display: flex; }
+      .nav {
+        position: absolute;
+        top: calc(100% + 10px);
+        left: 0;
+        right: 0;
+        z-index: 50;
+        /* 抽屉是竖排列表。注意 #navLinks 本身是个 span，
+           只设 flex-direction 管不到它内部的链接 —— 必须让它也变成
+           块级 flex 容器，否则几个链接会挤在同一行互相重叠。 */
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        row-gap: 6px;
+        padding: 10px;
+        border-radius: 14px;
+        background: var(--card-bg);
+        border: 1px solid var(--card-border);
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+        backdrop-filter: blur(18px);
+        /* 收起时不可见、不可点，避免挡到下面内容 */
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(-8px);
+        transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s;
+      }
+      header.nav-open .nav {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+      }
+      #navLinks {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        width: 100%;
+      }
+      .nav a, .admin-btn {
+        width: 100%;
+        text-align: center;
+        padding: 11px 14px;
+        border-radius: 10px;
+        display: block;
+      }
+      /* 折叠后不再需要 header 的换行留白 */
+      header { position: relative; flex-wrap: nowrap; align-items: center; }
+      .brand { flex: 1; }
+    }
+
+    /* ============ 首屏骨架 ============ */
+    .skeleton-line {
+      height: 12px;
+      border-radius: 6px;
+      background: linear-gradient(90deg, var(--chip-bg) 25%, var(--hover-border) 37%, var(--chip-bg) 63%);
+      background-size: 400% 100%;
+      animation: shimmer 1.4s ease infinite;
+      margin-bottom: 10px;
+    }
+    .skeleton-line.w-40 { width: 40%; }
+    .skeleton-line.w-60 { width: 60%; }
+    .skeleton-line.w-85 { width: 85%; }
+    .skeleton-block {
+      height: 180px;
+      border-radius: 10px;
+      background: linear-gradient(90deg, var(--chip-bg) 25%, var(--hover-border) 37%, var(--chip-bg) 63%);
+      background-size: 400% 100%;
+      animation: shimmer 1.4s ease infinite;
+    }
+    @keyframes shimmer { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
+
+    /* 内容就绪后用淡入收尾，避免「啪」地一下换掉 */
+    .feed.is-ready > * { animation: fadeUp 0.32s ease both; }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+    /* 从缓存恢复的内容不做动画，否则每次打开都在跳 */
+    .feed.from-cache > * { animation: none; }
+
+    /* ============ 作品放大 / 看大图 ============ */
+    /* 卡片放大：真元素就地放大，文字依然可选可读，不是截图式的假预览 */
+    .post-card.is-zoomed {
+      position: relative;
+      z-index: 70;
+      cursor: zoom-out;
+    }
+    .zoom-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 60;
+      background: rgba(6, 8, 12, 0.72);
+      backdrop-filter: blur(4px);
+      opacity: 0;
+      transition: opacity 0.22s ease;
+      cursor: zoom-out;
+    }
+    .zoom-backdrop.show { opacity: 1; }
+    body.zoom-locked { overflow: hidden; }
+
+    /* 封面点击看大图 */
+    .post-cover-wrapper { cursor: zoom-in; }
+
+    .lightbox {
+      position: fixed;
+      inset: 0;
+      z-index: 90;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: rgba(4, 6, 9, 0.9);
+      backdrop-filter: blur(6px);
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.22s ease, visibility 0.22s;
+      cursor: zoom-out;
+    }
+    .lightbox.show { opacity: 1; visibility: visible; }
+    .lightbox img {
+      max-width: 100%;
+      max-height: 100%;
+      border-radius: 12px;
+      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6);
+      cursor: default;
+      object-fit: contain;
+      transition: opacity 0.2s ease;
+    }
+    .lightbox img[data-state="loading"] { opacity: 0; }
+    /* 图片加载不出来时说清楚原因，别让用户对着一片黑猜 */
+    .lightbox .lb-msg {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: rgba(255, 255, 255, 0.85);
+      font-size: 0.9rem;
+      text-align: center;
+      line-height: 1.7;
+      padding: 20px 26px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      max-width: min(520px, 82vw);
+    }
+    .lightbox .lb-hint {
+      position: absolute;
+      bottom: 20px;
+      left: 0;
+      right: 0;
+      text-align: center;
+      color: rgba(255, 255, 255, 0.62);
+      font-size: 0.82rem;
+      pointer-events: none;
+    }
 
     /* ============ Hero ============ */
     .hero { margin-bottom: 34px; }
@@ -386,7 +574,18 @@
         <h1 id="siteTitle">Mentea's Web</h1>
         <p id="siteSubtitle">数字画作、笔记与灵感存档</p>
       </a>
-      <nav class="nav">
+      <button class="nav-toggle" id="navToggle" type="button"
+              aria-label="展开导航菜单" aria-expanded="false" aria-controls="navMenu">
+        <svg class="ico-bars" width="19" height="19" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+          <path d="M3 6h18M3 12h18M3 18h18"/>
+        </svg>
+        <svg class="ico-close" width="19" height="19" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+          <path d="M5 5l14 14M19 5L5 19"/>
+        </svg>
+      </button>
+      <nav class="nav" id="navMenu">
         <span id="navLinks"></span>
         <a id="adminBtn" href="/admin/" class="admin-btn">管理后台 →</a>
       </nav>
@@ -401,9 +600,18 @@
     <div class="toolbar block" id="toolbar" data-block="toolbar" hidden></div>
 
     <div id="feed" class="feed block" data-block="feed">
-      <div class="status-box">
-        <div class="spinner"></div>
-        <p>正在同步云端内容...</p>
+      <!-- 骨架占位：远端内容到达前先给出页面结构，避免长时间白屏 -->
+      <div class="post-card" aria-hidden="true">
+        <div class="skeleton-line w-40" style="height:20px"></div>
+        <div class="skeleton-line w-60"></div>
+        <div class="skeleton-block" style="margin-top:18px"></div>
+        <div class="skeleton-line w-85" style="margin-top:18px"></div>
+        <div class="skeleton-line w-60"></div>
+      </div>
+      <div class="post-card" aria-hidden="true">
+        <div class="skeleton-line w-40" style="height:20px"></div>
+        <div class="skeleton-line w-60"></div>
+        <div class="skeleton-block" style="margin-top:18px"></div>
       </div>
     </div>
 
@@ -413,6 +621,14 @@
     </section>
 
     <footer class="block" id="footer" data-block="footer"></footer>
+  </div>
+
+  <!-- 作品放大 / 看大图：点其他区域即返回 -->
+  <div id="zoomBackdrop" class="zoom-backdrop" hidden></div>
+  <div id="lightbox" class="lightbox" hidden>
+    <img id="lightboxImg" alt="">
+    <div class="lb-msg" id="lightboxMsg" hidden></div>
+    <div class="lb-hint">点击任意空白处返回 · Esc 也可退出</div>
   </div>
 
   <script>
@@ -428,15 +644,17 @@
       layoutFile: 'content/layout.json'        // 可视化布局编辑器
     };
 
-    // 兜底默认值：配置文件读取失败也不会开天窗
+    // 兜底默认值：配置文件读取失败也不会开天窗。
+    // 这里同时也是「首屏骨架」的文案来源 —— 请求还没回来时，
+    // 页面已经是一份完整可读的简介，而不是空白 + 转圈。
     const DEFAULT_SETTINGS = {
-      site_title: "Mentea's Web",
-      site_subtitle: '数字画作、笔记与灵感存档',
+      site_title: "Mentea Website",
+      site_subtitle: '个人博客小站',
       theme_mode: 'dark',
       accent_color: '#6366f1',
       background_color: '',
       font_family: 'jakarta',
-      page_width: 900,
+      page_width: 1020,
       show_admin_button: true,
       admin_button_text: '管理后台 →',
       nav_links: [],
@@ -446,37 +664,44 @@
       custom_css: '',
       custom_head: ''
     };
+
+    /* 导航的结构性兜底：即便配置文件一次都没读成功（首次访问 + 网络不通），
+       也保证导航可用，不会整个消失。真实配置一旦到达就会被它覆盖。 */
+    const FALLBACK_NAV = [
+      { label: '首页', url: '/' },
+      { label: '作品', url: '/#feed' }
+    ];
     const DEFAULT_HOMEPAGE = {
-      hero_badge: '',
-      hero_title: '',
-      hero_subtitle: '',
+      hero_badge: '不可见的滚木',
+      hero_title: '欢迎来到我的小站',
+      hero_subtitle: '这里收藏我的数字画作、随笔与灵感碎片。',
       announcement: '',
-      about_enabled: false,
+      about_enabled: true,
       about_title: '关于我',
-      about_body: '',
+      about_body: '这里是我存放作品与想法的地方。',
       footer_text: ''
     };
     const DEFAULT_LAYOUT = {
       version: 1,
       tokens: {
         theme: 'dark',
-        accent: '#6366f1',
+        accent: '#2d2d2f',
         background: '',
         font: 'jakarta',
-        radius: 16,
-        pageWidth: 900,
+        radius: 5,
+        pageWidth: 1020,
         cardPadding: 26,
-        cardGap: 30,
-        lineHeight: 178,
-        titleScale: 100
+        cardGap: 46,
+        lineHeight: 192,
+        titleScale: 92
       },
       blocks: [
-        { id: 'announce', enabled: true, align: 'left', gap: 24, bg: '' },
-        { id: 'header', enabled: true, align: 'space-between', gap: 36, bg: '' },
-        { id: 'hero', enabled: true, align: 'left', gap: 34, bg: '', titleSize: 34 },
+        { id: 'announce', enabled: true, align: 'left', gap: 34, bg: '' },
+        { id: 'header', enabled: true, align: 'left', gap: 50, bg: '#222325' },
+        { id: 'hero', enabled: true, align: 'left', gap: 34, bg: '', titleSize: 44 },
         { id: 'toolbar', enabled: true, align: 'left', gap: 26, bg: '' },
-        { id: 'feed', enabled: true, align: 'stretch', gap: 40, bg: '', columns: 1 },
-        { id: 'about', enabled: true, align: 'left', gap: 46, bg: '' },
+        { id: 'feed', enabled: true, align: 'center', gap: 102, bg: '', columns: 2 },
+        { id: 'about', enabled: true, align: 'left', gap: 60, bg: '' },
         { id: 'footer', enabled: true, align: 'center', gap: 0, bg: '' }
       ]
     };
@@ -514,8 +739,53 @@
       return isNaN(n) ? fallback : n;
     };
 
-    // 每次请求带时间戳，绕开 CDN 缓存，后台保存后立即能看到变化
-    const rawUrl = (path) => `https://raw.githubusercontent.com/${SITE.user}/${SITE.repo}/${SITE.branch}/${path}?t=${Date.now()}`;
+    /* ==========================================================
+       内容源：多路回退 + 竞速
+       ----------------------------------------------------------
+       实测（本机 + 国内网络）：
+         · raw.githubusercontent.com  —— 会「时通时断」，断开时 fetch 直接
+           抛 TypeError: Failed to fetch，页面表现为长时间空白。
+         · cdn.jsdelivr.net/gh/…      —— 稳定，且是国内可达的公共 CDN。
+         · cdn.statically.io          —— 40 秒超时，不可用。
+         · raw.githack.com            —— 失败，不可用。
+       因此策略是：jsDelivr 打头阵，raw 作后备。任何一路先给出结果就用它，
+       两路都失败也不会卡住页面（有本地缓存 + 内置默认值兜底）。
+       ========================================================== */
+    const GH_SLUG = `${SITE.user}/${SITE.repo}@${SITE.branch}`;
+
+    const textSources = [
+      // 第 1 路：jsDelivr —— CDN 缓存，国内可达，稳定
+      (path) => `https://cdn.jsdelivr.net/gh/${GH_SLUG}/${path}`,
+      // 第 2 路：GitHub 官方 raw —— 通了就最快，但不可依赖
+      (path) => `https://raw.githubusercontent.com/${SITE.user}/${SITE.repo}/${SITE.branch}/${path}?t=${Date.now()}`,
+      // 第 3 路：公共加速代理
+      (path) => `https://ghproxy.net/https://raw.githubusercontent.com/${SITE.user}/${SITE.repo}/${SITE.branch}/${path}`
+    ];
+
+    /**
+     * 按顺序尝试各路数据源，返回第一个成功响应的文本。
+     * 用「顺序」而不是「全部并发」是有意的：jsDelivr 大多命中缓存、够快，
+     * 没必要为了抢几十毫秒而把三个源的请求都打满。
+     */
+    async function fetchTextMulti(path) {
+      let lastErr = null;
+      for (const build of textSources) {
+        const url = build(path);
+        try {
+          const res = await fetch(url, { cache: 'default' });
+          if (!res.ok) { lastErr = new Error('HTTP ' + res.status); continue; }
+          const text = await res.text();
+          if (text && text.trim()) return { text, from: url };
+          lastErr = new Error('空响应');
+        } catch (e) {
+          lastErr = e;      // 连接层失败（Failed to fetch）→ 换下一路
+        }
+      }
+      throw lastErr || new Error('所有内容源均不可用');
+    }
+
+    // 兼容旧调用点：拿到文本后自行解析
+    const rawUrl = (path) => textSources[0](path);
 
     /* ---------------- 乱码自愈 ----------------
        UTF-8 的中文若被按 Latin-1 逐字节解读（例如用 atob 读 GitHub 返回的
@@ -551,9 +821,7 @@
 
     async function fetchJSON(path, fallback) {
       try {
-        const res = await fetch(rawUrl(path));
-        if (!res.ok) return fallback;
-        const text = await res.text();
+        const { text } = await fetchTextMulti(path);
         return text.trim() ? repairDeep(JSON.parse(text)) : fallback;
       } catch (e) {
         console.warn('读取配置失败：' + path, e);
@@ -638,6 +906,252 @@
       scope.querySelectorAll('img').forEach(makeImageResilient);
     }
 
+    /* ==========================================================
+       本地缓存 —— 让「再次访问」接近瞬开
+       思路：后台模型是「谁更新都不频繁」，而访客第一次看到的
+       内容就是最好的占位。把上次渲染好的配置与文章存进
+       localStorage，下次打开先拿它上屏，同时安静地去拉最新，
+       有变化再替换。老访客因此不必等任何请求。
+       ========================================================== */
+    const CACHE_KEY = 'mentea_cache_v1';
+    const CACHE_TTL = 1000 * 60 * 60 * 24 * 7;   // 超过一周的缓存只做参考，仍会用但优先展示新数据
+
+    function readCache() {
+      try {
+        const raw = localStorage.getItem(CACHE_KEY);
+        if (!raw) return null;
+        const obj = JSON.parse(raw);
+        if (!obj || typeof obj !== 'object') return null;
+        return obj;
+      } catch (e) {
+        return null;                                  // 隐私模式/被禁用时静默退化成无缓存
+      }
+    }
+
+    function writeCache(settings, homepage, layout, posts) {
+      try {
+        localStorage.setItem(CACHE_KEY, JSON.stringify({
+          t: Date.now(),
+          settings: settings,
+          homepage: homepage,
+          layout: layout,
+          posts: posts
+        }));
+      } catch (e) {
+        // 超出配额就先清掉旧缓存再试一次；仍失败就算了，不影响页面
+        try {
+          localStorage.removeItem(CACHE_KEY);
+          localStorage.setItem(CACHE_KEY, JSON.stringify({
+            t: Date.now(), settings: settings, homepage: homepage, layout: layout, posts: posts
+          }));
+        } catch (e2) { /* 忽略 */ }
+      }
+    }
+
+    /* ==========================================================
+       导航：窄屏收进汉堡菜单
+       ========================================================== */
+    function setupNavToggle() {
+      const header = document.querySelector('[data-block="header"]');
+      const btn = $('navToggle');
+      if (!header || !btn) return;
+
+      const setOpen = (open) => {
+        header.classList.toggle('nav-open', open);
+        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      };
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        setOpen(!header.classList.contains('nav-open'));
+      });
+      // 点菜单外部 / 选中某个链接后收起
+      document.addEventListener('click', (e) => {
+        if (!header.classList.contains('nav-open')) return;
+        if (header.contains(e.target)) return;
+        setOpen(false);
+      });
+      $('navMenu').addEventListener('click', (e) => {
+        if (e.target.closest('a')) setOpen(false);
+      });
+      // 滚出视野或按 Esc 也收起
+      window.addEventListener('keydown', (e) => { if (e.key === 'Escape') setOpen(false); });
+      window.addEventListener('scroll', () => {
+        if (header.classList.contains('nav-open')) setOpen(false);
+      }, { passive: true });
+    }
+
+    /* ==========================================================
+       作品放大 / 看大图
+       两种粒度：
+         · 点卡片空白处 → 卡片升到最前放大，文字仍可读可选
+         · 点封面图      → 图片全屏看大图
+       关闭统一规则：点放大区域以外的任何地方、按 Esc。
+       ========================================================== */
+    let zoomState = null;         // { card, backdrop }
+
+    function closeZoom() {
+      if (zoomState) {
+        const card = zoomState.card;
+        card.classList.remove('is-zoomed');
+        card.style.transform = '';
+        card.style.transformOrigin = '';
+        card.style.transition = '';
+        zoomState.backdrop.classList.remove('show');
+        zoomState.backdrop.hidden = true;
+        zoomState = null;
+      }
+      document.body.classList.remove('zoom-locked');
+    }
+
+    function openZoom(card) {
+      closeZoom();
+
+      const backdrop = $('zoomBackdrop');
+      backdrop.hidden = false;
+      // 下一帧再加 class，保证 transition 能跑起来
+      requestAnimationFrame(() => backdrop.classList.add('show'));
+
+      // 关键：必须在加 is-zoomed、改 width 之前量尺寸，
+      // 否则量到的是「已经被改过」的盒子，算出来的比例恒等于 1（等于没放大）。
+      const rect = card.getBoundingClientRect();
+      const baseW = rect.width;
+      const baseH = rect.height;
+
+      const viewportW = Math.min(window.innerWidth - 48, 1100);
+      const viewportH = window.innerHeight - 96;
+
+      // 分别在横向、纵向能放大的倍数里取小的那个，保证放大后仍完整可见；
+      // 上限 1.5 倍是经验值 —— 再大就会糊掉文字排版，也失去「看到更多」的意义。
+      const byWidth = viewportW / Math.max(baseW, 1);
+      const byHeight = viewportH / Math.max(baseH, 1);
+      let scale = Math.min(1.5, byWidth, byHeight);
+      if (!isFinite(scale) || scale < 1.08) scale = 1.08;   // 兜底：至少放大一点点，让点击有反馈
+
+      card.classList.add('is-zoomed');
+      card.style.transformOrigin = 'center center';
+      card.style.transform = `scale(${scale})`;
+      card.style.transition = 'transform 0.22s ease';
+
+      // 放大后卡片会超出原本占位，滚动到它居中的位置
+      const nextRect = card.getBoundingClientRect();
+      const centerDelta = (nextRect.height - baseH) / 2;
+      const target = nextRect.top + window.scrollY - centerDelta - 48;
+      if (Math.abs(window.scrollY - target) > 10) {
+        window.scrollTo({ top: Math.max(0, target), behavior: 'smooth' });
+      }
+
+      document.body.classList.add('zoom-locked');
+      zoomState = { card, backdrop, scale };
+    }
+
+    function openLightbox(src, alt) {
+      const lb = $('lightbox');
+      const img = $('lightboxImg');
+      const msg = $('lightboxMsg');
+      const original = src;
+
+      msg.hidden = true;
+      img.hidden = false;
+      img.dataset.state = 'loading';
+      img.alt = alt || '';
+      img.src = src;
+
+      // 与卡片封面同一套容错：直连失败 → 走代理重试 → 仍失败就说明原因
+      let tried = false;
+      img.onload = () => { img.dataset.state = 'ok'; };
+      img.onerror = () => {
+        if (!tried && proxiableImage(original)) {
+          tried = true;
+          img.src = proxiedImageUrl(original);
+          return;
+        }
+        img.hidden = true;
+        msg.hidden = false;
+        msg.innerHTML = '这张图暂时打不开<br><span style="font-size:0.8rem;opacity:.72">可能图床在当前离线，或链接已失效</span>';
+      };
+
+      lb.hidden = false;
+      requestAnimationFrame(() => lb.classList.add('show'));
+      document.body.classList.add('zoom-locked');
+    }
+
+    function closeLightbox() {
+      const lb = $('lightbox');
+      if (!lb.classList.contains('show')) return;
+      lb.classList.remove('show');
+      const img = $('lightboxImg');
+      const done = () => {
+        lb.hidden = true;
+        img.removeAttribute('src');
+        img.onload = null;
+        img.onerror = null;
+        img.dataset.state = '';
+        $('lightboxMsg').hidden = true;
+      };
+      setTimeout(done, 240);
+      document.body.classList.remove('zoom-locked');
+    }
+
+    function setupZoom() {
+      const feed = $('feed');
+
+      // 卡片视图 vs 大图视图：点封面走大图，点卡片其他位置走放大
+      feed.addEventListener('click', (e) => {
+        if (IS_DESIGNER) return;                    // 编辑器画布里不启用，免得干扰拖拽
+
+        const cover = e.target.closest('.post-cover');
+        if (cover && cover.getAttribute('src')) {
+          e.stopPropagation();
+          openLightbox(cover.getAttribute('src'), cover.getAttribute('alt') || '');
+          return;
+        }
+
+        const card = e.target.closest('.post-card');
+        if (!card) return;
+        // 卡片里的链接照常跳转
+        if (e.target.closest('a')) return;
+
+        if (zoomState && zoomState.card === card) closeZoom();
+        else openZoom(card);
+      });
+
+      // 点放大区域之外 → 返回（覆盖两种放大状态）
+      $('zoomBackdrop').addEventListener('click', closeZoom);
+      document.addEventListener('click', (e) => {
+        if (!zoomState) return;
+        if (zoomState.card.contains(e.target)) return;   // 卡片内部的点击不算「点外面」
+        if (e.target.closest('#lightbox')) return;
+        closeZoom();
+      });
+      $('lightbox').addEventListener('click', (e) => {
+        if (e.target.closest('#lightboxImg')) return;    // 点图片本身不关，方便仔细看
+        closeLightbox();
+      });
+
+      document.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape') return;
+        if ($('lightbox').classList.contains('show')) { closeLightbox(); return; }
+        if (zoomState) closeZoom();
+      });
+
+      // 窗口尺寸变化时按新宽度重算缩放比例
+      window.addEventListener('resize', () => {
+        if (!zoomState) return;
+        const card = zoomState.card;
+        // 先临时移除缩放再量，否则量到的是缩放后的尺寸
+        card.style.transition = 'none';
+        card.style.transform = '';
+        const rect = card.getBoundingClientRect();
+        const viewportW = Math.min(window.innerWidth - 48, 1100);
+        const viewportH = window.innerHeight - 96;
+        let scale = Math.min(1.5, viewportW / Math.max(rect.width, 1), viewportH / Math.max(rect.height, 1));
+        if (!isFinite(scale) || scale < 1.08) scale = 1.08;
+        card.style.transform = `scale(${scale})`;
+        card.style.transition = 'transform 0.22s ease';
+        zoomState.scale = scale;
+      });
+    }
+
     function md2html(md) {
       const html = window.marked ? marked.parse(String(md || '')) : escapeHtml(md);
       if (!window.DOMPurify) return html;
@@ -715,8 +1229,9 @@
       $('siteTitle').textContent = s.site_title || DEFAULT_SETTINGS.site_title;
       $('siteSubtitle').textContent = s.site_subtitle || '';
 
-      // 导航链接（后台可增删）
-      const navLinks = Array.isArray(s.nav_links) ? s.nav_links : [];
+      // 导航链接（后台可增删）。空配置时退回结构兜底，
+      // 避免「配置没读到 → 导航整条消失」这种最扎眼的白页效果。
+      const navLinks = Array.isArray(s.nav_links) && s.nav_links.length ? s.nav_links : FALLBACK_NAV;
       $('navLinks').innerHTML = navLinks
         .filter((l) => l && l.label && l.url)
         .map((l) => `<a href="${escapeHtml(l.url)}">${escapeHtml(l.label)}</a>`)
@@ -891,41 +1406,77 @@
       });
     }
 
-    /* ---------------- 拉取文章 ---------------- */
-    async function fetchPosts(dir) {
-      // 一次 API 调用拿到目录清单（比逐个猜文件名可靠）
-      const api = `https://api.github.com/repos/${SITE.user}/${SITE.repo}/contents/${dir}?ref=${SITE.branch}&t=${Date.now()}`;
+    /* ---------------- 拉取文章 ----------------
+       目录清单用 jsDelivr 的 data API（纯静态 JSON，比 GitHub Contents API
+       少一次限流风险，也更快），失败再退回官方 API。
+       文章正文同样走多源，并且并发抓取。
+       -------------------------------------------- */
+    async function listPostFiles(dir) {
+      const clean = String(dir || 'content/notes').replace(/^\/+|\/+$/g, '');
+
+      // 第 1 路：jsDelivr 静态文件清单
+      try {
+        const res = await fetch(`https://data.jsdelivr.com/v1/package/gh/${GH_SLUG}/flat`, { cache: 'default' });
+        if (res.ok) {
+          const data = await res.json();
+          const files = (data && Array.isArray(data.files)) ? data.files : [];
+          const hits = files
+            .filter((f) => f && typeof f.name === 'string')
+            .filter((f) => f.name.indexOf('/' + clean + '/') === 0 && /\.mdx?$/i.test(f.name))
+            .map((f) => ({ name: f.name.split('/').pop(), path: f.name.replace(/^\//, '') }));
+          if (hits.length) return hits;
+        }
+      } catch (e) { /* 落到下一路 */ }
+
+      // 第 2 路：GitHub Contents API
+      const api = `https://api.github.com/repos/${SITE.user}/${SITE.repo}/contents/${clean}?ref=${SITE.branch}&t=${Date.now()}`;
       const res = await fetch(api, { headers: { Accept: 'application/vnd.github+json' } });
 
       if (res.status === 403) throw new Error('GitHub 接口访问过于频繁，请稍后刷新');
-      if (res.status === 404) throw new Error(`未找到内容目录 ${dir}，请在后台检查「内容目录」设置`);
+      if (res.status === 404) throw new Error(`未找到内容目录 ${clean}，请在后台检查「内容目录」设置`);
       if (!res.ok) throw new Error('内容目录读取失败（HTTP ' + res.status + '）');
 
       const files = await res.json();
       if (!Array.isArray(files)) throw new Error('内容目录返回格式异常');
+      return files
+        .filter((f) => f && f.type === 'file' && /\.mdx?$/i.test(f.name))
+        .map((f) => ({ name: f.name, path: f.path }));
+    }
 
-      const mdFiles = files.filter((f) => f.type === 'file' && /\.mdx?$/i.test(f.name));
+    async function fetchPosts(dir) {
+      const mdFiles = await listPostFiles(dir);
+
+      // 并发抓取：文章之间互不依赖，串行等只会把延迟叠加起来。
+      // 单篇失败不影响其余（allSettled 而不是 all）。
+      const settled = await Promise.allSettled(mdFiles.map(async (file) => {
+        const { text } = await fetchTextMulti(file.path);
+        const { data, body } = parseFrontmatter(text);
+        if (data.draft === true || data.draft === 'true') return null;   // 草稿不上前台
+
+        return repairDeep({
+          title: data.title || file.name.replace(/\.mdx?$/i, ''),
+          date: data.date || '',
+          cover: data.thumbnail || data.cover || data.image || '',
+          description: data.description || data.summary || '',
+          tags: Array.isArray(data.tags) ? data.tags : (data.tags ? [data.tags] : []),
+          featured: data.featured === true || data.featured === 'true',
+          body: body.trim(),
+          filename: file.name
+        });
+      }));
 
       const posts = [];
-      for (const file of mdFiles) {
-        try {
-          const text = await (await fetch(rawUrl(file.path))).text();
-          const { data, body } = parseFrontmatter(text);
-          if (data.draft === true || data.draft === 'true') continue;   // 草稿不上前台
-
-          posts.push(repairDeep({
-            title: data.title || file.name.replace(/\.mdx?$/i, ''),
-            date: data.date || '',
-            cover: data.thumbnail || data.cover || data.image || '',
-            description: data.description || data.summary || '',
-            tags: Array.isArray(data.tags) ? data.tags : (data.tags ? [data.tags] : []),
-            featured: data.featured === true || data.featured === 'true',
-            body: body.trim(),
-            filename: file.name
-          }));
-        } catch (e) {
-          console.warn('跳过无法解析的文件：' + file.path, e);
+      settled.forEach((r, i) => {
+        if (r.status === 'fulfilled') {
+          if (r.value) posts.push(r.value);
+        } else {
+          console.warn('跳过无法解析的文件：' + mdFiles[i].path, r.reason);
         }
+      });
+
+      // 一篇都没拿到，说明源全挂了；抛出去让上层决定（缓存兜底 or 报错）
+      if (mdFiles.length && posts.length === 0) {
+        throw new Error('文章内容读取失败，可能是内容源暂时不可达');
       }
 
       // 置顶优先，其次按日期倒序
@@ -934,6 +1485,15 @@
         return new Date(b.date || 0) - new Date(a.date || 0);
       });
       return posts;
+    }
+
+    // 缓存里的文章不含函数，直接可用；但封面仍需补一遍逻辑
+    function normalizeCachedPosts(posts) {
+      if (!Array.isArray(posts)) return null;
+      return posts.filter((p) => p && typeof p === 'object').map((p) => Object.assign({
+        title: '', date: '', cover: '', description: '',
+        tags: [], featured: false, body: '', filename: ''
+      }, p));
     }
 
     function renderPosts(posts, settings, activeTag) {
@@ -953,6 +1513,10 @@
       list.forEach((post) => {
         const card = document.createElement('article');
         card.className = 'post-card';
+        // 可点开放大：加 tabindex 让它也能用键盘操作
+        card.tabIndex = 0;
+        card.setAttribute('role', 'button');
+        card.setAttribute('aria-label', `${post.title} — 点击放大查看`);
 
         const tagsHtml = showTags && post.tags.length
           ? post.tags.map((t) => `<span class="post-tag">#${escapeHtml(t)}</span>`).join('')
@@ -965,13 +1529,26 @@
             ${post.date ? `<span>${escapeHtml(formatDate(post.date))}</span>` : ''}
             ${tagsHtml}
           </div>
-          ${post.cover ? `<div class="post-cover-wrapper"><img class="post-cover" loading="lazy" src="${escapeHtml(post.cover)}" alt="${escapeHtml(post.title)}"></div>` : ''}
+          ${post.cover ? `<div class="post-cover-wrapper" title="点击看大图"><img class="post-cover" loading="lazy" src="${escapeHtml(post.cover)}" alt="${escapeHtml(post.title)}"></div>` : ''}
           ${post.description ? `<p class="post-desc">${escapeHtml(post.description)}</p>` : ''}
           <div class="post-body">${md2html(post.body)}</div>
         `;
         // 封面和正文里的图片统一挂容错：直连失败 → 代理重试 → 仍失败就摘掉
         guardImages(card);
         feed.appendChild(card);
+      });
+    }
+
+    /* 键盘也能打开/收回放大（回车或空格） */
+    function setupZoomKeyboard() {
+      $('feed').addEventListener('keydown', (e) => {
+        if (IS_DESIGNER) return;
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        const card = e.target.closest('.post-card');
+        if (!card || e.target.closest('a')) return;
+        e.preventDefault();
+        if (zoomState && zoomState.card === card) closeZoom();
+        else openZoom(card);
       });
     }
 
@@ -1031,50 +1608,121 @@
       }, true);
     }
 
-    /* ---------------- 启动 ---------------- */
+    /* ---------------- 启动 ----------------
+       分两阶段，理由是「第一次加载的体感」：
+         A. 同步阶段：立刻用内置默认值把标题/简介/关于我/页脚画出来，
+            页面永远不会是第一眼白屏 —— 这部分不依赖任何网络请求。
+         B. 异步阶段：先吃本地缓存（有就秒换），再并发拉远端，
+            拿到后静默替换。访客不会盯着空页面等。
+       ------------------------------------------- */
     (async function init() {
-      const [settings, homepage, layout] = await Promise.all([
-        fetchJSON(SITE.settingsFile, DEFAULT_SETTINGS),
-        fetchJSON(SITE.homepageFile, DEFAULT_HOMEPAGE),
-        fetchJSON(SITE.layoutFile, DEFAULT_LAYOUT)
-      ]);
-
-      const s = Object.assign({}, DEFAULT_SETTINGS, settings);
-      const h = Object.assign({}, DEFAULT_HOMEPAGE, homepage);
-      const l = mergeLayout(layout);
-
-      applySettings(s);
-      applyHomepage(h, s);
-      applyLayout(l);          // 布局优先，覆盖 settings 里的同类项
-      applyTokens(l.tokens);
-
       const feed = $('feed');
-      try {
-        let posts = await fetchPosts(s.posts_dir || 'content/notes');
-        const limit = parseInt(s.posts_limit, 10) || 0;
-        if (limit > 0) posts = posts.slice(0, limit);
 
-        let activeTag = '全部';
-        const render = () => {
-          renderPosts(posts, s, activeTag);
-          renderTagBar(posts, s, activeTag, (tag) => { activeTag = tag; render(); });
-          if (IS_DESIGNER) postToParent({ type: 'designer:rendered' });
-        };
-        render();
+      // ---- A. 先用内置默认值上屏（0 请求，立即有内容可看）----
+      applySettings(DEFAULT_SETTINGS);
+      applyHomepage(DEFAULT_HOMEPAGE, DEFAULT_SETTINGS);
+      applyLayout(mergeLayout(DEFAULT_LAYOUT));
+      applyTokens(DEFAULT_LAYOUT.tokens);
+      setupNavToggle();
+      setupZoom();
+      setupZoomKeyboard();
+
+      // ---- B1. 本地缓存：老访客走这条，几乎瞬开 ----
+      const cache = readCache();
+      let showedCache = false;
+      if (cache && cache.settings) {
+        const cs = Object.assign({}, DEFAULT_SETTINGS, cache.settings);
+        const ch = Object.assign({}, DEFAULT_HOMEPAGE, cache.homepage || {});
+        const cl = mergeLayout(cache.layout);
+        applySettings(cs);
+        applyHomepage(ch, cs);
+        applyLayout(cl);
+        applyTokens(cl.tokens);
+
+        const cachedPosts = normalizeCachedPosts(cache.posts);
+        if (cachedPosts && cachedPosts.length) {
+          let activeTag = '全部';
+          const renderCached = () => {
+            renderPosts(cachedPosts, cs, activeTag);
+            feed.classList.add('from-cache');
+            renderTagBar(cachedPosts, cs, activeTag, (tag) => { activeTag = tag; renderCached(); });
+          };
+          renderCached();
+          showedCache = true;
+        }
+      }
+
+      // ---- B2. 拉远端最新，拿到后替换 ----
+      let settings = DEFAULT_SETTINGS, homepage = DEFAULT_HOMEPAGE, layout = DEFAULT_LAYOUT, posts = null;
+      try {
+        const [s, h, l] = await Promise.all([
+          fetchJSON(SITE.settingsFile, DEFAULT_SETTINGS),
+          fetchJSON(SITE.homepageFile, DEFAULT_HOMEPAGE),
+          fetchJSON(SITE.layoutFile, DEFAULT_LAYOUT)
+        ]);
+        settings = Object.assign({}, DEFAULT_SETTINGS, s);
+        homepage = Object.assign({}, DEFAULT_HOMEPAGE, h);
+        layout = mergeLayout(l);
+
+        // 只在真的和缓存不同才重画，避免页面无谓闪动。
+        // 注意 cache 可能是 null（没有缓存 / 隐私模式），取值要先兜住。
+        const cachedTriple = cache ? [cache.settings || {}, cache.homepage || {}, cache.layout || {}] : null;
+        const changed = !showedCache || !cachedTriple ||
+          JSON.stringify([s, h, l]) !== JSON.stringify(cachedTriple);
+        if (changed) {
+          applySettings(settings);
+          applyHomepage(homepage, settings);
+          applyLayout(layout);
+          applyTokens(layout.tokens);
+        }
+
+        try {
+          posts = await fetchPosts(settings.posts_dir || 'content/notes');
+          const limit = parseInt(settings.posts_limit, 10) || 0;
+          if (limit > 0) posts = posts.slice(0, limit);
+
+          let activeTag = '全部';
+          const render = () => {
+            renderPosts(posts, settings, activeTag);
+            feed.classList.remove('from-cache');
+            renderTagBar(posts, settings, activeTag, (tag) => { activeTag = tag; render(); });
+            if (IS_DESIGNER) postToParent({ type: 'designer:rendered' });
+          };
+          render();
+
+          // 存起来给下次访问用（只存能序列化的数据）
+          writeCache(s, h, l, posts);
+        } catch (postErr) {
+          // 文章拉失败：如果缓存已经顶上去了，就安静保留缓存内容；
+          // 否则才展示错误，让主人知道要检查什么。
+          console.error(postErr);
+          if (showedCache) {
+            console.warn('远端文章更新失败，继续展示本地缓存内容');
+          } else {
+            feed.innerHTML = `<div class="status-box">
+              <p><strong>内容同步失败</strong></p>
+              <p>${escapeHtml(postErr.message)}</p>
+              <p style="margin-top:10px;font-size:0.82rem">检查要点：仓库为公开仓库 · 分支名 <code>${escapeHtml(SITE.branch)}</code> · 内容目录 <code>${escapeHtml(settings.posts_dir)}</code></p>
+            </div>`;
+          }
+        }
       } catch (err) {
         console.error(err);
-        feed.innerHTML = `<div class="status-box">
-          <p><strong>内容同步失败</strong></p>
-          <p>${escapeHtml(err.message)}</p>
-          <p style="margin-top:10px;font-size:0.82rem">检查要点：仓库为公开仓库 · 分支名 <code>${escapeHtml(SITE.branch)}</code> · 内容目录 <code>${escapeHtml(s.posts_dir)}</code></p>
-        </div>`;
+        if (!showedCache) {
+          feed.innerHTML = `<div class="status-box">
+            <p><strong>内容同步失败</strong></p>
+            <p>${escapeHtml(err.message)}</p>
+          </div>`;
+        }
       }
+
+      feed.classList.add('is-ready');
 
       // 通知编辑器：画布已就绪，可以开始拖拽了
       postToParent({
         type: 'designer:ready',
         blocks: Array.from(document.querySelectorAll('[data-block]')).map((el) => el.dataset.block),
-        layout: l
+        layout: layout
       });
     })();
   </script>
