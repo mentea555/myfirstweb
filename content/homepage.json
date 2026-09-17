@@ -1,10 +1,10 @@
 {
   "hero_badge": "不可见的滚木",
   "hero_title": "欢迎来到我的小站",
-  "hero_subtitle": "这里收藏我的作品、随笔与思考。",
+  "hero_subtitle": "记录xxy的作品、随笔与思考。",
   "announcement": "内测阶段，一切内容请以公测为主，上线时间：2026.11.31",
   "about_enabled": true,
   "about_title": "关于xxy",
-  "about_body": "你想干嘛。。。\n\n这里是我存放作品与想法的地方。\n\n后期会添加新功能。",
-  "footer_text": "© 2026 Mentea ·  Decap CMS & GitHub"
+  "about_body": "**干嘛。。。**\n\n这里是我存放作品与想法的地方。\n\n后期会添加新功能。",
+  "footer_text": "© 2026 **Mentea** ·  Decap CMS & GitHub"
 }
