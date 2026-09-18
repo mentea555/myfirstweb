@@ -568,6 +568,179 @@
     .chip:hover { color: var(--text-strong); border-color: var(--accent); }
     .chip.active { background: var(--accent); border-color: var(--accent); color: var(--accent-on, #fff); }
 
+    /* ============ 首页轮播图 ============
+       结构：标题行（左标题 + 右按钮）→ 图片视口 → 圆点。
+       高度由 --carousel-height 驱动（可视化编辑器里可调）。 */
+    .carousel { display: flex; flex-direction: column; gap: 14px; }
+
+    .carousel-head {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+    .carousel-title {
+      font-size: calc(1.14rem * var(--title-scale, 1));
+      font-weight: 700;
+      color: var(--text-strong);
+      line-height: 1.35;
+    }
+    .carousel-subtitle {
+      margin-top: 4px;
+      font-size: 0.82rem;
+      color: var(--text-dim);
+    }
+    /* 右上角按钮：跳到画廊页 */
+    .carousel-more {
+      flex: 0 0 auto;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 15px;
+      border-radius: 9999px;
+      border: 1px solid var(--card-border);
+      background: var(--chip-bg);
+      color: var(--text-strong);
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-decoration: none;
+      white-space: nowrap;
+      transition: all 0.18s ease;
+    }
+    .carousel-more::after { content: '→'; opacity: 0.72; }
+    .carousel-more:hover {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: var(--accent-on, #fff);
+    }
+
+    .carousel-viewport {
+      position: relative;
+      width: 100%;
+      height: var(--carousel-height, 320px);
+      overflow: hidden;
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+      background: var(--chip-bg);
+    }
+    .carousel-track {
+      display: flex;
+      height: 100%;
+      transition: transform 0.5s cubic-bezier(0.22, 0.61, 0.36, 1);
+      will-change: transform;
+    }
+    .carousel-slide {
+      position: relative;
+      flex: 0 0 100%;
+      height: 100%;
+      margin: 0;
+      cursor: zoom-in;
+    }
+    .carousel-slide:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+    .carousel-slide img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      /* 图还没到位时别闪白：容器底色已经是 --chip-bg */
+    }
+    /* 标题压在图上的那一层：用半透明黑底，两种配色模式下都读得清 */
+    .carousel-cap {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      flex-wrap: wrap;
+      padding: 34px 18px 14px;
+      color: #fff;
+      font-size: 0.86rem;
+      font-weight: 600;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.65);
+      background: linear-gradient(to top, rgba(0, 0, 0, 0.72), rgba(0, 0, 0, 0));
+      pointer-events: none;
+    }
+    .carousel-cap-time { font-size: 0.78rem; font-weight: 500; opacity: 0.82; }
+
+    /* 图片实在打不开时的占位。保留格子（不抽掉），翻页才不会错位。 */
+    .carousel-fallback {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+      font-size: 0.82rem;
+      color: var(--text-dim);
+      background: var(--chip-bg);
+    }
+
+    .carousel-nav {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 36px;
+      height: 36px;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      border-radius: 50%;
+      background: rgba(12, 14, 20, 0.5);
+      color: #fff;
+      cursor: pointer;
+      opacity: 0;
+      backdrop-filter: blur(6px);
+      transition: opacity 0.2s ease, background 0.2s ease;
+    }
+    .carousel:hover .carousel-nav,
+    .carousel-nav:focus-visible { opacity: 1; }
+    .carousel-nav:hover { background: rgba(12, 14, 20, 0.8); }
+    .carousel-nav.prev { left: 12px; }
+    .carousel-nav.next { right: 12px; }
+
+    .carousel-dots {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      flex-wrap: wrap;
+    }
+    .carousel-dot {
+      width: 7px;
+      height: 7px;
+      padding: 0;
+      border: 0;
+      border-radius: 50%;
+      background: var(--hover-border);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .carousel-dot:hover { background: var(--text-dim); }
+    .carousel-dot.active { width: 18px; border-radius: 9999px; background: var(--accent); }
+
+    .carousel-empty {
+      padding: 26px;
+      text-align: center;
+      font-size: 0.84rem;
+      line-height: 1.7;
+      color: var(--text-dim);
+      border: 1px dashed var(--card-border);
+      border-radius: var(--radius);
+    }
+
+    /* 小屏：手指左右滑即可，箭头太挤就收起来 */
+    @media (max-width: 560px) {
+      .carousel-nav { display: none; }
+      .carousel-cap { font-size: 0.8rem; padding: 28px 14px 12px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .carousel-track { transition: none; }
+    }
+
     /* ============ 作品卡片流 ============ */
     .feed { display: flex; flex-direction: column; gap: var(--card-gap, 30px); }
     .feed[data-columns="2"] {
@@ -752,6 +925,40 @@
       <p id="heroSubtitle"></p>
     </section>
 
+    <!-- 首页轮播图：图片来自「勾了加入首页轮播的笔记」。
+         位置/显隐/高度由可视化编辑器（content/layout.json）控制；
+         标题、按钮文字、播放速度在后台「首页轮播图」里改。
+         没有可轮播的图时整块自动隐藏（编辑器画布里会显示提示占位）。 -->
+    <section class="carousel block" id="carousel" data-block="carousel" aria-label="作品轮播" hidden>
+      <div class="carousel-head">
+        <div class="carousel-titles">
+          <h3 class="carousel-title" id="carouselTitle" hidden></h3>
+          <p class="carousel-subtitle" id="carouselSubtitle" hidden></p>
+        </div>
+        <a class="carousel-more" id="carouselMore" href="/gallery/" hidden></a>
+      </div>
+
+      <div class="carousel-empty" id="carouselEmpty" hidden></div>
+
+      <div class="carousel-viewport" id="carouselViewport" hidden>
+        <div class="carousel-track" id="carouselTrack"></div>
+        <button class="carousel-nav prev" id="carouselPrev" type="button" aria-label="上一张">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M15 5l-7 7 7 7"/>
+          </svg>
+        </button>
+        <button class="carousel-nav next" id="carouselNext" type="button" aria-label="下一张">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 5l7 7-7 7"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="carousel-dots" id="carouselDots" role="tablist" aria-label="切换到第几张" hidden></div>
+    </section>
+
     <div class="toolbar block" id="toolbar" data-block="toolbar" hidden></div>
 
     <div id="feed" class="feed block" data-block="feed">
@@ -819,7 +1026,8 @@
       branch: 'main',
       settingsFile: 'content/settings.json',   // 后台「全站外观与设置」
       homepageFile: 'content/homepage.json',   // 后台「首页内容」
-      layoutFile: 'content/layout.json'        // 可视化布局编辑器
+      layoutFile: 'content/layout.json',       // 可视化布局编辑器
+      carouselFile: 'content/carousel.json'    // 后台「首页轮播图」
     };
 
     // 兜底默认值：配置文件读取失败也不会开天窗。
@@ -872,6 +1080,18 @@
       about_body: '这里是我存放作品与想法的地方。',
       footer_text: ''
     };
+    /* 首页轮播图（后台「前端页面设置 → 首页轮播图」）。
+       图片本身不在这里配 —— 来自「勾了加入首页轮播的笔记」。 */
+    const DEFAULT_CAROUSEL = {
+      title: '近期作品',
+      subtitle: '',
+      button_text: '进入画廊',
+      button_url: '/gallery/',
+      slide_limit: 8,
+      autoplay: true,
+      interval: 5,
+      show_caption: true
+    };
     const DEFAULT_LAYOUT = {
       version: 1,
       tokens: {
@@ -899,6 +1119,7 @@
         { id: 'announce', enabled: true, align: 'left', gap: 34, bg: '' },
         { id: 'header', enabled: true, align: 'left', gap: 50, bg: '#222325' },
         { id: 'hero', enabled: true, align: 'left', gap: 34, bg: '', titleSize: 44 },
+        { id: 'carousel', enabled: true, align: 'stretch', gap: 34, bg: '', height: 320 },
         { id: 'toolbar', enabled: true, align: 'left', gap: 26, bg: '' },
         { id: 'feed', enabled: true, align: 'center', gap: 102, bg: '', columns: 2 },
         { id: 'about', enabled: true, align: 'left', gap: 60, bg: '' },
@@ -914,6 +1135,8 @@
       footer: 'text',
       header: 'flex',
       toolbar: 'flex',
+      // 轮播区内部永远撑满（自己管宽度），align 交给 applyLayout 的专属分支处理
+      carousel: 'stretch',
       feed: 'stretch'
     };
 
@@ -1177,9 +1400,10 @@
       });
     }
 
-    function guardImages(scope) {
+    // handler 可选：轮播图那类「不能把整格删掉」的场景要换一套容错，见 guardCarouselImage
+    function guardImages(scope, handler) {
       if (!scope) return;
-      scope.querySelectorAll('img').forEach(makeImageResilient);
+      scope.querySelectorAll('img').forEach(handler || makeImageResilient);
     }
 
     /* ==========================================================
@@ -1204,13 +1428,14 @@
       }
     }
 
-    function writeCache(settings, homepage, layout, posts) {
+    function writeCache(settings, homepage, layout, posts, carousel) {
       try {
         localStorage.setItem(CACHE_KEY, JSON.stringify({
           t: Date.now(),
           settings: settings,
           homepage: homepage,
           layout: layout,
+          carousel: carousel,
           posts: posts
         }));
       } catch (e) {
@@ -1218,7 +1443,8 @@
         try {
           localStorage.removeItem(CACHE_KEY);
           localStorage.setItem(CACHE_KEY, JSON.stringify({
-            t: Date.now(), settings: settings, homepage: homepage, layout: layout, posts: posts
+            t: Date.now(), settings: settings, homepage: homepage, layout: layout,
+            carousel: carousel, posts: posts
           }));
         } catch (e2) { /* 忽略 */ }
       }
@@ -2129,7 +2355,9 @@
         el.style.marginBottom = (num(b.gap, 0) || 0) + 'px';
 
         // 4) 对齐（列数决定 flex 还是 grid，必须一起传进去）
-        applyBlockAlign(el, b.id, b.align, b.columns);
+        //    轮播区比较特殊：它内部永远撑满整行，所以这里强制 stretch，
+        //    align 交由下面 6.5) 的专属分支处理（撑满 / 居中收窄）。
+        applyBlockAlign(el, b.id, b.id === 'carousel' ? 'stretch' : b.align, b.columns);
 
         // 5) 自定义背景色
         //    ⚠️ 行内 padding 会盖掉样式表里的避让规则（header 的
@@ -2156,6 +2384,14 @@
         }
         if (b.id === 'feed') {
           el.setAttribute('data-columns', num(b.columns, 1) >= 2 ? '2' : '1');
+        }
+        // 6.5) 轮播区：高度可调；「居中」= 收窄并居中（大图铺满整页会很压迫）
+        if (b.id === 'carousel') {
+          el.style.setProperty('--carousel-height', Math.max(140, num(b.height, 320)) + 'px');
+          const narrow = b.align === 'center';
+          el.style.maxWidth = narrow ? '720px' : '';
+          el.style.marginLeft = narrow ? 'auto' : '';
+          el.style.marginRight = narrow ? 'auto' : '';
         }
       });
     }
@@ -2250,6 +2486,8 @@
           featured: data.featured === true || data.featured === 'true',
           // 「只发画廊」：勾了就不进首页的「全部」流（但点具体标签时能看到）
           galleryOnly: data.gallery_only === true || data.gallery_only === 'true',
+          // 「加入首页轮播图」：勾了它的图才会进首页轮播区
+          carousel: data.carousel === true || data.carousel === 'true',
           body: body.trim(),
           filename: file.name
         });
@@ -2282,7 +2520,7 @@
       if (!Array.isArray(posts)) return null;
       return posts.filter((p) => p && typeof p === 'object').map((p) => Object.assign({
         title: '', date: '', cover: '', description: '',
-        tags: [], featured: false, galleryOnly: false, body: '', filename: ''
+        tags: [], featured: false, galleryOnly: false, carousel: false, body: '', filename: ''
       }, p));
     }
 
@@ -2383,6 +2621,337 @@
     }
 
     /* ==========================================================
+       首页轮播图
+       ----------------------------------------------------------
+       内容来源：后台给笔记勾上「加入首页轮播图」（notes 的 carousel 字段）。
+       每篇取它的封面（thumbnail）+ 正文里插的图，顺序沿用笔记原有顺序
+       （置顶优先、其次日期倒序）。
+       区域本身是 layout.json 里的一个区块（id: carousel），
+       位置/显隐/间距/对齐/高度都归可视化编辑器管；
+       标题、按钮文字、播放速度在后台「首页轮播图」里改。
+       ========================================================== */
+    const CAROUSEL_HARD_MAX = 20;         // 兜底上限，防止配置写出天文数字
+    const CAROUSEL_MIN_INTERVAL = 1.5;    // 自动播放最小间隔（秒），再快会晕
+
+    const carouselState = {
+      slides: [],
+      index: 0,
+      timer: null,
+      paused: false,
+      signature: '',    // 内容指纹：没变就不重建 DOM，免得把看到一半的轮播打回第一张
+      bound: false,
+      cfg: null
+    };
+
+    function reducedMotion() {
+      try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; }
+      catch (e) { return false; }
+    }
+
+    /**
+     * 从一篇笔记里收集图片地址：封面优先，然后是正文里的 Markdown 图片。
+     * 去重，并丢掉 javascript:/data: 这类可疑协议。
+     */
+    function collectPostImages(post) {
+      const out = [];
+      const push = (u) => {
+        const s = String(u == null ? '' : u).trim();
+        if (!s) return;
+        if (/^(javascript|data|vbscript):/i.test(s)) return;
+        if (out.indexOf(s) !== -1) return;
+        out.push(s);
+      };
+      push(post.cover);
+      // ![说明](地址) 或 ![说明](<地址>)
+      const re = /!\[[^\]]*\]\(\s*(<[^>\s]+>|[^)\s]+)/g;
+      const body = String(post.body || '');
+      let m;
+      while ((m = re.exec(body))) push(String(m[1]).replace(/^<|>$/g, ''));
+      return out;
+    }
+
+    /** 把笔记列表摊平成「张」列表 */
+    function buildCarouselSlides(posts, cfg) {
+      const limit = Math.max(1, Math.min(CAROUSEL_HARD_MAX, num(cfg && cfg.slide_limit, 8) || 8));
+      const slides = [];
+      (posts || []).forEach((p) => {
+        if (!p || !p.carousel) return;
+        collectPostImages(p).forEach((src) => {
+          slides.push({ src: src, title: p.title || '', date: p.date || '' });
+        });
+      });
+      return slides.slice(0, limit);
+    }
+
+    function showCarouselSlide(i, userAction) {
+      const n = carouselState.slides.length;
+      if (!n) return;
+      carouselState.index = ((i % n) + n) % n;
+
+      const track = $('carouselTrack');
+      if (track) track.style.transform = 'translateX(' + (-carouselState.index * 100) + '%)';
+
+      const dots = $('carouselDots');
+      if (dots) {
+        Array.prototype.forEach.call(dots.children, (d, k) => {
+          const on = k === carouselState.index;
+          d.classList.toggle('active', on);
+          d.setAttribute('aria-selected', on ? 'true' : 'false');
+        });
+      }
+      // 手动翻页后重新计时，免得刚点完就被自动播放抢走
+      if (userAction && !carouselState.paused) startCarouselAutoplay();
+    }
+
+    function stopCarouselAutoplay() {
+      if (carouselState.timer) {
+        clearInterval(carouselState.timer);
+        carouselState.timer = null;
+      }
+    }
+
+    function startCarouselAutoplay() {
+      stopCarouselAutoplay();
+      const cfg = carouselState.cfg || DEFAULT_CAROUSEL;
+      if (cfg.autoplay === false) return;
+      if (carouselState.slides.length < 2) return;   // 只有一张就不用播
+      if (reducedMotion()) return;                   // 系统设了「减少动态效果」就尊重它
+      const sec = Math.max(CAROUSEL_MIN_INTERVAL, num(cfg.interval, 5) || 5);
+      carouselState.timer = setInterval(() => {
+        if (carouselState.paused) return;
+        if (document.hidden) return;                 // 切到别的标签页时先停
+        showCarouselSlide(carouselState.index + 1);
+      }, sec * 1000);
+    }
+
+    /**
+     * 轮播图的图片容错：直连失败 → 走图片代理重试 → 仍失败就留一句说明。
+     * ⚠️ 这里刻意**不**把整格抽掉（卡片封面那套会 remove），
+     *    否则删掉一格会让后面所有格的 translateX 错位。
+     */
+    function guardCarouselImage(img) {
+      if (!img || img.dataset.imgGuard === '1') return;
+      img.dataset.imgGuard = '1';
+      img.setAttribute('referrerpolicy', 'no-referrer');
+      img.setAttribute('decoding', 'async');
+
+      const original = img.getAttribute('src') || '';
+      let viaProxy = false;
+      img.addEventListener('error', () => {
+        if (!viaProxy && proxiableImage(original)) {
+          viaProxy = true;
+          img.setAttribute('data-via-proxy', '1');
+          img.src = proxiedImageUrl(original);
+          return;
+        }
+        const fig = img.closest('.carousel-slide');
+        img.remove();
+        if (fig && !fig.querySelector('.carousel-fallback')) {
+          const box = document.createElement('div');
+          box.className = 'carousel-fallback';
+          box.textContent = '这张图暂时打不开';
+          fig.appendChild(box);
+        }
+      });
+    }
+
+    function buildCarouselDom(slides, c) {
+      const track = $('carouselTrack');
+      track.innerHTML = '';
+
+      slides.forEach((s, k) => {
+        const fig = document.createElement('figure');
+        fig.className = 'carousel-slide';
+        fig.tabIndex = 0;
+        fig.setAttribute('role', 'button');
+        fig.setAttribute('aria-label', (s.title ? s.title + ' — ' : '') + '点击看大图');
+
+        const img = document.createElement('img');
+        img.loading = k === 0 ? 'eager' : 'lazy';   // 第一张就在首屏，立刻要
+        img.alt = s.title || '';
+        img.src = s.src;
+        fig.appendChild(img);
+
+        if (c.show_caption !== false && (s.title || s.date)) {
+          const cap = document.createElement('figcaption');
+          cap.className = 'carousel-cap';
+          if (s.title) {
+            const t = document.createElement('span');
+            t.textContent = s.title;
+            cap.appendChild(t);
+          }
+          if (s.date) {
+            const d = document.createElement('span');
+            d.className = 'carousel-cap-time';
+            d.textContent = formatDate(s.date);
+            cap.appendChild(d);
+          }
+          fig.appendChild(cap);
+        }
+        track.appendChild(fig);
+      });
+      guardImages(track, guardCarouselImage);
+
+      const dots = $('carouselDots');
+      dots.innerHTML = '';
+      slides.forEach((s, k) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'carousel-dot';
+        b.setAttribute('role', 'tab');
+        b.setAttribute('aria-label', '第 ' + (k + 1) + ' 张');
+        b.addEventListener('click', () => showCarouselSlide(k, true));
+        dots.appendChild(b);
+      });
+    }
+
+    function renderCarousel(posts, cfg) {
+      const section = $('carousel');
+      if (!section) return;
+
+      const c = Object.assign({}, DEFAULT_CAROUSEL, cfg || {});
+      carouselState.cfg = c;
+
+      const title = String(c.title == null ? '' : c.title).trim();
+      const subtitle = String(c.subtitle == null ? '' : c.subtitle).trim();
+      const buttonText = String(c.button_text == null ? '' : c.button_text).trim();
+      const buttonUrl = String(c.button_url == null ? '' : c.button_url).trim() || '/gallery/';
+
+      const tEl = $('carouselTitle');
+      tEl.textContent = title;
+      tEl.hidden = !title;
+      const sEl = $('carouselSubtitle');
+      sEl.textContent = subtitle;
+      sEl.hidden = !subtitle;
+      const mEl = $('carouselMore');
+      mEl.textContent = buttonText;
+      mEl.href = buttonUrl;
+      if (/^https?:\/\//i.test(buttonUrl)) {
+        mEl.target = '_blank';
+        mEl.rel = 'noopener noreferrer';
+      } else {
+        mEl.removeAttribute('target');
+        mEl.removeAttribute('rel');
+      }
+      mEl.hidden = !buttonText;
+
+      const slides = buildCarouselSlides(posts, c);
+      carouselState.slides = slides;
+
+      if (!slides.length) {
+        stopCarouselAutoplay();
+        $('carouselViewport').hidden = true;
+        $('carouselDots').hidden = true;
+        const empty = $('carouselEmpty');
+        if (IS_DESIGNER) {
+          // 画布里必须留一块看得见、点得到的位置，否则主人根本没法拖它
+          empty.hidden = false;
+          empty.innerHTML = '轮播图会显示你勾选了「加入首页轮播图」的笔记里的图片。<br>' +
+                            '现在还没有 —— 去后台给带图的笔记勾上，它就会出现。';
+          section.hidden = false;
+        } else {
+          empty.hidden = true;
+          section.hidden = true;
+        }
+        carouselState.signature = '';
+        return;
+      }
+
+      section.hidden = false;
+      $('carouselEmpty').hidden = true;
+      $('carouselViewport').hidden = false;
+
+      const signature = JSON.stringify(slides) + '|' + title + '|' + subtitle + '|' +
+                        buttonText + '|' + buttonUrl + '|' + (c.show_caption !== false);
+      if (signature !== carouselState.signature) {
+        buildCarouselDom(slides, c);
+        carouselState.signature = signature;
+        if (carouselState.index > slides.length - 1) carouselState.index = 0;
+      }
+
+      const single = slides.length < 2;
+      $('carouselDots').hidden = single;
+      $('carouselPrev').hidden = single;
+      $('carouselNext').hidden = single;
+
+      showCarouselSlide(carouselState.index);
+      startCarouselAutoplay();
+    }
+
+    /** 一次性挂好交互：箭头、看大图、键盘、悬停暂停、触屏滑动 */
+    function setupCarousel() {
+      if (carouselState.bound) return;
+      const section = $('carousel');
+      const viewport = $('carouselViewport');
+      if (!section || !viewport) return;
+      carouselState.bound = true;
+
+      $('carouselPrev').addEventListener('click', (e) => {
+        e.preventDefault();
+        showCarouselSlide(carouselState.index - 1, true);
+      });
+      $('carouselNext').addEventListener('click', (e) => {
+        e.preventDefault();
+        showCarouselSlide(carouselState.index + 1, true);
+      });
+
+      // 点图看大图（编辑器画布里不启用，免得干扰拖拽与选中）
+      viewport.addEventListener('click', (e) => {
+        if (IS_DESIGNER) return;
+        const fig = e.target.closest('.carousel-slide');
+        if (!fig) return;
+        const img = fig.querySelector('img');
+        if (!img || !img.getAttribute('src')) return;
+        e.stopPropagation();
+        openLightbox(img.getAttribute('src'), img.getAttribute('alt') || '');
+      });
+
+      section.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowLeft') {
+          e.preventDefault();
+          showCarouselSlide(carouselState.index - 1, true);
+        } else if (e.key === 'ArrowRight') {
+          e.preventDefault();
+          showCarouselSlide(carouselState.index + 1, true);
+        }
+      });
+
+      // 鼠标移上去 / 键盘聚焦时暂停，走开再继续
+      section.addEventListener('mouseenter', () => { carouselState.paused = true; });
+      section.addEventListener('mouseleave', () => { carouselState.paused = false; });
+      section.addEventListener('focusin', () => { carouselState.paused = true; });
+      section.addEventListener('focusout', (e) => {
+        if (!section.contains(e.relatedTarget)) carouselState.paused = false;
+      });
+
+      // 触屏左右滑
+      let startX = 0, startY = 0, tracking = false;
+      viewport.addEventListener('touchstart', (e) => {
+        if (e.touches.length !== 1) return;
+        tracking = true;
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+      }, { passive: true });
+      viewport.addEventListener('touchend', (e) => {
+        if (!tracking) return;
+        tracking = false;
+        const t = e.changedTouches[0];
+        if (!t) return;
+        const dx = t.clientX - startX;
+        const dy = t.clientY - startY;
+        // 横向位移要明显大于纵向，免得和页面上下滚动打架
+        if (Math.abs(dx) > 42 && Math.abs(dx) > Math.abs(dy) * 1.4) {
+          showCarouselSlide(carouselState.index + (dx < 0 ? 1 : -1), true);
+        }
+      }, { passive: true });
+
+      // 切回本标签页时重新对齐计时（后台标签里定时器会被浏览器节流）
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden && carouselState.slides.length > 1) startCarouselAutoplay();
+      });
+    }
+
+    /* ==========================================================
        可视化编辑器桥接（同源 iframe 通信）
        ========================================================== */
     const postToParent = (msg) => {
@@ -2457,6 +3026,11 @@
       }
       if (block.dataset.block === 'announce') return 'announce';
       if (block.dataset.block === 'toolbar') return 'toolbar';
+      if (block.dataset.block === 'carousel') {
+        if (hit('#carouselMore')) return 'carouselMore';
+        if (hit('#carouselTitle') || hit('#carouselSubtitle')) return 'carouselTitle';
+        return 'carousel';
+      }
       if (block.dataset.block === 'feed') {
         if (hit('.post-title')) return 'postTitle';
         if (hit('.post-excerpt') || hit('.post-summary')) return 'postExcerpt';
@@ -2509,6 +3083,8 @@
       setupNavToggle();
       setupZoom();
       setupZoomKeyboard();
+      setupCarousel();              // 轮播区的事件只挂一次（重建内容时不重复绑定）
+      renderCarousel(null, DEFAULT_CAROUSEL);
 
       // ---- B1. 本地缓存：老访客走这条，几乎瞬开 ----
       const cache = readCache();
@@ -2517,12 +3093,14 @@
         const cs = Object.assign({}, DEFAULT_SETTINGS, cache.settings);
         const ch = Object.assign({}, DEFAULT_HOMEPAGE, cache.homepage || {});
         const cl = mergeLayout(cache.layout);
+        const ccfg = Object.assign({}, DEFAULT_CAROUSEL, cache.carousel || {});
         applySettings(cs);
         applyHomepage(ch, cs);
         applyLayout(cl);
         applyTokens(cl.tokens, cs);
 
         const cachedPosts = normalizeCachedPosts(cache.posts);
+        renderCarousel(cachedPosts, ccfg);      // 老访客：轮播也用缓存先顶上
         if (cachedPosts && cachedPosts.length) {
           let activeTag = '全部';
           const renderCached = () => {
@@ -2536,27 +3114,33 @@
       }
 
       // ---- B2. 拉远端最新，拿到后替换 ----
-      let settings = DEFAULT_SETTINGS, homepage = DEFAULT_HOMEPAGE, layout = DEFAULT_LAYOUT, posts = null;
+      let settings = DEFAULT_SETTINGS, homepage = DEFAULT_HOMEPAGE, layout = DEFAULT_LAYOUT,
+          posts = null, carouselCfg = DEFAULT_CAROUSEL;
       try {
-        const [s, h, l] = await Promise.all([
+        const [s, h, l, cr] = await Promise.all([
           fetchJSON(SITE.settingsFile, DEFAULT_SETTINGS),
           fetchJSON(SITE.homepageFile, DEFAULT_HOMEPAGE),
-          fetchJSON(SITE.layoutFile, DEFAULT_LAYOUT)
+          fetchJSON(SITE.layoutFile, DEFAULT_LAYOUT),
+          fetchJSON(SITE.carouselFile, DEFAULT_CAROUSEL)
         ]);
         settings = Object.assign({}, DEFAULT_SETTINGS, s);
         homepage = Object.assign({}, DEFAULT_HOMEPAGE, h);
         layout = mergeLayout(l);
+        carouselCfg = Object.assign({}, DEFAULT_CAROUSEL, cr);
 
         // 只在真的和缓存不同才重画，避免页面无谓闪动。
         // 注意 cache 可能是 null（没有缓存 / 隐私模式），取值要先兜住。
-        const cachedTriple = cache ? [cache.settings || {}, cache.homepage || {}, cache.layout || {}] : null;
+        const cachedTriple = cache
+          ? [cache.settings || {}, cache.homepage || {}, cache.layout || {}, cache.carousel || {}]
+          : null;
         const changed = !showedCache || !cachedTriple ||
-          JSON.stringify([s, h, l]) !== JSON.stringify(cachedTriple);
+          JSON.stringify([s, h, l, cr]) !== JSON.stringify(cachedTriple);
         if (changed) {
           applySettings(settings);
           applyHomepage(homepage, settings);
           applyLayout(layout);
           applyTokens(layout.tokens, settings);
+          // 轮播的文字配置也可能变了 —— 但要等 posts 到手才重建（见下面 render）
         }
 
         try {
@@ -2572,9 +3156,12 @@
             if (IS_DESIGNER) postToParent({ type: 'designer:rendered' });
           };
           render();
+          // 轮播不跟着标签筛选走：它是一个独立的作品橱窗，
+          // 点标签只影响下方内容流，否则「轮播图突然空了」会很突兀。
+          renderCarousel(posts, carouselCfg);
 
           // 存起来给下次访问用（只存能序列化的数据）
-          writeCache(s, h, l, posts);
+          writeCache(s, h, l, posts, cr);
         } catch (postErr) {
           // 文章拉失败：如果缓存已经顶上去了，就安静保留缓存内容；
           // 否则才展示错误，让主人知道要检查什么。

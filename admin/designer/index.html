@@ -460,6 +460,7 @@
       announce: { name: '公告条',      desc: '页面顶部的提示条',      align: ['left', 'center', 'right'] },
       header:   { name: '页头',        desc: '站名与导航链接',        align: ['space-between', 'left', 'center', 'right'] },
       hero:     { name: '首屏区',      desc: '大标题与副标题',        align: ['left', 'center', 'right'] },
+      carousel: { name: '轮播图',      desc: '自动播放的作品图',      align: ['stretch', 'center'] },
       toolbar:  { name: '标签筛选',    desc: '分类筛选按钮',          align: ['left', 'center', 'right'] },
       feed:     { name: '内容流',      desc: '文章卡片列表',          align: ['stretch', 'center'] },
       about:    { name: '关于我',      desc: '个人介绍板块',          align: ['left', 'center', 'right'] },
@@ -482,6 +483,7 @@
         { id: 'announce', enabled: true, align: 'left', gap: 24, bg: '' },
         { id: 'header', enabled: true, align: 'space-between', gap: 36, bg: '' },
         { id: 'hero', enabled: true, align: 'left', gap: 34, bg: '', titleSize: 34 },
+        { id: 'carousel', enabled: true, align: 'stretch', gap: 34, bg: '', height: 320 },
         { id: 'toolbar', enabled: true, align: 'left', gap: 26, bg: '' },
         { id: 'feed', enabled: true, align: 'stretch', gap: 40, bg: '', columns: 1 },
         { id: 'about', enabled: true, align: 'left', gap: 46, bg: '' },
@@ -886,6 +888,9 @@
           </label>
 
           ${sel.id === 'hero' ? rangeRow('标题字号', 'px', 'block', 'titleSize', num(sel.titleSize, 34), 20, 64, 1) : ''}
+
+          ${sel.id === 'carousel' ? rangeRow('轮播图高度', 'px', 'block', 'height', num(sel.height, 320), 140, 640, 10) : ''}
+          ${sel.id === 'carousel' ? `<div class="hint">这里放的是「勾了【加入首页轮播图】的笔记」里的图片。<br>标题、右上角按钮、播放速度在后台「前端页面设置 → 首页轮播图」里改。<br>一张可轮播的图都没有时，这个区块在网站上会自动隐藏（不影响这里的位置设置）。</div>` : ''}
 
           ${sel.id === 'feed' ? `<label class="row">
             <span class="lbl"><span>每行列数</span></span>
@@ -1474,6 +1479,23 @@
         label: '标签筛选栏',
         selector: '[data-act="textcolor-text"][data-key="dimColor"]',
         fallbackHint: '',
+      },
+      // ---- 轮播图 ----
+      // 点到图片区域 → 直接定位到「轮播图高度」；点到标题/按钮则说明文字在后台改
+      carousel: {
+        label: '轮播图',
+        selector: '[data-scope="block"][data-key="height"]',
+        fallbackHint: '',
+      },
+      carouselTitle: {
+        label: '轮播图',
+        selector: null,
+        fallbackHint: '这段标题文字在后台「前端页面设置 → 首页轮播图」里改',
+      },
+      carouselMore: {
+        label: '轮播图',
+        selector: null,
+        fallbackHint: '右上角按钮的文字与跳转地址，在后台「前端页面设置 → 首页轮播图」里改',
       },
     };
 

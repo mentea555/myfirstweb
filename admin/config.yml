@@ -108,6 +108,14 @@ collections:
           required: false,
           hint: "勾上：这篇会出现在「画廊」页，但不会出现在首页的内容流里（适合随时随手发的插画）。★ 例外：在首页点「#插画」这个标签时，它们会显示出来 —— 相当于一个小画框；点「全部」则看不到，首页保持以文字为主。",
         }
+      - {
+          label: "加入首页轮播图",
+          name: "carousel",
+          widget: "boolean",
+          default: false,
+          required: false,
+          hint: "勾上：这篇的图片会出现在首页的轮播区里（有封面就用封面，正文里插的图也会一起进）。轮播区显示几张、放什么位置，在「前端页面设置 → 首页轮播图」和可视化布局里调。没勾的不进轮播。",
+        }
       - { label: "置顶", name: "featured", widget: "boolean", default: false, required: false }
       - {
           label: "存为草稿（不在前台显示）",
@@ -484,4 +492,80 @@ collections:
               widget: "text",
               required: false,
               hint: "还没有任何笔记打上这个标签时显示的话。可以换行。",
+            }
+
+      # ==================== 首页轮播图 ====================
+      - name: "carousel"
+        label: "首页轮播图"
+        file: "content/carousel.json"
+        description: "首页那个会自动播放的图片区。**图片本身来自笔记**：去「笔记与作品」里，给带图的笔记勾上「加入首页轮播图」，它就会出现在这里。轮播区的位置、显隐、间距、高度请在「可视化布局」里调。"
+        fields:
+          - {
+              label: "区域标题",
+              name: "title",
+              widget: "string",
+              required: false,
+              default: "近期作品",
+              hint: "轮播区左上角的标题。留空则不显示标题。",
+            }
+          - {
+              label: "标题下方的小字",
+              name: "subtitle",
+              widget: "string",
+              required: false,
+              hint: "留空则不显示。",
+            }
+          - {
+              label: "右上角按钮文字",
+              name: "button_text",
+              widget: "string",
+              required: false,
+              default: "进入画廊",
+              hint: "轮播区右上角那个按钮上的字。留空则隐藏这个按钮。",
+            }
+          - {
+              label: "右上角按钮跳转到",
+              name: "button_url",
+              widget: "string",
+              required: false,
+              default: "/gallery/",
+              hint: "默认 /gallery/ 就是你的画廊页。填完整网址（https:// 开头）也可以指向站外。",
+            }
+          - {
+              label: "最多轮播几张",
+              name: "slide_limit",
+              widget: "number",
+              required: false,
+              default: 8,
+              value_type: "int",
+              min: 1,
+              max: 20,
+              hint: "按日期从新到旧取前几张。一篇笔记里插了好几幅图的话，每幅都算一张。",
+            }
+          - {
+              label: "自动播放",
+              name: "autoplay",
+              widget: "boolean",
+              default: true,
+              required: false,
+              hint: "关掉就只能手动点左右箭头翻页。鼠标移上去时会自动暂停。",
+            }
+          - {
+              label: "每张停留秒数",
+              name: "interval",
+              widget: "number",
+              required: false,
+              default: 5,
+              value_type: "int",
+              min: 2,
+              max: 30,
+              hint: "自动播放时，每张图停多少秒再切下一张。",
+            }
+          - {
+              label: "在图片上显示标题",
+              name: "show_caption",
+              widget: "boolean",
+              default: true,
+              required: false,
+              hint: "在图片左下角显示这篇笔记的标题与日期（图片上有半透明黑底，两种配色模式下都看得清）。",
             }

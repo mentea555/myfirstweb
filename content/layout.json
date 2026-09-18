@@ -42,6 +42,14 @@
       "titleSize": 44
     },
     {
+      "id": "carousel",
+      "enabled": true,
+      "align": "stretch",
+      "gap": 34,
+      "bg": "",
+      "height": 320
+    },
+    {
       "id": "toolbar",
       "enabled": true,
       "align": "left",

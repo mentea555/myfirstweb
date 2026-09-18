@@ -1,0 +1,10 @@
+{
+  "title": "近期作品",
+  "subtitle": "自动轮播，点图可看大图",
+  "button_text": "进入画廊",
+  "button_url": "/gallery/",
+  "slide_limit": 8,
+  "autoplay": true,
+  "interval": 5,
+  "show_caption": true
+}
