@@ -53,7 +53,15 @@ collections:
   - name: "notes"
     label: "笔记与作品"
     label_singular: "一篇内容"
-    description: "在这里写的内容，保存后会立即出现在网站首页的卡片流里。只想发到「画廊」页、不上首页的，把下面的「只发画廊」勾上。"
+    description: |
+      在这里写的内容，保存后会立即出现在网站首页的卡片流里。只想发到「画廊」页、不上首页的，把下面的「只发画廊」勾上。
+
+      ⚠️ 写新的一篇，请点左侧「New 一篇内容」，不要在旧笔记里写新内容。
+
+      三个 Publish 按钮都会「先把编辑器里的当前内容存进当前这一篇」，所以在旧笔记里改了内容再点，旧的那篇就被覆盖了：
+      - Publish now：保存当前这一篇
+      - Publish and create new：保存当前这一篇，然后开一张全新空白表单
+      - Publish and duplicate：保存当前这一篇，然后开一张复制了本篇内容的新表单（进去第一件事先改标题，否则文件名会自动加上 -1）
     folder: "content/notes"
     create: true
     slug: "{{year}}-{{month}}-{{day}}-{{slug}}"
