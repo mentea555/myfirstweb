@@ -194,7 +194,7 @@
        * 放查询串则属于 CORS「简单请求」，不触发预检，跨域直接通。
        *
        * 顺带排除掉的其他写法（都实测返回 401）：
-       *   · 头 Authorization: xxy / Bearer xxy / Basic base64(xxy:)   ← 它不认这个头
+       *   · 头 Authorization: <码> / Bearer <码> / Basic base64(<码>:)   ← 它不认这个头
        *   · 表单字段 authCode                                          ← 只从查询串/头里取
        * 唯一可行的两条：查询串 ?authCode=xxx（这里用的），或带浏览器 UA 直连时用 authCode 头。
        */
