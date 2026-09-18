@@ -7,6 +7,8 @@
   <meta name="description" content="插画作品画廊 —— 点开图片阅读笔记">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- 图片缩放代理提前握手，省一次 DNS/TLS 往返 -->
+  <link rel="preconnect" href="https://wsrv.nl">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Noto+Serif+SC:wght@400;600&family=JetBrains+Mono:wght@400;600&display=swap">
 
   <!-- Markdown 渲染 + HTML 消毒，与主站同一套「多源顺序回退」加载。
@@ -281,8 +283,23 @@
       background: var(--skeleton-a);
       transition: opacity 0.35s ease;
     }
-    /* 图没加载出来前先压成骨架高度，避免列高剧烈跳动 */
-    .tile-img[data-state="loading"] { opacity: 0; }
+    /* 图没加载出来前先用 3:4 的骨架高度占位（加载完按真实比例展开），
+       避免列高剧烈跳动；配合 .tile.is-loading 的扫光动画构成骨架屏 */
+    .tile-img[data-state="loading"] { opacity: 0; aspect-ratio: 3 / 4; }
+    /* 骨架屏扫光：只在加载中显示，加载完成由 JS 摘掉 is-loading */
+    .tile.is-loading::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: linear-gradient(100deg, transparent 32%, var(--skeleton-b) 50%, transparent 68%);
+      background-size: 220% 100%;
+      animation: tile-shimmer 1.5s ease-in-out infinite;
+    }
+    @keyframes tile-shimmer {
+      0% { background-position: 170% 0; }
+      100% { background-position: -70% 0; }
+    }
     .tile-fallback {
       width: 100%;
       aspect-ratio: 3 / 4;
@@ -397,6 +414,16 @@
     }
     .sheet-media.is-loading img { opacity: 0; }
     .sheet-media img { transition: opacity 0.25s ease; }
+    /* 大图加载中：同样的扫光骨架 */
+    .sheet-media.is-loading::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: linear-gradient(100deg, transparent 32%, var(--skeleton-b) 50%, transparent 68%);
+      background-size: 220% 100%;
+      animation: tile-shimmer 1.5s ease-in-out infinite;
+    }
 
     .sheet-media-msg {
       position: absolute;
@@ -640,6 +667,7 @@
       }
       .tile:hover { transform: none; }
       .sheet-nav:active { transform: translateY(-50%); }
+      .tile.is-loading::after, .sheet-media.is-loading::after { animation: none; }
     }
   </style>
 </head>
@@ -795,6 +823,27 @@
     function proxiableImage(url) {
       if (!/^https?:\/\//i.test(url)) return false;
       return !/^https?:\/\/(localhost|127\.0\.0\.1|\[?::1\]?)[:/]/i.test(url);
+    }
+
+    /* ============================================================
+       图片提速：列表缩略图走 wsrv.nl 现场缩放
+       ----------------------------------------------------------
+       图床里存的是原图 PNG（实测 0.7~2.4MB/张），画廊一页十几张
+       直连原图 = 几十 MB，且图床直连时通时断。
+       wsrv 是海外图片代理：帮浏览器去抓原图 + 缩到指定宽度再回传，
+       实测缩略图 9~51KB（缩小 50~100 倍），可达性也远好于直连。
+       原图始终完好无损 —— 这只是显示端的临时压缩版本。
+       失败链路：缩略代理 → 原图直连 → 无参代理 → 占位块。
+       ============================================================ */
+    const THUMB_W = 480;   // 列宽目标 236px，480px 覆盖 2 倍屏足够
+
+    function thumbUrl(url) {
+      if (!proxiableImage(url)) return url;
+      return IMG_PROXY + encodeURIComponent(url) + '&w=' + THUMB_W + '&output=webp&q=85';
+    }
+    function fullUrl(url) {
+      if (!proxiableImage(url)) return url;
+      return IMG_PROXY + encodeURIComponent(url) + '&w=1920&output=webp&q=90';
     }
 
     /* ============================================================
@@ -1221,12 +1270,17 @@
         return;
       }
 
+      // 首屏前几张立刻加载（配合 preconnect 最快出图），其余滚到哪加载到哪
+      const EAGER = 6;
       const html = items.map((it, i) => {
         const alt = it.title ? it.title : '插画';
-        return '<button class="tile" type="button" data-idx="' + i + '" ' +
+        const eager = i < EAGER;
+        return '<button class="tile is-loading" type="button" data-idx="' + i + '" ' +
           'aria-label="' + escapeHtml('打开：' + alt) + '">' +
           '<img class="tile-img" data-state="loading" alt="' + escapeHtml(alt) + '" ' +
-          'loading="lazy" decoding="async" src="' + escapeHtml(it.cover) + '">' +
+          (eager ? 'loading="eager" fetchpriority="high" ' : 'loading="lazy" ') +
+          'decoding="async" src="' + escapeHtml(thumbUrl(it.cover)) + '" ' +
+          'data-original="' + escapeHtml(it.cover) + '">' +
           '<span class="tile-hint" aria-hidden="true">' +
             '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ' +
             'stroke-linecap="round" stroke-linejoin="round">' +
@@ -1239,21 +1293,43 @@
       bindTileImages();
     }
 
-    /* 图片加载：失败先走代理，再失败换成占位块。
-       加载成功后才淡入，避免半张图闪出来。 */
+    /* 图片加载链路：缩略代理 → 原图直连 → 无参代理 → 占位块。
+       ⚠️ 每换一个源都要**重新挂** load/error 监听（{once:true} 的监听器
+       触发一次就没了，不重挂的话降级链路会卡死在中间某一步）。 */
     function bindTileImages() {
       const host = $('galleryHost');
       if (!host) return;
       Array.from(host.querySelectorAll('.tile-img')).forEach((img) => {
+        const tile = img.closest('.tile');
+        let settled = false;
         const settle = (ok) => {
-          if (ok) { img.dataset.state = 'ok'; return; }
-          // 试一次图片代理
-          if (!img.dataset.triedProxy && proxiableImage(img.src)) {
-            img.dataset.triedProxy = '1';
-            img.src = IMG_PROXY + encodeURIComponent(img.src);
+          if (settled) return;
+          if (ok) {
+            settled = true;
+            if (tile) tile.classList.remove('is-loading');
+            img.dataset.state = 'ok';
             return;
           }
-          // 彻底失败 → 换成占位块（保留原尺寸比例，列高不跳）
+          const orig = img.dataset.original || '';
+          const step = img.dataset.step || 'thumb';
+          const cur = img.getAttribute('src') || '';
+          // 第 1 跳失败：换原图直连（src 没变过才换，避免同址死循环）
+          if (step === 'thumb' && orig && orig !== cur) {
+            img.dataset.step = 'orig';
+            img.src = orig;
+            watch();
+            return;
+          }
+          // 第 2 跳失败：走无参代理（不缩放，只借道）
+          if (step !== 'proxy' && proxiableImage(orig)) {
+            img.dataset.step = 'proxy';
+            img.src = IMG_PROXY + encodeURIComponent(orig);
+            watch();
+            return;
+          }
+          // 彻底失败 → 摘骨架、换占位块（保留 3:4 比例，列高不跳）
+          settled = true;
+          if (tile) tile.classList.remove('is-loading');
           const ph = document.createElement('div');
           ph.className = 'tile-fallback';
           ph.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" ' +
@@ -1262,11 +1338,20 @@
             '<circle cx="8.6" cy="10" r="1.6"/><path d="m4 17 5-4.6 4.2 3.6L17 12l3 3"/></svg>';
           img.replaceWith(ph);
         };
-
-        if (img.complete && img.naturalWidth > 0) { settle(true); return; }
-        if (img.complete && img.naturalWidth === 0) { settle(false); return; }
-        img.addEventListener('load', () => settle(img.naturalWidth > 0), { once: true });
-        img.addEventListener('error', () => settle(false), { once: true });
+        const watch = () => {
+          // 缓存里已经是成品图的情况（换 src 后 complete 可能立刻为 true）
+          if (img.complete && img.naturalWidth > 0) { settle(true); return; }
+          if (img.complete && img.naturalWidth === 0) { settle(false); return; }
+          img.addEventListener('load', () => settle(img.naturalWidth > 0), { once: true });
+          img.addEventListener('error', () => settle(false), { once: true });
+          // 换 src 后若浏览器同步命中缓存，load 可能不再触发 —— 让出一个
+          // 事件循环再补查一次 complete，双保险
+          setTimeout(() => {
+            if (settled) return;
+            if (img.complete) settle(img.naturalWidth > 0);
+          }, 0);
+        };
+        watch();
       });
     }
 
@@ -1307,18 +1392,27 @@
       const msg = $('sheetMediaMsg');
 
       // ---- 图 ----
+      // 大图走代理限宽到 1920（原图直连又大又可能不通）；
+      // 失败链路：大图代理 → 原图直连 → 文字提示
       media.classList.add('is-loading');
       msg.hidden = true;
+      img.removeAttribute('data-tried-orig');
       img.removeAttribute('data-tried-proxy');
       img.alt = it.title || '插画';
       img.onload = () => {
         if (img.naturalWidth > 0) { media.classList.remove('is-loading'); }
       };
       img.onerror = () => {
-        // 先试代理，再失败给个文字提示（不留白）
-        if (!img.dataset.triedProxy && proxiableImage(img.src)) {
+        // 大图代理挂了 → 原图直连
+        if (!img.dataset.triedOrig && it.cover && img.getAttribute('src') !== it.cover) {
+          img.dataset.triedOrig = '1';
+          img.src = it.cover;
+          return;
+        }
+        // 还挂 → 无参代理借道一次
+        if (!img.dataset.triedProxy && proxiableImage(it.cover)) {
           img.dataset.triedProxy = '1';
-          img.src = IMG_PROXY + encodeURIComponent(img.src);
+          img.src = IMG_PROXY + encodeURIComponent(it.cover);
           return;
         }
         media.classList.remove('is-loading');
@@ -1326,7 +1420,7 @@
         msg.textContent = '图片加载失败，换个网络试试';
         msg.hidden = false;
       };
-      img.src = it.cover;
+      img.src = fullUrl(it.cover);
 
       // ---- 文字 ----
       $('sheetTitle').textContent = it.title || '无标题';
