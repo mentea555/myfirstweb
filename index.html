@@ -581,9 +581,15 @@
     /* ============ 首页轮播图（卡牌堆叠式） ============
        结构：标题行（左标题 + 右按钮）→ 卡牌视口 → 圆点。
        中间是当前这一张（竖屏卡片），左右各 2 张往两边排开 → 同时可见 5 张；
-       离当前越远的越小、越透明（由 JS 按距离写 --o / --s / --dx）。
+       离当前越远的越小、越暗（由 JS 按距离写 --dx / --rot / --s / --veil）。
        卡片高度上限由 --carousel-height 驱动（可视化编辑器里可调），
-       实际尺寸由 layoutCarousel() 按可用宽度算。 */
+       实际尺寸由 layoutCarousel() 按可用宽度算。
+
+       ⚠️ 「远处的卡更淡」**不能用整卡 opacity**（2026-09-18 主人反馈「透出更下一张」）：
+          整卡半透明会让下面那张、以及它模糊底图的矩形边一起透出来，
+          切换时尤其明显。现在的做法是**卡片永远不透明**，
+          靠盖一层深色薄纱（--veil → ::after 的 opacity）来表现「退后」。
+          --o 已经不用了：整卡 opacity 全程恒为 1，显隐交给 visibility（见 is-far）。 */
     .carousel { display: flex; flex-direction: column; gap: 14px; }
 
     .carousel-head {
@@ -642,10 +648,12 @@
       perspective: 1600px;      /* 两侧卡片的 rotateY 要有它才有立体感 */
     }
     /* ---------- 卡牌堆叠 ----------
-       每张卡都绝对定位在正中，靠 --dx / --rot / --s / --o 摆位
+       每张卡都绝对定位在正中，靠 --dx / --rot / --s / --veil 摆位
        （applyCarouselLayout() 按「离当前这张有多远」写进去）。
-       离得越远：位移越大、缩得越小、越透明；2 张之外直接淡出。
-       可见 5 张 = 当前这张 + 左右各 2 张。 */
+       离得越远：位移越大、缩得越小、颜色越暗；2 张之外整卡隐掉。
+       可见 5 张 = 当前这张 + 左右各 2 张。
+       ⚠️ 显隐用 visibility（is-far），不用 opacity —— 半透明的中间态会漏出后面的东西。
+          整卡 opacity 恒为 1；「越远越暗」由卡内薄纱 --veil 负责。 */
     .carousel-track { position: absolute; inset: 0; }
     .carousel-slide {
       position: absolute;
@@ -659,19 +667,45 @@
       background: var(--chip-bg);
       box-shadow: 0 14px 30px rgba(0, 0, 0, 0.32);
       cursor: pointer;
-      opacity: var(--o, 1);
+      opacity: 1;
+      visibility: visible;
       transform: translate(-50%, -50%) translateX(var(--dx, 0px)) rotateY(var(--rot, 0deg)) scale(var(--s, 1));
       transition: transform 0.55s cubic-bezier(0.22, 0.61, 0.36, 1),
-                  opacity 0.55s ease, box-shadow 0.4s ease;
-      will-change: transform, opacity;
+                  box-shadow 0.4s ease, visibility 0s;
+      will-change: transform;
+    }
+    /* 「退后」的那几张：盖一层深色薄纱。
+       卡片本身仍是不透明的，所以不会透出后面的卡；薄纱在卡内自成一格，
+       薄纱变厚变薄时只是这一张变暗变亮，不会漏出别的东西的边。 */
+    .carousel-slide::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      z-index: 3;                 /* 高于标题层（.carousel-cap 的 z-index: 2） */
+      border-radius: inherit;
+      background: #05070d;
+      opacity: var(--veil, 0);
+      pointer-events: none;
+      transition: opacity 0.5s ease;
+    }
+    /* 第 3 张之外：留着当缓冲（首尾相接不能断档），但整张隐掉。
+       ⚠️ 这里刻意用 visibility 而**不是** opacity（2026-09-18 主人反馈：
+          「切换时底图会有一瞬间弹出来、把下面图片的边框都漏出来」）。
+          opacity 动画的中间态就是半透明 —— 半透明的那一帧会把后面那张卡、
+          以及它模糊底图的矩形边一起透出来。visibility 是个开关，不存在半透明帧。
+          · 进（远 → 可见）：立刻出现（让出的一瞬间正好被「正在滑出去」的那张挡着）
+          · 出（可见 → 远）：延迟 0.28s 再消失，先滑到视口外沿、被挡上，别在半路上凭空没了 */
+    .carousel-slide.is-far {
+      visibility: hidden;
+      pointer-events: none;
+      transition: transform 0.55s cubic-bezier(0.22, 0.61, 0.36, 1),
+                  box-shadow 0.4s ease, visibility 0s linear 0.28s;
     }
     /* 中间那张：层级最高（z-index 由 JS 给），点它才是「看大图」 */
     .carousel-slide.is-current {
       cursor: zoom-in;
       box-shadow: 0 20px 44px rgba(0, 0, 0, 0.42);
     }
-    /* 已经淡出到看不见的：别让它们还能被点到 / Tab 到 */
-    .carousel-slide.is-far { pointer-events: none; }
     .carousel-slide:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
     /* 作品原图有横有竖 —— 用 cover 会把竖图裁成一条（画面被切掉大半）。
        所以前景一律「完整显示」，空出来的两边用同一张图放大模糊铺底，
@@ -1431,19 +1465,84 @@
       return IMG_PROXY + encodeURIComponent(stripped).replace(/%2F/gi, '/');
     }
 
-    // 直连失败 → 代理重试 → 仍失败就把图摘掉，绝不留破图标
+    /* ---------------- 显示用缩图（改 webp） ----------------
+       主人的作品原图多是 1600px 级的 PNG，单张几百 KB ~ 2MB。首页一张卡片就是
+       封面 + 正文里好几张，十几二十张原图一起铺，直连会卡很久（"渲染不出来"）。
+       所以：**页面上显示的一律走代理现场转 webp + 限宽**，体积大约只剩 1/5 ~ 1/10。
+       要看大图时再换回原图 —— 每个 img 上都留了 `data-full`（原图地址），
+       点封面看大图（灯箱）和就地放大都用它。
+       ⚠️ 本站相对路径（/assets/…）与本机调试地址不走代理。 */
+    const IMG_THUMB_WIDTH = 1280;       // 卡片最宽约 810px，1280 够 1.5 倍屏
+    const IMG_THUMB_QUALITY = 80;
+
+    function thumbImageUrl(raw, width, quality) {
+      const u = normalizeImageUrl(raw);
+      if (!proxiableImage(u)) return u;
+      if (/^https?:\/\/wsrv\.nl\//i.test(u)) return u;             // 已经是代理地址，别套娃
+      const w = width || IMG_THUMB_WIDTH;
+      const q = quality || IMG_THUMB_QUALITY;
+      return IMG_PROXY + encodeURIComponent(u) + '&w=' + w + '&output=webp&q=' + q;
+    }
+
+    /* 把 scope 里所有「还没处理过」的图片换成缩图，并把原图记在 data-full。
+       正文（md2html 出来的内容）里的图片也走这条路。
+       ⚠️ 正文图片原本没有 loading 属性 ⇒ 浏览器会**立刻全部发起请求**，
+          一页十几二十张原图就是这么卡住的。这里统一补上懒加载。 */
+    function applyThumbImages(scope, width) {
+      if (!scope) return;
+      scope.querySelectorAll('img:not([data-thumb-done])').forEach((img) => {
+        if (!img.hasAttribute('loading')) img.setAttribute('loading', 'lazy');
+        const raw = img.getAttribute('data-full') || img.getAttribute('src') || '';
+        if (!raw) return;
+        const full = normalizeImageUrl(raw);
+        if (!proxiableImage(full)) return;                          // 本站图片不动
+        const thumb = thumbImageUrl(full, width);
+        if (thumb === full) return;
+        img.dataset.thumbDone = '1';
+        img.dataset.full = full;                                     // 看大图 / 放大时换回它
+        img.setAttribute('src', thumb);
+      });
+    }
+
+    /* 就地放大 / 灯箱要的是清晰度：把缩图临时换回原图（预加载好再换，避免闪白）。
+       收回时再换回缩图（缩图已在缓存里，瞬间）。 */
+    function swapCoverQuality(scope, useFull) {
+      if (!scope) return;
+      scope.querySelectorAll('img[data-full]').forEach((img) => {
+        const full = img.dataset.full;
+        const thumb = img.dataset.thumbSrc || img.getAttribute('src');
+        if (!full) return;
+        if (!img.dataset.thumbSrc && useFull) img.dataset.thumbSrc = thumb;
+        const want = useFull ? full : (img.dataset.thumbSrc || thumb);
+        if (img.getAttribute('src') === want) return;
+        if (!useFull) { img.setAttribute('src', want); return; }
+        const pre = new Image();                                     // 先预载原图再换，避免中间空一帧
+        pre.onload = () => { img.setAttribute('src', full); };
+        pre.onerror = () => { img.setAttribute('src', full); };      // 原图挂了也换（交给容错逻辑）
+        pre.src = full;
+      });
+    }
+
+    // 缩图打不开 → 换回原图直连 → 再走代理 → 仍失败就把图摘掉，绝不留破图标
     function makeImageResilient(img) {
       if (!img || img.dataset.imgGuard === '1') return;
       img.dataset.imgGuard = '1';
       img.setAttribute('referrerpolicy', 'no-referrer');
       img.setAttribute('decoding', 'async');
 
-      const original = img.getAttribute('src') || '';
-      let viaProxy = false;
+      const original = img.dataset.full || img.getAttribute('src') || '';
+      let step = 0;
 
       img.addEventListener('error', () => {
-        if (!viaProxy && proxiableImage(original)) {
-          viaProxy = true;
+        // ① 显示用的缩图（走代理）打不开 → 先用原图直连顶上
+        if (step === 0 && img.dataset.full && img.getAttribute('src') !== img.dataset.full) {
+          step = 1;
+          img.src = img.dataset.full;
+          return;
+        }
+        // ② 原图直连也不行 → 换图片代理再来一次
+        if (step <= 1 && proxiableImage(original)) {
+          step = 2;
           img.setAttribute('data-via-proxy', '1');
           img.src = proxiedImageUrl(original);
           return;
@@ -1556,6 +1655,7 @@
         zoomState.backdrop.classList.remove('show');
         zoomState.backdrop.hidden = true;
         zoomState = null;
+        swapCoverQuality(card, false);      // 收回后换回缩图（缩图已缓存，瞬间）
       }
       document.body.classList.remove('zoom-locked');
     }
@@ -1599,6 +1699,8 @@
 
       document.body.classList.add('zoom-locked');
       zoomState = { card, backdrop, scale };
+      // 放大后卡片变大约 1.5 倍，缩图会糊 —— 换成原图（先预载再换，不闪白）
+      swapCoverQuality(card, true);
     }
 
     function openLightbox(src, alt) {
@@ -1659,7 +1761,8 @@
         const cover = e.target.closest('.post-cover');
         if (cover && cover.getAttribute('src')) {
           e.stopPropagation();
-          openLightbox(cover.getAttribute('src'), cover.getAttribute('alt') || '');
+          // 灯箱要看原图（页面上那张 src 是缩图，原图地址记在 data-full）
+          openLightbox(cover.dataset.full || cover.getAttribute('src'), cover.getAttribute('alt') || '');
           return;
         }
 
@@ -2644,7 +2747,8 @@
           ${post.description ? `<p class="post-desc">${escapeHtml(post.description)}</p>` : ''}
           <div class="post-body">${md2html(post.body)}</div>
         `;
-        // 封面和正文里的图片统一挂容错：直连失败 → 代理重试 → 仍失败就摘掉
+        // 封面和正文里的图片统一挂容错：缩图失败 → 原图直连 → 代理 → 仍失败就摘掉
+        applyThumbImages(card, IMG_THUMB_WIDTH);   // 封面 + 正文图片都转 webp 缩图
         guardImages(card);
         feed.appendChild(card);
       });
@@ -2747,9 +2851,12 @@
     const CAROUSEL_HALF = Math.floor(CAROUSEL_VISIBLE / 2);   // 左右各 2 张（=可见的边界）
     const CAROUSEL_CARD_RATIO = 0.75;                 // 竖屏卡片：宽 = 高 × 0.75（即 3:4）
     const CAROUSEL_STEP_RATIO = 0.62;                 // 相邻两张的间距 = 卡宽 × 0.62（余下 38% 互相叠着）
-    // 按「离当前这张有多远」取值：越远越小、越淡（第 3 张之外直接 0）
+    // 按「离当前这张有多远」取值：越远越小、越暗（第 3 张之外整张隐掉）
     const CAROUSEL_SCALE = [1, 0.88, 0.78, 0.7];
-    const CAROUSEL_OPACITY = [1, 0.62, 0.34, 0];
+    /* ⚠️ 「远处的卡更暗」用的是**卡内深色薄纱**（--veil），不是整卡 opacity ——
+       整卡半透明的中间态会透出后面那张卡、连它模糊底图的矩形边一起露出来（主人反馈过）。
+       卡片本身永远不透明，只盖一层纱；到 ±2 就封顶，更远的整张隐掉（visibility）。 */
+    const CAROUSEL_VEIL = [0, 0.30, 0.56];
     const CAROUSEL_ROT_DEG = 7;                       // 两侧卡片的倾斜角（度/每档）
 
     const carouselState = {
@@ -2880,7 +2987,7 @@
       return true;
     }
 
-    /** 按距离摆好每一张卡：位移 / 倾斜 / 缩放 / 透明度 / 层级 */
+    /** 按距离摆好每一张卡：位移 / 倾斜 / 缩放 / 薄纱 / 显隐 / 层级 */
     function applyCarouselLayout() {
       const track = $('carouselTrack');
       if (!track) return;
@@ -2888,15 +2995,19 @@
       Array.prototype.forEach.call(track.children, (fig, k) => {
         const d = carouselOffset(k);
         const ad = Math.abs(d);
-        const far = ad > CAROUSEL_HALF;                  // 第 3 张之外：淡出、不可点、Tab 不到
+        const far = ad > CAROUSEL_HALF;                  // 第 3 张之外：整张隐掉、不可点、Tab 不到
         const lv = Math.min(ad, CAROUSEL_SCALE.length - 1);
+        /* ⚠️ 薄纱档位在 ±2 就封顶（不再随距离加深）：
+           反正 ±3 之外整张都是隐的，让它的纱保持不变，
+           切换时进入可见区的那张就不会同时还在变暗/变亮（少一个动的维度）。 */
+        const vl = Math.min(ad, CAROUSEL_VEIL.length - 1);
         fig.style.setProperty('--dx', Math.round(d * step) + 'px');
         fig.style.setProperty('--rot', (far ? 0 : -d * CAROUSEL_ROT_DEG) + 'deg');
         fig.style.setProperty('--s', CAROUSEL_SCALE[lv]);
-        fig.style.setProperty('--o', far ? 0 : CAROUSEL_OPACITY[lv]);
+        fig.style.setProperty('--veil', CAROUSEL_VEIL[vl]);
         fig.style.zIndex = String(100 - ad);             // 中间的压在最上面
         fig.classList.toggle('is-current', ad === 0);
-        fig.classList.toggle('is-far', far);
+        fig.classList.toggle('is-far', far);             // 显隐：CSS 里是 visibility，不是 opacity
         fig.tabIndex = far ? -1 : 0;
         fig.setAttribute('aria-hidden', far ? 'true' : 'false');
       });
@@ -2930,10 +3041,7 @@
      */
     const CAROUSEL_THUMB_W = 1280;
     function carouselThumbUrl(url) {
-      const u = String(url || '').trim();
-      if (!proxiableImage(u)) return u;
-      if (/^https?:\/\/wsrv\.nl\//i.test(u)) return u;      // 已经是代理地址，别套娃
-      return IMG_PROXY + encodeURIComponent(u) + '&w=' + CAROUSEL_THUMB_W + '&output=webp&q=82';
+      return thumbImageUrl(url, CAROUSEL_THUMB_W, 82);
     }
 
     /**
