@@ -11,7 +11,7 @@ export default async function handler(req, res) {
   const raw = String(req.query.path || '').replace(/^\/+|\/+$/g, '');
   if (!raw) return res.status(400).send('missing path');
   if (raw.indexOf('..') >= 0 || raw.indexOf('//') >= 0) return res.status(400).send('invalid path');
-  if (!/^[A-Za-z0-9._\-/%]+$/.test(raw)) return res.status(400).send('invalid path');
+  if (!/^[A-Za-z0-9._\-/%\u4e00-\u9fff]+$/.test(raw)) return res.status(400).send('invalid path');
   const ref = String(req.query.ref || 'main').replace(/[^A-Za-z0-9._\-/]/g, '');
 
   const headers = {

@@ -5,14 +5,14 @@
 // 返回：原样转发 GitHub Contents API JSON（数组 = 目录，单对象 = 文件）
 //
 // 安全：
-//   - path 仅允许「字母数字 / . _ - 和 %xx 中文编码」与 /
+//   - path 仅允许「字母数字 / . _ - / % xx 中文编码 + 中文 Unicode」与 /
 //   - 不允许 ..  /  //  / 以 / 开头（防止越权读到仓库外的资源）
 //   - token 仅在 Vercel 环境变量里，仓库里没有，也不会泄露到前端
 export default async function handler(req, res) {
   const raw = String(req.query.path || '').replace(/^\/+|\/+$/g, '');
   if (!raw) return res.status(400).json({ error: 'missing path' });
   if (raw.indexOf('..') >= 0 || raw.indexOf('//') >= 0) return res.status(400).json({ error: 'invalid path' });
-  if (!/^[A-Za-z0-9._\-/%]+$/.test(raw)) return res.status(400).json({ error: 'invalid path' });
+  if (!/^[A-Za-z0-9._\-/%\u4e00-\u9fff]+$/.test(raw)) return res.status(400).json({ error: 'invalid path' });
   const ref = String(req.query.ref || 'main').replace(/[^A-Za-z0-9._\-/]/g, '');
 
   const headers = {
