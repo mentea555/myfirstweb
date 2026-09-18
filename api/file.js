@@ -46,7 +46,13 @@ export default async function handler(req, res) {
         if ((fixed.match(/[\u4E00-\u9FFF]/g) || []).length > 0) text = fixed;
       } catch (_) {}
     }
-    res.setHeader('Cache-Control', 'public, max-age=120, s-maxage=120');
+    // ★ 缓存策略（省 GitHub 配额的关键）：
+    //   s-maxage=120  → Vercel CDN 缓存 120 秒。同一篇文章 2 分钟内被多少人看，
+    //                   GitHub 那边只算 1 次。
+    //   stale-while-revalidate=600 → 缓存过期后继续发旧的（访客秒开），
+    //                   同时在后台悄悄拉新的，访客永远不用等。
+    //   不设 max-age：访客浏览器不缓存，主人在后台改完 2 分钟内即可全站生效。
+    res.setHeader('Cache-Control', 'public, s-maxage=120, stale-while-revalidate=600');
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.status(200).send(text);

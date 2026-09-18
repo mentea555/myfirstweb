@@ -967,7 +967,11 @@
     const textSources = [
       // 第 1 路：本站 Vercel Function 代理（api/file.js），带 PAT 时 5000/h，
       //         主人只要在 Vercel 配 GH_PROXY_TOKEN 环境变量就生效，不会撞限流。
-      (path) => `/api/file?path=${encodeURIComponent(path)}&t=${Date.now()}`,
+      //         ⚠️ 这里故意不带 ?t= 时间戳 —— 带了会让 Vercel CDN 缓存全部失效，
+      //         变成「每个访客每次刷新都实打实消耗一次 GitHub 配额」，访客一多就撞墙。
+      //         缓存由 api/file.js 的 s-maxage=120 控制：同一篇文章 2 分钟内
+      //         不管多少人看，GitHub 那边只算 1 次。
+      (path) => `/api/file?path=${encodeURIComponent(path)}`,
       // 第 2 路：GitHub 官方 raw（带时间戳，改完立刻可见）
       (path) => `https://raw.githubusercontent.com/${SITE.user}/${SITE.repo}/${SITE.branch}/${path}?t=${Date.now()}`,
       // 第 3 路：jsDelivr —— 缓存 CDN，国内可达、稳定，作为兜底
