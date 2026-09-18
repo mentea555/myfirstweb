@@ -29,13 +29,13 @@ query Bundle($owner: String!, $repo: String!, $expr: String!) {
   repository(owner: $owner, name: $repo) {
     object(expression: $expr) {
       ... on Tree {
-        entries(first: 300) {
+        entries {
           name
           type
           object {
             ... on Blob { byteSize text }
             ... on Tree {
-              entries(first: 300) {
+              entries {
                 name
                 type
                 object { ... on Blob { byteSize text } }
