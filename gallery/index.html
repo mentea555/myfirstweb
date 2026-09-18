@@ -1463,6 +1463,39 @@
     }
 
     /* ============================================================
+       抽屉（详情）与浏览器历史
+       ------------------------------------------------------------
+       主人反馈：在画廊点开图片进详情后，手机侧滑返回会直接回到首页。
+       原因：打开抽屉只是显示了一层浮层，**没往历史里记东西** ——
+       系统「返回」自然是回到进入画廊之前的那一页。
+       做法：打开时 push 一条带标记的记录；系统返回时先弹掉抽屉（留在画廊）；
+       点关闭按钮 / Esc / 点遮罩关掉时，再把那条记录 back 掉，历史不会越积越多。
+       ============================================================ */
+    let sheetPushed = false;
+
+    function pushSheetHistory() {
+      if (sheetPushed) return;
+      try {
+        history.pushState({ galSheet: 1 }, '', location.pathname + location.search + location.hash);
+        sheetPushed = true;
+      } catch (e) { /* 个别沙箱（file:// / 受限 iframe）不让 push，忽略即可 */ }
+    }
+
+    /** 关抽屉时把那条历史吃掉：先落标记再 back，免得 back 触发的 popstate 又绕回来 */
+    function dropSheetHistory() {
+      if (!sheetPushed) return;
+      sheetPushed = false;
+      try { history.back(); } catch (e) {}
+    }
+
+    window.addEventListener('popstate', () => {
+      if (!sheetPushed) return;          // 这条历史不是我们压的 → 正常返回上一页
+      sheetPushed = false;               // 浏览器已经把它消费掉了
+      const sheet = $('sheet');
+      if (sheet && !sheet.hidden) closeSheet({ fromHistory: true });
+    });
+
+    /* ============================================================
        抽屉：左大图 + 右文字
        ============================================================ */
     let lastFocus = null;
@@ -1543,6 +1576,7 @@
       $('sheetNext').disabled = idx >= items.length - 1;
 
       // ---- 显示 ----
+      if (!sheetPushed) pushSheetHistory();   // 只在「从关到开」这一次入栈，左右切换不重复入栈
       sheet.hidden = false;
       // 强制一次 reflow，保证 transition 从初始态开始（否则会是瞬开）
       void sheet.offsetWidth;
@@ -1553,9 +1587,11 @@
       $('sheetClose').focus({ preventScroll: true });
     }
 
-    function closeSheet() {
+    function closeSheet(opt) {
       const sheet = $('sheet');
       if (!sheet || sheet.hidden) return;
+      // 走历史返回进来的这条路径（opt.fromHistory）：记录已被浏览器消费，不用再 back
+      if (!(opt && opt.fromHistory)) dropSheetHistory();
       sheet.classList.remove('show');
       document.body.classList.remove('sheet-locked');
       currentIndex = -1;

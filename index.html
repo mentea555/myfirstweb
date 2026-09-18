@@ -646,6 +646,11 @@
       border-radius: var(--radius);
       background: var(--chip-bg);
       perspective: 1600px;      /* 两侧卡片的 rotateY 要有它才有立体感 */
+      /* 拖拽：横向手势留给自己（纵向仍然交给页面滚动），鼠标是「抓手」 */
+      touch-action: pan-y;
+      cursor: grab;
+      user-select: none;
+      -webkit-user-select: none;
     }
     /* ---------- 卡牌堆叠 ----------
        每张卡都绝对定位在正中，靠 --dx / --rot / --s / --veil 摆位
@@ -654,7 +659,19 @@
        可见 5 张 = 当前这张 + 左右各 2 张。
        ⚠️ 显隐用 visibility（is-far），不用 opacity —— 半透明的中间态会漏出后面的东西。
           整卡 opacity 恒为 1；「越远越暗」由卡内薄纱 --veil 负责。 */
-    .carousel-track { position: absolute; inset: 0; }
+    /* 拖拽时整条轨道跟着指针走（--drag 由 JS 每帧写进去），松手后归零 → 由过渡滑回去。
+       拖的过程中 is-dragging 把过渡关掉，所以是 1:1 跟手，不会「拖不动、追着跑」。
+       归零的过渡与卡片自身的过渡用同一条曲线、同样时长，
+       于是「轨道回位 + 卡片换位」两段动画叠起来是一段连贯的运动。 */
+    .carousel-track {
+      position: absolute;
+      inset: 0;
+      transform: translateX(var(--drag, 0px));
+      transition: transform 0.55s cubic-bezier(0.22, 0.61, 0.36, 1);
+    }
+    .carousel-viewport.is-dragging { cursor: grabbing; }
+    .carousel-viewport.is-dragging .carousel-track { transition: none; }
+    .carousel-viewport.is-dragging .carousel-slide { cursor: grabbing; }
     .carousel-slide {
       position: absolute;
       top: 50%;
@@ -693,13 +710,19 @@
           「切换时底图会有一瞬间弹出来、把下面图片的边框都漏出来」）。
           opacity 动画的中间态就是半透明 —— 半透明的那一帧会把后面那张卡、
           以及它模糊底图的矩形边一起透出来。visibility 是个开关，不存在半透明帧。
-          · 进（远 → 可见）：立刻出现（让出的一瞬间正好被「正在滑出去」的那张挡着）
-          · 出（可见 → 远）：延迟 0.28s 再消失，先滑到视口外沿、被挡上，别在半路上凭空没了 */
+       ★ 主人第二次反馈「最后一张图突然消失，太突兀了」——
+          光有延迟还不够，它隐掉时**必须已经整张滑出边框**，否则还是一块画面凭空没了。
+          所以两个措施一起上：
+            1) 站位不在 3×step，而是 ±farDx（= 半个视口宽 + 一个卡宽，见 applyCarouselLayout），
+               保证第 3 张的落点整个在边框外；
+            2) 延迟 0.42s 才隐 —— 这一步（0.55s 的动画已走 ~98%）它早就出框了，
+               于是「消失」这件事发生在画面外，眼睛看不到。
+          进（远 → 可见）时延迟为 0：它从框外滑进来，本来就不在画面里，也没有突兀感。 */
     .carousel-slide.is-far {
       visibility: hidden;
       pointer-events: none;
       transition: transform 0.55s cubic-bezier(0.22, 0.61, 0.36, 1),
-                  box-shadow 0.4s ease, visibility 0s linear 0.28s;
+                  box-shadow 0.4s ease, visibility 0s linear 0.42s;
     }
     /* 中间那张：层级最高（z-index 由 JS 给），点它才是「看大图」 */
     .carousel-slide.is-current {
@@ -727,6 +750,7 @@
       display: block;
       width: 100%;
       height: 100%;
+      -webkit-user-drag: none;   /* 拖拽轮播时别把图当成「可拖的文件」拖出去 */
       object-fit: contain;
     }
     /* 标题压在图上的那一层：用半透明黑底，两种配色模式下都读得清。
@@ -821,13 +845,19 @@
       border-radius: var(--radius);
     }
 
-    /* 小屏：手指左右滑即可，箭头太挤就收起来 */
+    /* 小屏：手指拖拽 / 左右滑即可，箭头太挤就收起来 */
     @media (max-width: 560px) {
       .carousel-nav { display: none; }
       .carousel-cap { font-size: 0.74rem; padding: 22px 10px 9px; }
     }
     @media (prefers-reduced-motion: reduce) {
-      .carousel-slide { transition: none; }
+      /* ⚠️ 关动效时，is-far 的「延迟再隐」必须一并关掉：
+         这时卡片是瞬间跳到新位置的，却还要等 0.42s 才消失，
+         那 0.42s 里它僵在旧位置上 —— 反倒变成真正的「突然消失」。 */
+      .carousel-slide,
+      .carousel-slide.is-far,
+      .carousel-slide::after,
+      .carousel-track { transition: none; }
     }
 
     /* ============ 作品卡片流 ============ */
@@ -1515,12 +1545,22 @@
         if (!img.dataset.thumbSrc && useFull) img.dataset.thumbSrc = thumb;
         const want = useFull ? full : (img.dataset.thumbSrc || thumb);
         if (img.getAttribute('src') === want) return;
-        if (!useFull) { img.setAttribute('src', want); return; }
-        const pre = new Image();                                     // 先预载原图再换，避免中间空一帧
-        pre.onload = () => { img.setAttribute('src', full); };
-        pre.onerror = () => { img.setAttribute('src', full); };      // 原图挂了也换（交给容错逻辑）
-        pre.src = full;
-      });
+      if (!useFull) { img.setAttribute('src', want); return; }
+      /* 原图直连与代理**赛跑**，谁先载完用谁：
+         直连通常更快；但图床在部分网络直连不可达（如 i.ibb.co），等超时要几十秒。
+         两条路拿到的都是原图字节，不损画质。都失败就维持缩图不动（别把能看的换成破图）。 */
+      let picked = false;
+      const pick = (u) => { if (!picked) { picked = true; img.setAttribute('src', u); } };
+      const a = new Image();
+      a.onload = () => pick(full);
+      a.src = full;
+      if (proxiableImage(full) && !/^https?:\/\/wsrv\.nl\//i.test(full)) {
+        const pu = proxiedImageUrl(full);
+        const b = new Image();
+        b.onload = () => pick(pu);
+        b.src = pu;
+      }
+    });
     }
 
     // 缩图打不开 → 换回原图直连 → 再走代理 → 仍失败就把图摘掉，绝不留破图标
@@ -2851,6 +2891,13 @@
     const CAROUSEL_HALF = Math.floor(CAROUSEL_VISIBLE / 2);   // 左右各 2 张（=可见的边界）
     const CAROUSEL_CARD_RATIO = 0.75;                 // 竖屏卡片：宽 = 高 × 0.75（即 3:4）
     const CAROUSEL_STEP_RATIO = 0.62;                 // 相邻两张的间距 = 卡宽 × 0.62（余下 38% 互相叠着）
+    /* 窄屏（手机）另有一套参数 —— 主人反馈「5 张显示的太窄了，成条之后很难看」：
+       手机上若按「刚好塞下 5 张」算，间距只剩 30px 出头，每张就露一条缝。
+       所以窄屏反而把卡片收窄一点、间距铺开（宁可让两端那两张被边框裁掉一部分），
+       每张能露出小半张，才看得出是「一叠牌」。 */
+    const CAROUSEL_NARROW_W = 640;                    // 视口窄于这个宽度算窄屏
+    const CAROUSEL_NARROW_CARD = 0.56;                // 窄屏卡宽 = 可用宽 × 0.56
+    const CAROUSEL_NARROW_STEP = 0.5;                 // 窄屏间距下限 = 卡宽 × 0.5
     // 按「离当前这张有多远」取值：越远越小、越暗（第 3 张之外整张隐掉）
     const CAROUSEL_SCALE = [1, 0.88, 0.78, 0.7];
     /* ⚠️ 「远处的卡更暗」用的是**卡内深色薄纱**（--veil），不是整卡 opacity ——
@@ -2869,7 +2916,10 @@
       bound: false,
       cfg: null,
       step: 0,          // 相邻卡片的横向间距（layoutCarousel 算出来）
-      layoutW: 0        // 上次算尺寸时的可用宽度，宽度没变就不重算
+      farDx: 0,         // 第 3 张之外的「站位」：保证整张在边框外（隐掉时看不见）
+      layoutW: 0,       // 上次算尺寸时的可用宽度，宽度没变就不重算
+      dragging: false,  // 正在拖：自动播放让位
+      dragEndAt: 0      // 刚拖完的时间戳，用来吞掉那一次「拖拽末尾的 click」
     };
 
     function reducedMotion() {
@@ -2965,8 +3015,11 @@
     /**
      * 按可用宽度算一次卡片尺寸与间距（宽度没变就不重算）。
      * · 竖屏卡片：宽 = 高 × 0.75（3:4），「轮播图高度」滑杆是**上限**；
-     * · 相邻间距：取「卡宽的 62%」与「刚好塞得下 5 张」的较小值 ——
-     *   窄屏上后者生效，于是 5 张挤成一叠、每张只露出一条边（卡牌堆叠的观感）。
+     * · 相邻间距：宽屏取「卡宽的 62%」与「刚好塞得下 5 张」的较小值；
+     *   窄屏反过来 —— 宁可让两端那两张被边框裁掉一部分，也要把间距铺开
+     *   （主人反馈：手机上按「刚好塞下」算只有 30px 出头，5 张挤成一条细缝）。
+     * · farDx：第 3 张之外的「站位」。故意放到「半个视口宽 + 一个卡宽」——
+     *   整张都在边框外，它被 visibility 隐掉的那一下发生在画面外，看不出「突然消失」。
      */
     function layoutCarousel() {
       const viewport = $('carouselViewport');
@@ -2978,10 +3031,17 @@
       carouselState.layoutW = w;
 
       const maxH = parseFloat(getComputedStyle(section).getPropertyValue('--carousel-height')) || 320;
-      const cardW = Math.max(96, Math.min(w * 0.62, maxH * CAROUSEL_CARD_RATIO));
+      const narrow = w < CAROUSEL_NARROW_W;
+      const cardW = Math.max(96, Math.min(
+        w * (narrow ? CAROUSEL_NARROW_CARD : 0.62),
+        maxH * CAROUSEL_CARD_RATIO
+      ));
       const cardH = Math.round(cardW / CAROUSEL_CARD_RATIO);
-      const stepMax = (w - cardW) / (2 * CAROUSEL_HALF + 0.2);   // 让最外边那张刚好留在视口内
-      carouselState.step = Math.round(Math.min(cardW * CAROUSEL_STEP_RATIO, Math.max(0, stepMax)));
+      const fit = Math.max(0, (w - cardW) / (2 * CAROUSEL_HALF + 0.2));   // 刚好塞得下 5 张的间距
+      carouselState.step = Math.round(narrow
+        ? Math.min(cardW * CAROUSEL_STEP_RATIO, Math.max(cardW * CAROUSEL_NARROW_STEP, fit))
+        : Math.min(cardW * CAROUSEL_STEP_RATIO, fit));
+      carouselState.farDx = Math.round(w / 2 + cardW);                    // 第 3 张之外：整个推出边框
       viewport.style.setProperty('--carousel-card-w', Math.round(cardW) + 'px');
       viewport.style.setProperty('--carousel-card-h', cardH + 'px');
       return true;
@@ -3001,7 +3061,9 @@
            反正 ±3 之外整张都是隐的，让它的纱保持不变，
            切换时进入可见区的那张就不会同时还在变暗/变亮（少一个动的维度）。 */
         const vl = Math.min(ad, CAROUSEL_VEIL.length - 1);
-        fig.style.setProperty('--dx', Math.round(d * step) + 'px');
+        /* ★ 出场的卡站得比 3×step 更远（farDx）：整张在边框外，
+           等它滑出去之后再隐掉，画面上就看不到「凭空少了一张」。 */
+        fig.style.setProperty('--dx', Math.round(far ? (d < 0 ? -carouselState.farDx : carouselState.farDx) : d * step) + 'px');
         fig.style.setProperty('--rot', (far ? 0 : -d * CAROUSEL_ROT_DEG) + 'deg');
         fig.style.setProperty('--s', CAROUSEL_SCALE[lv]);
         fig.style.setProperty('--veil', CAROUSEL_VEIL[vl]);
@@ -3029,6 +3091,7 @@
       const sec = Math.max(CAROUSEL_MIN_INTERVAL, num(cfg.interval, 5) || 5);
       carouselState.timer = setInterval(() => {
         if (carouselState.paused) return;
+        if (carouselState.dragging) return;          // 手正按着，别抢
         if (document.hidden) return;                 // 切到别的标签页时先停
         showCarouselSlide(carouselState.index + 1);
       }, sec * 1000);
@@ -3244,6 +3307,10 @@
       // （编辑器画布里都不启用，免得干扰拖拽与选中）
       viewport.addEventListener('click', (e) => {
         if (IS_DESIGNER) return;
+        /* 刚拖完那一下松开手指，浏览器还会补一个 click —— 那不是「点卡片」。
+           （用时间戳判定，不用布尔量：万一某次拖拽没有补 click，布尔量会一直挂着，
+             把后面一次真正的点击也吞掉。） */
+        if (Date.now() - carouselState.dragEndAt < 320) return;
         const fig = e.target.closest('.carousel-slide');
         if (!fig) return;
         const k = num(fig.dataset.index, -1);
@@ -3279,26 +3346,62 @@
         if (!section.contains(e.relatedTarget)) carouselState.paused = false;
       });
 
-      // 触屏左右滑
-      let startX = 0, startY = 0, tracking = false;
-      viewport.addEventListener('touchstart', (e) => {
-        if (e.touches.length !== 1) return;
-        tracking = true;
-        startX = e.touches[0].clientX;
-        startY = e.touches[0].clientY;
-      }, { passive: true });
-      viewport.addEventListener('touchend', (e) => {
-        if (!tracking) return;
-        tracking = false;
-        const t = e.changedTouches[0];
-        if (!t) return;
-        const dx = t.clientX - startX;
-        const dy = t.clientY - startY;
-        // 横向位移要明显大于纵向，免得和页面上下滚动打架
-        if (Math.abs(dx) > 42 && Math.abs(dx) > Math.abs(dy) * 1.4) {
-          showCarouselSlide(carouselState.index + (dx < 0 ? 1 : -1), true);
+      /* ---- 拖拽跟随：整条轨道跟着指针走，松手按位移量翻页 ----
+         鼠标 / 触屏 / 触控笔同一套 Pointer Events，不用写两遍。
+         （触屏的横向手势靠 CSS 的 touch-action: pan-y 让给我们，纵向滚动不受影响。） */
+      const DRAG_SLOP = 6;      // 超过这么多像素才算「在拖」，否则仍按点击处理
+      const DRAG_MIN = 30;      // 松手时位移至少这么多才翻页（防手抖）
+      const track = $('carouselTrack');
+      let drag = null;
+
+      viewport.addEventListener('pointerdown', (e) => {
+        if (IS_DESIGNER || e.button !== 0 || carouselState.slides.length < 2) return;
+        if (e.target.closest('.carousel-nav')) return;      // 左右箭头自己管自己
+        drag = { id: e.pointerId, x0: e.clientX, y0: e.clientY, dx: 0, active: false };
+      });
+
+      viewport.addEventListener('pointermove', (e) => {
+        if (!drag || e.pointerId !== drag.id) return;
+        const dx = e.clientX - drag.x0;
+        const dy = e.clientY - drag.y0;
+        if (!drag.active) {
+          if (Math.abs(dx) < DRAG_SLOP) return;
+          if (Math.abs(dx) <= Math.abs(dy)) { drag = null; return; }   // 竖着划 → 让页面滚
+          drag.active = true;
+          carouselState.dragging = true;
+          stopCarouselAutoplay();                                      // 手按着的时候别自动播
+          viewport.classList.add('is-dragging');                       // 关掉过渡 → 1:1 跟手
+          try { viewport.setPointerCapture(drag.id); } catch (err) {}
         }
-      }, { passive: true });
+        const limit = viewport.clientWidth * 0.9;
+        drag.dx = Math.max(-limit, Math.min(limit, dx));
+        viewport.style.setProperty('--drag', Math.round(drag.dx) + 'px');
+        if (e.cancelable) e.preventDefault();
+      });
+
+      const endDrag = (e, cancelled) => {
+        if (!drag || (e && e.pointerId !== drag.id)) return;
+        const wasActive = drag.active;
+        const dx = drag.dx;
+        const id = drag.id;
+        drag = null;
+        viewport.classList.remove('is-dragging');                      // 先恢复过渡…
+        try { viewport.releasePointerCapture(id); } catch (err) {}
+        viewport.style.setProperty('--drag', '0px');                   // …再归零，于是是「滑回去」
+        carouselState.dragging = false;
+        if (!wasActive) return;                                        // 只是点了一下，交给 click
+        carouselState.dragEndAt = Date.now();                          // 吞掉紧随其后的那次 click
+        if (cancelled || Math.abs(dx) < DRAG_MIN) {                    // 没到翻页的坎：原地回位
+          if (!carouselState.paused) startCarouselAutoplay();
+          return;
+        }
+        const step = Math.max(1, carouselState.step);
+        const moves = Math.min(3, Math.max(1, Math.round(Math.abs(dx) / step)));
+        showCarouselSlide(carouselState.index + (dx < 0 ? moves : -moves), true);
+      };
+      viewport.addEventListener('pointerup', (e) => endDrag(e, false));
+      viewport.addEventListener('pointercancel', (e) => endDrag(e, true));   // 手势被系统收走（如开始滚动）
+      viewport.addEventListener('dragstart', (e) => e.preventDefault());     // 别触发图片原生拖拽
 
       // 可用宽度变了要重算卡片尺寸（横竖屏切换、窗口缩放、设计器里拉宽画布…）
       const relayout = () => {
