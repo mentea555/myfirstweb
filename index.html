@@ -965,11 +965,14 @@
      *   断了就自动走 jsDelivr，两个诉求都保住。
      */
     const textSources = [
-      // 第 1 路：GitHub 官方 raw（带时间戳，改完立刻可见）
+      // 第 1 路：本站 Vercel Function 代理（api/file.js），带 PAT 时 5000/h，
+      //         主人只要在 Vercel 配 GH_PROXY_TOKEN 环境变量就生效，不会撞限流。
+      (path) => `/api/file?path=${encodeURIComponent(path)}&t=${Date.now()}`,
+      // 第 2 路：GitHub 官方 raw（带时间戳，改完立刻可见）
       (path) => `https://raw.githubusercontent.com/${SITE.user}/${SITE.repo}/${SITE.branch}/${path}?t=${Date.now()}`,
-      // 第 2 路：jsDelivr —— 缓存 CDN，国内可达、稳定，作为兜底
+      // 第 3 路：jsDelivr —— 缓存 CDN，国内可达、稳定，作为兜底
       (path) => `https://cdn.jsdelivr.net/gh/${GH_SLUG}/${path}`,
-      // 第 3 路：公共加速代理
+      // 第 4 路：公共加速代理
       (path) => `https://ghproxy.net/https://raw.githubusercontent.com/${SITE.user}/${SITE.repo}/${SITE.branch}/${path}`
     ];
 
@@ -2112,6 +2115,17 @@
     async function listPostFiles(dir) {
       const clean = String(dir || 'content/notes').replace(/^\/+|\/+$/g, '');
 
+      // 1) 本站代理 → GitHub Contents API（带 PAT 时 5000/h）
+      const viaProxy = async () => {
+        const res = await fetch(`/api/contents?path=${encodeURIComponent(clean)}&t=${Date.now()}`);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const files = await res.json();
+        if (!Array.isArray(files)) throw new Error('返回格式异常');
+        return files
+          .filter((f) => f && f.type === 'file' && /\.mdx?$/i.test(f.name))
+          .map((f) => ({ name: f.name, path: f.path }));
+      };
+
       const viaApi = async () => {
         const api = `https://api.github.com/repos/${SITE.user}/${SITE.repo}/contents/${clean}?ref=${SITE.branch}&t=${Date.now()}`;
         const res = await fetch(api, { headers: { Accept: 'application/vnd.github+json' } });
@@ -2134,16 +2148,13 @@
           .map((f) => ({ name: f.name.split('/').pop(), path: f.name.replace(/^\//, '') }));
       };
 
-      // 优先：GitHub API（实时）。它出问题才退到 jsDelivr 清单。
-      try {
-        const hits = await viaApi();
-        if (hits.length) return hits;
-      } catch (e) { /* 落到 jsDelivr */ }
-
-      try {
-        const hits = await viaJsdelivr();
-        if (hits.length) return hits;
-      } catch (e) { /* 两路都挂 */ }
+      // 优先级：代理 → GitHub API（实时但可能限流）→ jsDelivr 清单（滞后但稳定）
+      for (const fn of [viaProxy, viaApi, viaJsdelivr]) {
+        try {
+          const hits = await fn();
+          if (hits.length) return hits;
+        } catch (e) { /* 落到下一路 */ }
+      }
 
       throw new Error('内容目录读取失败，可能是内容源暂时不可达');
     }
