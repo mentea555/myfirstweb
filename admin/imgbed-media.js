@@ -33,6 +33,17 @@
  *   https://res.cloudinary.com/... 这种完整 URL，所以完整 URL 能原样保留、不会被
  *   拼上 /assets/images/ 前缀。这里沿用同样的做法。
  *
+ * 【上传认证】
+ *   图床开了「上传认证」后，没有码就传不上去（返回 401）。这个码**不能**写进
+ *   config.yml —— /admin/config.yml 是公开可读的，写进去等于把码公开，认证就白开了。
+ *   所以码存在主人这台浏览器的 localStorage 里，面板上有输入框可以随时改。
+ *
+ *   ⚠️ 传递方式必须是**查询串**（POST /upload?authCode=xxx）。
+ *   用请求头会踩 CORS 预检这个坑：带自定义头 = 非简单请求 = 浏览器先发 OPTIONS，
+ *   而图床的预检响应只放行 Content-Type / Authorization，**不含 authCode**
+ *   → 预检失败 → 真正的 POST 根本发不出去，页面上只看到一个莫名的失败。
+ *   放查询串属于简单请求，不触发预检，跨域直接通。详见 uploadFile() 的注释。
+ *
  * 【注册时机】
  *   registerMediaLibrary 必须发生在 CMS.init() 之前，否则配置里写 media_library 时
  *   会找不到已注册的库。admin/index.html 里已经设置了 window.CMS_MANUAL_INIT = true
@@ -130,11 +141,38 @@
   }
 
   /* ============================================================
-     三、上传
+     三、认证码（只存在这台浏览器，不进仓库）
+     ------------------------------------------------------------
+     ⚠️ 为什么不写进 config.yml：/admin/config.yml 是公开可读的，谁都能打开看。
+     认证码放在那里等于公开，认证就白开了。
+     所以码只保存在主人自己这台电脑的 localStorage 里。
+     ============================================================ */
+
+  var AUTH_KEY = 'imgbed_auth_v1';
+
+  function loadAuth() {
+    try {
+      return localStorage.getItem(AUTH_KEY) || '';
+    } catch (e) {
+      return '';
+    }
+  }
+
+  function saveAuth(code) {
+    try {
+      if (code) localStorage.setItem(AUTH_KEY, code);
+      else localStorage.removeItem(AUTH_KEY);
+    } catch (e) {
+      /* localStorage 被禁用或写满，忽略即可，不影响不带认证的场景 */
+    }
+  }
+
+  /* ============================================================
+     四、上传
      ============================================================ */
 
   /**
-   * @param {Object} cfg   形如 {base, upload_channel, folder, auth_code}
+   * @param {Object} cfg   形如 {base, upload_channel, folder, auth_code, auth_code_config}
    * @param {File}   file
    * @param {Function} onProgress 0~1
    * @returns {Promise<{url:string}>}
@@ -146,16 +184,26 @@
       if (cfg.upload_channel) fd.append('uploadChannel', cfg.upload_channel);
       if (cfg.folder) fd.append('uploadFolder', cfg.folder);
 
-      var xhr = new XMLHttpRequest();
-      xhr.open('POST', cfg.base + '/upload', true);
+      /*
+       * ★ 认证码走**查询串**，不能用 setRequestHeader。
+       *
+       * 实测（这台图床的 CORS 配置）：
+       *   OPTIONS /upload → 204，Allow-Headers: Content-Type, Authorization
+       *   ——里面**没有 authCode**。所以一旦带自定义头，浏览器发的预检会被拒，
+       *   POST 连发都发不出去，页面上只看到一个说不清的失败。
+       * 放查询串则属于 CORS「简单请求」，不触发预检，跨域直接通。
+       *
+       * 顺带排除掉的其他写法（都实测返回 401）：
+       *   · 头 Authorization: xxy / Bearer xxy / Basic base64(xxy:)   ← 它不认这个头
+       *   · 表单字段 authCode                                          ← 只从查询串/头里取
+       * 唯一可行的两条：查询串 ?authCode=xxx（这里用的），或带浏览器 UA 直连时用 authCode 头。
+       */
+      var url =
+        cfg.base + '/upload' +
+        (cfg.auth_code ? '?authCode=' + encodeURIComponent(cfg.auth_code) : '');
 
-      /* 图床开启了「上传认证」时才需要；默认不填。
-         图床的 CORS 头里同时放行了 Authorization 和 authCode 两个名字，
-         这里两个都发，不管它在哪个位置取值都能认出来。 */
-      if (cfg.auth_code) {
-        xhr.setRequestHeader('authCode', cfg.auth_code);
-        xhr.setRequestHeader('Authorization', cfg.auth_code);
-      }
+      var xhr = new XMLHttpRequest();
+      xhr.open('POST', url, true);
 
       if (xhr.upload && onProgress) {
         xhr.upload.onprogress = function (e) {
@@ -166,7 +214,14 @@
       xhr.onload = function () {
         var text = xhr.responseText || '';
         if (xhr.status < 200 || xhr.status >= 300) {
-          reject(new Error('图床返回 HTTP ' + xhr.status + (text ? '：' + text.slice(0, 200) : '')));
+          var err = new Error(
+            xhr.status === 401
+              ? '图床要求认证码（HTTP 401）'
+              : '图床返回 HTTP ' + xhr.status + (text ? '：' + text.slice(0, 200) : '')
+          );
+          /* 带上状态码，面板据此把「认证码」那一栏高亮出来提示主人补填 */
+          err.status = xhr.status;
+          reject(err);
           return;
         }
         var data;
@@ -199,7 +254,7 @@
   }
 
   /* ============================================================
-     四、面板样式（全部加 ibd- 前缀，避免和 Decap 的样式打架）
+     五、面板样式（全部加 ibd- 前缀，避免和 Decap 的样式打架）
      ============================================================ */
 
   var STYLE_ID = 'imgbed-media-style';
@@ -225,6 +280,20 @@
       '.ibd-x:hover{background:#e4e9f2;}',
 
       '.ibd-body{padding:20px 22px 26px;}',
+
+      /* 认证码那一栏。图床要求认证时必须填，所以放在最上面、一眼能看到 */
+      '.ibd-auth{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:11px 13px;',
+      'border:1px solid #e3e9f2;border-radius:11px;background:#f8fafd;margin-bottom:16px;}',
+      '.ibd-auth.ibd-auth-hl{border-color:#f0b429;background:#fffaf0;',
+      'box-shadow:0 0 0 3px rgba(240,180,41,.16);}',
+      '.ibd-auth-label{font-size:12px;font-weight:700;color:#526079;white-space:nowrap;}',
+      '.ibd-auth-input{flex:1;min-width:130px;border:1px solid #d5ddea;border-radius:9px;',
+      'padding:8px 11px;font-size:13px;color:#1e293b;background:#fff;outline:none;}',
+      '.ibd-auth-input:focus{border-color:#4f6ef7;box-shadow:0 0 0 3px rgba(79,110,247,.14);}',
+      '.ibd-auth .ibd-btn{padding:8px 14px;}',
+      '.ibd-auth-state{font-size:11.5px;line-height:1.6;flex-basis:100%;}',
+      '.ibd-auth-state.ok{color:#12673f;}',
+      '.ibd-auth-state.warn{color:#a35b00;}',
 
       '.ibd-drop{border:2px dashed #c8d3e3;border-radius:13px;padding:26px 18px;text-align:center;',
       'background:#fafcff;transition:background .15s,border-color .15s;}',
@@ -265,7 +334,7 @@
   }
 
   /* ============================================================
-     五、面板本体
+     六、面板本体
      ============================================================ */
 
   /**
@@ -297,6 +366,64 @@
 
     /* ---------- 主体 ---------- */
     var body = el('div', 'ibd-body');
+
+    /* ---------- 认证码 ----------
+     * 图床开了「上传认证」后，没有码上传会返回 401。
+     * 码不写进公开的 config.yml，只存在这台浏览器的 localStorage。
+     * 放在最上面：没填的话下面做什么都白搭，得先让主人看见。 */
+    var authFromConfig = !!cfg.auth_code_config;
+
+    var authRow = el('div', 'ibd-auth');
+    authRow.appendChild(el('span', 'ibd-auth-label', '🔑 图床认证码'));
+    var authInput = el('input', 'ibd-auth-input');
+    authInput.type = 'password';
+    authInput.autocomplete = 'off';
+    authInput.spellcheck = false;
+    var btnAuth = el('button', 'ibd-btn', '保存');
+    btnAuth.type = 'button';
+    var authState = el('span', 'ibd-auth-state');
+    authRow.appendChild(authInput);
+    authRow.appendChild(btnAuth);
+    authRow.appendChild(authState);
+
+    function paintAuth() {
+      var cur = loadAuth();
+      authInput.value = cur;
+      authInput.placeholder = authFromConfig
+        ? '配置里已填，这里可覆盖'
+        : '图床后台「用户端认证」里设的那个码';
+      if (cur) {
+        authState.className = 'ibd-auth-state ok';
+        authState.textContent = '✓ 已保存在这台电脑（不会写进仓库）';
+      } else if (authFromConfig) {
+        authState.className = 'ibd-auth-state ok';
+        authState.textContent = '✓ 用的是配置里的码';
+      } else {
+        authState.className = 'ibd-auth-state warn';
+        authState.textContent = '尚未设置 —— 图床若要求认证，不填就会上传失败（401）';
+      }
+    }
+
+    function applyAuth() {
+      var v = (authInput.value || '').trim();
+      saveAuth(v);
+      authRow.classList.remove('ibd-auth-hl');
+      paintAuth();
+      say('ok', v
+        ? '认证码已保存在这台电脑上（不会写进仓库），现在可以上传了。'
+        : '已清除本机保存的认证码。');
+    }
+
+    btnAuth.onclick = applyAuth;
+    authInput.onkeydown = function (e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        applyAuth();
+      }
+    };
+
+    paintAuth();
+    body.appendChild(authRow);
 
     /* 拖拽 + 选择文件 */
     var drop = el('div', 'ibd-drop');
@@ -434,6 +561,9 @@
 
     /* ---------- 真正上传 ---------- */
     function handleFiles(files) {
+      /* 每次上传前重新取一次认证码：主人可能刚在面板里补填上 */
+      cfg.auth_code = loadAuth() || cfg.auth_code_config || '';
+
       var imgs = Array.prototype.slice.call(files || []).filter(function (f) {
         return f && /^image\//.test(f.type);
       });
@@ -445,6 +575,7 @@
 
       var done = [];
       var failed = [];
+      var authFailed = false;
 
       busy(true, 0);
 
@@ -458,6 +589,15 @@
             setTimeout(function () {
               finish(done);
             }, 260);
+          } else if (authFailed) {
+            /*
+             * 401 = 图床开了上传认证，但码没填或不对。
+             * 这种失败光说一句「上传失败」主人根本不知道该干什么，
+             * 所以直接把认证码那一栏高亮 + 聚焦，让主人当场填。
+             */
+            say('err', '图床拒绝了上传（HTTP 401）：认证码不对或还没填。请在下面「🔑 图床认证码」里填上图床后台设置的那个码，点「保存」后重试。');
+            authRow.classList.add('ibd-auth-hl');
+            authInput.focus();
           } else {
             say('err', failed.length ? failed[0] : '上传失败');
           }
@@ -485,6 +625,7 @@
             next();
           },
           function (err) {
+            if (err && err.status === 401) authFailed = true;
             failed.push((f.name || '') + '：' + (err && err.message ? err.message : err));
             i++;
             next();
@@ -568,7 +709,7 @@
   }
 
   /* ============================================================
-     六、注册给 Decap
+     七、注册给 Decap
      ============================================================ */
 
   function init(args) {
@@ -585,6 +726,15 @@
       show: function (callArgs) {
         callArgs = callArgs || {};
         /* 字段级 media_library.config 会覆盖全局设置 */
+        /*
+         * 认证码：
+         *   首选这台浏览器 localStorage 里保存的（面板上随时能改），
+         *   其次才是 config.yml 里显式写的——那是留给特殊场景的兜底，
+         *   默认留空，因为 config.yml 是公开可读的，写进去等于公开。
+         */
+        var cfgAuth =
+          String((callArgs.config && callArgs.config.auth_code) || globalCfg.auth_code || '');
+
         var cfg = {
           base: String(globalCfg.base || DEFAULT_BASE).replace(/\/+$/, ''),
           upload_channel: callArgs.config && callArgs.config.upload_channel != null
@@ -593,9 +743,8 @@
           folder: callArgs.config && callArgs.config.folder != null
             ? callArgs.config.folder
             : globalCfg.folder || '',
-          auth_code: callArgs.config && callArgs.config.auth_code != null
-            ? callArgs.config.auth_code
-            : globalCfg.auth_code || ''
+          auth_code: loadAuth() || cfgAuth,
+          auth_code_config: cfgAuth
         };
 
         if (panelRef) {
