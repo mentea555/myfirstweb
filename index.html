@@ -964,12 +964,66 @@
      *   代价是 raw 在本机网络下时通时断 —— 所以下面 fetchTextMulti 会顺序回退，
      *   断了就自动走 jsDelivr，两个诉求都保住。
      */
+    /* ==========================================================
+       第 0 路：一次请求拿全站（/api/bundle）
+       ----------------------------------------------------------
+       渲染一页本来要读 1 个目录 + 3~4 个配置 + 每篇文章正文 ——
+       逐文件读，20 篇文章就是 20 次 GitHub 调用，每次都占配额。
+       api/bundle.js 改用 GitHub GraphQL，一次带回整个 content/ 目录
+       （实测 21 个文件共 7.3KB、只花 1 点配额）⇒ 一次页面加载从
+       20 次配额降到 1 次，能扛的访客数直接 ×20。
+       拿回来就存进内存，后面所有 fetchTextMulti 直接命中，不再发请求。
+       失败（未配 token / GitHub 抽风）或等超过 2.5 秒就静默放弃，
+       自动走下面 4 路老逻辑；bundle 若稍后才成功，后来者仍能受益。
+       ========================================================== */
+    let bundleFiles = null;
+    let bundlePromise = null;
+
+    function loadBundle() {
+      if (!bundlePromise) {
+        bundlePromise = fetch('/api/bundle', { cache: 'default' })
+          .then((r) => (r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status))))
+          .then((j) => {
+            if (!j || j.ok !== true || !j.files) throw new Error('返回格式异常');
+            bundleFiles = j.files;
+            return bundleFiles;
+          })
+          .catch((e) => {
+            console.warn('bundle 不可用，改用逐文件读取：', e && e.message);
+            return null;
+          });
+      }
+      return bundlePromise;
+    }
+
+    const BUNDLE_WAIT_MS = 2500;
+
+    /** 从 bundle 里取某个文件的文本；超时/失败/无此文件都返回 null。 */
+    async function bundleText(path) {
+      const files = await Promise.race([
+        loadBundle(),
+        new Promise((resolve) => setTimeout(() => resolve(null), BUNDLE_WAIT_MS))
+      ]);
+      return (files && Object.prototype.hasOwnProperty.call(files, path)) ? files[path] : null;
+    }
+
+    /** 用 bundle 的文件清单列出某目录下的 .md（省掉一次目录请求）。 */
+    function bundleList(dir) {
+      if (!bundleFiles) return null;
+      const prefix = String(dir || 'content/notes').replace(/^\/+|\/+$/g, '') + '/';
+      const hits = Object.keys(bundleFiles)
+        .filter((p) => p.indexOf(prefix) === 0 && p.slice(prefix.length).indexOf('/') < 0)
+        .filter((p) => /\.mdx?$/i.test(p))
+        .map((p) => ({ name: p.split('/').pop(), path: p }));
+      return hits.length ? hits : null;
+    }
+
     const textSources = [
       // 第 1 路：本站 Vercel Function 代理（api/file.js），带 PAT 时 5000/h，
       //         主人只要在 Vercel 配 GH_PROXY_TOKEN 环境变量就生效，不会撞限流。
       //         ⚠️ 这里故意不带 ?t= 时间戳 —— 带了会让 Vercel CDN 缓存全部失效，
       //         变成「每个访客每次刷新都实打实消耗一次 GitHub 配额」，访客一多就撞墙。
-      //         缓存由 api/file.js 的 s-maxage=120 控制：同一篇文章 2 分钟内
+      //         缓存由 api/file.js 的 s-maxage=5 控制：同一篇文章 5 秒内
       //         不管多少人看，GitHub 那边只算 1 次。
       (path) => `/api/file?path=${encodeURIComponent(path)}`,
       // 第 2 路：GitHub 官方 raw（带时间戳，改完立刻可见）
@@ -986,6 +1040,10 @@
      * 没必要为了抢几十毫秒而把三个源的请求都打满。
      */
     async function fetchTextMulti(path) {
+      // 第 0 路：bundle 内存 —— 一次请求已经把全部文件带回来了，命中即零请求
+      const bt = await bundleText(path);
+      if (bt !== null && String(bt).trim()) return { text: bt, from: 'bundle' };
+
       let lastErr = null;
       for (const build of textSources) {
         const url = build(path);
@@ -2152,8 +2210,18 @@
           .map((f) => ({ name: f.name.split('/').pop(), path: f.name.replace(/^\//, '') }));
       };
 
-      // 优先级：代理 → GitHub API（实时但可能限流）→ jsDelivr 清单（滞后但稳定）
-      for (const fn of [viaProxy, viaApi, viaJsdelivr]) {
+      // 0) bundle 内存：一次请求已经把「content/ 下所有文件」带回来了，
+      //    直接从它的 key 里筛出本目录的 .md —— 零额外请求。
+      //    实时性由 /api/bundle 的 s-maxage=5 保证：新发的文章最多 5 秒后出现。
+      const viaBundle = async () => {
+        await Promise.race([loadBundle(), new Promise((r) => setTimeout(() => r(null), 2500))]);
+        const hits = bundleList(clean);
+        if (!hits) throw new Error('bundle 里没有这个目录');
+        return hits;
+      };
+
+      // 优先级：bundle → 代理 → GitHub API（实时但可能限流）→ jsDelivr 清单（滞后但稳定）
+      for (const fn of [viaBundle, viaProxy, viaApi, viaJsdelivr]) {
         try {
           const hits = await fn();
           if (hits.length) return hits;
