@@ -53,13 +53,16 @@ export default async function handler(req, res) {
         if ((fixed.match(/[\u4E00-\u9FFF]/g) || []).length > 0) text = fixed;
       } catch (_) {}
     }
-    // ★ 缓存策略（省 GitHub 配额的关键）：
-    //   s-maxage=120  → Vercel CDN 缓存 120 秒。同一篇文章 2 分钟内被多少人看，
-    //                   GitHub 那边只算 1 次。
-    //   stale-while-revalidate=600 → 缓存过期后继续发旧的（访客秒开），
-    //                   同时在后台悄悄拉新的，访客永远不用等。
-    //   不设 max-age：访客浏览器不缓存，主人在后台改完 2 分钟内即可全站生效。
-    res.setHeader('Cache-Control', 'public, s-maxage=120, stale-while-revalidate=600');
+    // ★ 缓存策略（主人 2026-09-18 定：改完正文要「几秒内」全站生效）：
+    //   s-maxage=5 → Vercel CDN 只缓存 5 秒。主人后台一发布，5 秒后任何人刷新都是新内容。
+    //   故意不设 max-age：访客浏览器不缓存，也就不会自己留旧副本。
+    //   故意不设 stale-while-revalidate：那会让「过期后第一个访客」先拿到旧内容
+    //     （先发旧的、后台再悄悄拉新的），主人自己刷新就会遇到「怎么还是老的」——要不得。
+    //   代价：TTL 从 120s 降到 5s 后，同一篇文章的回源次数约为原来的 24 倍。
+    //     本站日常访客不多，实测一次刷新约 20 次请求、账号额度 5000/h，绰绰有余。
+    //     想随时看剩余额度：GET /api/quota（或看响应头 X-GitHub-Quota-*）。
+    //   stale-if-error=600 → GitHub 万一抽风，10 分钟内还能拿旧内容顶着（不支持则被忽略）。
+    res.setHeader('Cache-Control', 'public, s-maxage=5, stale-if-error=600');
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.status(200).send(text);
