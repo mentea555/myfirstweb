@@ -11,6 +11,38 @@ display_url: https://www.menteaweb.com
 media_folder: "assets/images"
 public_folder: "/assets/images"
 
+# ============================================================
+# 图片上传走自建图床（不再往 Git 仓库里塞图片）
+# ------------------------------------------------------------
+# 主人自己搭了一个 CloudFlare-ImgBed：
+#     https://cloudflare-imgbed-bnw.pages.dev
+# 这里把后台的「上传」按钮直接接到它上面 —— 以后在后台传图，
+# 图片进图床，仓库里只留一行图片网址，仓库永远不会变臃肿。
+#
+# 具体实现见 /admin/imgbed-media.js（一个自定义媒体库插件）。
+#
+# 注意：base 必须写「能公开访问的图床地址」，后台会把图片传到
+#       <base>/upload，并把返回的图片地址直接写进文章里。
+# ============================================================
+media_library:
+  name: imgbed
+  config:
+    base: https://cloudflare-imgbed-bnw.pages.dev
+
+    # ↓↓↓ 下面三项按需再开，默认留空就是最省事的状态 ↓↓↓
+
+    # 图床的「上传认证码」：只有在 ImgBed 后台开启了上传认证后才需要填。
+    # ⚠️ 这个文件是公开可读的（/admin/config.yml 谁都能打开），
+    #    所以认证码放这里等于公开。真要开启认证，告诉小度，改成别的保存方式。
+    # auth_code: ""
+
+    # 指定上传渠道（telegram / cfr2 / s3 / discord…）。
+    # 留空 = 用图床后台设好的默认渠道或负载均衡。
+    # upload_channel: ""
+
+    # 上传到图床里的哪个目录。留空 = 根目录。
+    # folder: ""
+
 collections:
   # ==================== 内容：笔记与作品 ====================
   - name: "notes"
@@ -36,14 +68,21 @@ collections:
           name: "thumbnail",
           widget: "image",
           required: false,
-          hint: "推荐点「上传」把图片存进本站仓库（assets/images），最稳也最快。若填外链：GitHub 的链接会自动换成 jsDelivr；其他图床（如 imgbb）在部分网络下可能加载不出来，前台会先直连、失败后自动改用图片代理兜底一次。",
+          # Decap 对图片字段的 allow_multiple 默认是 true —— 对「单张封面」来说
+          # 一旦多选就会往单值字段里塞数组，把 frontmatter 写坏，所以显式关掉。
+          media_library: { allow_multiple: false },
+          hint: "点「上传」就行 —— 图片会自动传到你的图床，仓库里只留一行网址，不会把仓库撑大。上传面板支持拖拽、Ctrl+V 粘贴截图；也可以直接把已有图片的网址粘进去。",
         }
       - {
-          label: "标签（可选）",
+          label: "标签（可选，可加多个）",
           name: "tags",
-          widget: "list",
+          widget: "select",
           required: false,
-          hint: "例如：插画、随笔。前台会自动生成标签筛选按钮",
+          multiple: true,
+          creatable: true,
+          default: [],
+          options: ["插画", "随笔", "更新", "测试", "草图", "作品"],
+          hint: "★ 想加几个就加几个：从下拉里选，或直接打字然后按【回车】新增；每个标签右边有个 × 可以删掉。前台会自动按标签生成筛选按钮，「插画」这个标签会让文章出现在画廊页。",
         }
       - { label: "置顶", name: "featured", widget: "boolean", default: false, required: false }
       - {
@@ -314,7 +353,8 @@ collections:
               name: "avatar",
               widget: "image",
               required: false,
-              hint: "推荐点「上传」把图片存进本站仓库（assets/images），最稳也最快。不填则显示名字首字母的圆形占位。",
+              media_library: { allow_multiple: false },
+              hint: "点「上传」即可，图片会传到你的图床。不填则显示名字首字母的圆形占位。",
             }
           - {
               label: "头像替代文字（无障碍）",

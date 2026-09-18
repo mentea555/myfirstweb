@@ -133,6 +133,24 @@
       padding: 40px 24px 80px;
     }
 
+    /* ============================================================
+       画廊要「占满整屏」，但页头和标题不该跟着贴到屏幕最边上。
+       所以拆成两条宽度线：
+         · 页头 / 标题 / 筛选条 —— 受 --page-width 约束（跟主站一致，读起来舒服）
+         · 瀑布流本体        —— 几乎占满视口宽度（Pinterest 就是这样）
+       ============================================================ */
+    .gallery-wide .container {
+      /* 只有把上限放开，里面的瀑布流才可能铺满 */
+      max-width: none;
+    }
+    /* 页头那一块单独收一个舒服的宽度 */
+    .gallery-wide .topbar,
+    .gallery-wide .page-head {
+      max-width: var(--page-width);
+      margin-left: auto;
+      margin-right: auto;
+    }
+
     /* ---------- 顶部返回条 ---------- */
     .topbar {
       display: flex;
@@ -587,6 +605,8 @@
     @media (max-width: 820px) {
       :root { --masonry-gap: 12px; --masonry-radius: 12px; }
       .container { padding: 26px 18px 60px; }
+      /* 窄屏本来就没有「满屏」问题，左右留一点反而好看 */
+      .gallery-wide .container { padding: 26px 14px 60px; }
       .page-title { font-size: 1.65rem; }
 
       .sheet-panel {
@@ -623,7 +643,8 @@
     }
   </style>
 </head>
-<body>
+<!-- gallery-wide：让瀑布流铺满整屏（页头/标题仍收在 --page-width 内） -->
+<body class="gallery-wide">
   <main class="container">
     <div class="topbar">
       <a class="back-link" href="/">
@@ -1162,18 +1183,25 @@
     }
 
     /* 列数：按可用宽度自适应。
-       ⚠️ 这里必须用**容器宽度**而不是 window.innerWidth ——
-       容器有 max-width 和左右内边距，宽屏下窗口再宽列宽也不该继续长。 */
+       ⚠️ 用**容器实际宽度**而不是 window.innerWidth ——
+       容器有左右内边距（宽屏下还可能有滚动条占位），拿窗口宽度算会偏大。
+       `.gallery-wide .container` 已经把 max-width 放开，所以宽屏下这个宽度
+       基本等于视口宽，列数自然跟着长上去（Pinterest 的观感）。 */
     function applyColumns() {
       const host = $('galleryHost');
       if (!host) return;
       const w = host.clientWidth || window.innerWidth;
-      let cols = 2;
-      if (w >= 1400) cols = 5;
-      else if (w >= 1080) cols = 4;
-      else if (w >= 760) cols = 3;
-      else if (w >= 460) cols = 2;
-      else cols = 2;          // 再窄也保 2 列，1 列会显得很空洞
+
+      /* 列宽目标约 236px —— Pinterest 的图墙也是这个量级。
+         不写死「多少 px 用几列」，而是拿宽度除以目标列宽，
+         这样在任意宽度下都能得到自然的结果，中间不会出现
+         「宽度涨了但列数不变 → 卡片被拉得很宽」的突兀段。 */
+      const TARGET = 236;
+      const GAP = 16;
+      let cols = Math.floor((w + GAP) / (TARGET + GAP));
+      // 保底 2 列（1 列在手机上会显得很空洞），封顶 8 列（再多单张就太小了）
+      cols = Math.max(2, Math.min(8, cols));
+
       document.documentElement.style.setProperty('--cols', String(cols));
     }
 

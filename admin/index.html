@@ -78,6 +78,21 @@
 
   <script>
     /*
+     * ★ 关掉 Decap 的「自动初始化」，改为我们自己按顺序启动。
+     *
+     * 为什么需要：config.yml 里配了 media_library.name = imgbed（自建图床）。
+     * Decap 是在 CMS.init() 那一刻去查「这个媒体库注册了没」的 —— 查不到就直接
+     * 配置报错、后台白屏。而 Decap 主脚本一加载完就会立刻自动 init，抢在中间注册
+     * 的窗口只有几毫秒，不可靠。
+     *
+     * 设了这个标志后，decap-cms 只会挂好 window.CMS 而不启动；等下面把
+     * /admin/imgbed-media.js 加载完（里面会 registerMediaLibrary），再手动 CMS.init()。
+     */
+    window.CMS_MANUAL_INIT = true;
+  </script>
+
+  <script>
+    /*
      * Decap CMS 主脚本体积约 5MB，加载源很关键：
      *   1. unpkg.com 在国内经常很慢，且带 `^` 范围写法会多一次 302 跳转；
      *   2. 这里按 jsDelivr → unpkg(精确版本) → unpkg(范围) 依次回退，
@@ -97,6 +112,53 @@
       function boot() {
         var el = document.getElementById('boot');
         if (el) el.remove();
+        /*
+         * CMS 主脚本已就绪，但此刻**还不能**直接 CMS.init()：
+         * 必须先把图床媒体库注册进去，否则 config.yml 里的
+         * media_library.name = imgbed 查不到实现，后台会直接配置报错。
+         */
+        var m = document.createElement('script');
+        m.src = '/admin/imgbed-media.js';
+        m.async = false;
+        m.onload = start;
+        m.onerror = function () {
+          console.warn('[admin] /admin/imgbed-media.js 加载失败，退回默认媒体库');
+          start();
+        };
+        document.head.appendChild(m);
+      }
+
+      /* 图床媒体库就绪后才真正启动后台 */
+      function start() {
+        if (!window.__imgbedMediaReady) {
+          /*
+           * 兜底：图床脚本没跑起来（文件没部署上 / 被拦）时，注册一个同名占位库。
+           * 不这么做的话，Decap 会因为「Missing external media library 'imgbed'」
+           * 把整个后台打成错误页 —— 宁可上传暂时不可用，也不能让后台进不去。
+           */
+          try {
+            window.CMS.registerMediaLibrary({
+              name: 'imgbed',
+              init: function () {
+                return {
+                  show: function () {
+                    alert('图床脚本没加载成功，先刷新页面试试。\n如果一直不行，说明 /admin/imgbed-media.js 没部署上去。');
+                  },
+                  hide: function () {},
+                  enableStandalone: function () { return false; }
+                };
+              }
+            });
+          } catch (e) {
+            console.error(e);
+          }
+        }
+        try {
+          window.CMS.init();
+        } catch (e) {
+          console.error('[admin] CMS.init 失败', e);
+          hint('后台启动失败：' + (e && e.message ? e.message : e));
+        }
       }
 
       function hint(text) {
