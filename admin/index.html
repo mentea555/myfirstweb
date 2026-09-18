@@ -119,8 +119,10 @@
          * 查不到实现，后台会直接配置报错。顺序如下：
          *   ① /admin/imgbed-media.js —— 图床媒体库（media_library.name = imgbed）
          *   ② /admin/tags-widget.js  —— 自定义标签控件（widget: tags）
+         *   ③ /admin/auto-date.js    —— 自动日期（不注册任何东西，只监听 DOM 与
+         *                               图床上传事件；放在最后，万一挂了也不影响后台）
          */
-        loadPlugins(['/admin/imgbed-media.js', '/admin/tags-widget.js'], start);
+        loadPlugins(['/admin/imgbed-media.js', '/admin/tags-widget.js', '/admin/auto-date.js'], start);
       }
 
       /*

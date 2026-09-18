@@ -612,6 +612,28 @@
           function (res) {
             /* 单张时立刻收工，多张时攒齐再说 */
             done.push({ url: res.url, name: res.name || f.name });
+
+            /*
+             * ★ 广播给 /admin/auto-date.js：把这张图片「自己在磁盘上的修改时间」
+             *   交出去，用来自动填「发布日期」。
+             *
+             *   f.lastModified 是浏览器读文件时给的（毫秒时间戳），图片从电脑里
+             *   选出来就带着 —— 对「补发以前的作品」来说，这才是主人想要的日期，
+             *   图床文件名里那串时间戳只是上传时刻（永远是今天），没用。
+             *
+             *   广播失败也绝不能影响上传，所以整段包 try。
+             */
+            try {
+              window.dispatchEvent(new CustomEvent('imgbed:uploaded', {
+                detail: {
+                  url: res.url,
+                  name: res.name || f.name,
+                  lastModified: f.lastModified,
+                  size: f.size
+                }
+              }));
+            } catch (e) { /* 老浏览器没有 CustomEvent，忽略 */ }
+
             if (!o.allowMultiple) {
               busy(false);
               say('ok', '上传成功：' + f.name);

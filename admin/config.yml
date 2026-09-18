@@ -68,7 +68,12 @@ collections:
     sortable_fields: ["date", "title"]
     fields:
       - { label: "标题", name: "title", widget: "string", hint: "卡片上显示的大标题" }
-      - { label: "发布日期", name: "date", widget: "datetime", hint: "决定卡片排序，最新的排在最前" }
+      - {
+          label: "发布日期",
+          name: "date",
+          widget: "datetime",
+          hint: "决定卡片排序，最新的排在最前。★ 不用手动调了：新建时会自动填今天；上传作品图之后，会自动改成【这张图片文件在电脑上的修改时间】—— 补发以前的作品时它会直接把日期带回那天。你自己改过之后就不会再自动覆盖。",
+        }
       - {
           label: "摘要（可选）",
           name: "description",
