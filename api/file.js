@@ -27,6 +27,13 @@ export default async function handler(req, res) {
   try {
     const url = `https://api.github.com/repos/mentea555/myfirstweb/contents/${pathEnc}?ref=${ref}`;
     const r = await fetch(url, { headers });
+    // ★ 透传 GitHub 亲手返回的配额头（就是「查配额响应头」要看的那些）
+    //   直连本端点时可见；若带了 &t= 走 MISS，就是这一秒的真实值。
+    //   X-GitHub-Quota-Limit / -Remaining / -Used / -Reset
+    for (const k of ['Limit', 'Remaining', 'Used', 'Reset']) {
+      const v = r.headers.get('x-ratelimit-' + k.toLowerCase());
+      if (v) res.setHeader('X-GitHub-Quota-' + k, v);
+    }
     if (!r.ok) {
       const t = await r.text();
       return res.status(r.status).setHeader('Content-Type', 'text/plain; charset=utf-8').send(t);

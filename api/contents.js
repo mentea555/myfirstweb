@@ -30,6 +30,11 @@ export default async function handler(req, res) {
     const url = `https://api.github.com/repos/mentea555/myfirstweb/contents/${pathEnc}?ref=${ref}`;
     const r = await fetch(url, { headers });
     const text = await r.text();
+    // ★ 透传 GitHub 亲手返回的配额头（X-GitHub-Quota-Limit / -Remaining / -Used / -Reset）
+    for (const k of ['Limit', 'Remaining', 'Used', 'Reset']) {
+      const v = r.headers.get('x-ratelimit-' + k.toLowerCase());
+      if (v) res.setHeader('X-GitHub-Quota-' + k, v);
+    }
     // 让浏览器/CDN 短暂缓存 30s，主人刷新不会把配额打爆
     res.setHeader('Cache-Control', 'public, max-age=30, s-maxage=30');
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
