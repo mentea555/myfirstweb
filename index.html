@@ -2637,6 +2637,7 @@
       slides: [],
       index: 0,
       timer: null,
+      preloadTimer: null,
       paused: false,
       signature: '',    // 内容指纹：没变就不重建 DOM，免得把看到一半的轮播打回第一张
       bound: false,
@@ -2725,6 +2726,19 @@
     }
 
     /**
+     * 轮播图的显示地址：走图片代理现场缩放成 webp。
+     * 主人的原图是 1600px 左右的 PNG（每张几百 KB），8 张一起在首屏加载太重；
+     * 这里压到 1280px webp（约 1/5 大小），放大看大图时再用原图。
+     */
+    const CAROUSEL_THUMB_W = 1280;
+    function carouselThumbUrl(url) {
+      const u = String(url || '').trim();
+      if (!proxiableImage(u)) return u;
+      if (/^https?:\/\/wsrv\.nl\//i.test(u)) return u;      // 已经是代理地址，别套娃
+      return IMG_PROXY + encodeURIComponent(u) + '&w=' + CAROUSEL_THUMB_W + '&output=webp&q=82';
+    }
+
+    /**
      * 轮播图的图片容错：直连失败 → 走图片代理重试 → 仍失败就留一句说明。
      * ⚠️ 这里刻意**不**把整格抽掉（卡片封面那套会 remove），
      *    否则删掉一格会让后面所有格的 translateX 错位。
@@ -2735,7 +2749,8 @@
       img.setAttribute('referrerpolicy', 'no-referrer');
       img.setAttribute('decoding', 'async');
 
-      const original = img.getAttribute('src') || '';
+      // 真正的原图地址（src 现在是缩图，兜底重试要用原图）
+      const original = img.dataset.full || img.getAttribute('src') || '';
       let viaProxy = false;
       img.addEventListener('error', () => {
         if (!viaProxy && proxiableImage(original)) {
@@ -2767,9 +2782,12 @@
         fig.setAttribute('aria-label', (s.title ? s.title + ' — ' : '') + '点击看大图');
 
         const img = document.createElement('img');
-        img.loading = k === 0 ? 'eager' : 'lazy';   // 第一张就在首屏，立刻要
+        // 前 3 张立刻要（首屏就看得到、翻页立刻有），其余先惰性、稍后后台预热
+        img.loading = k < 3 ? 'eager' : 'lazy';
+        if (k === 0) img.setAttribute('fetchpriority', 'high');
         img.alt = s.title || '';
-        img.src = s.src;
+        img.dataset.full = s.src;                  // 看大图用原图
+        img.src = carouselThumbUrl(s.src);         // 显示用缩放后的 webp
         fig.appendChild(img);
 
         if (c.show_caption !== false && (s.title || s.date)) {
@@ -2791,6 +2809,15 @@
         track.appendChild(fig);
       });
       guardImages(track, guardCarouselImage);
+
+      // 首屏先不跟图片抢带宽；等页面闲下来再把剩下的图预热好，
+      // 这样翻到第 4 张时不会先白一下。
+      clearTimeout(carouselState.preloadTimer);
+      carouselState.preloadTimer = setTimeout(function preloadRest() {
+        if (!carouselState.slides.length) return;
+        const lazy = track.querySelectorAll('img[loading="lazy"]');
+        Array.prototype.forEach.call(lazy, (im) => { im.loading = 'eager'; });
+      }, 1500);
 
       const dots = $('carouselDots');
       dots.innerHTML = '';
@@ -2901,9 +2928,12 @@
         const fig = e.target.closest('.carousel-slide');
         if (!fig) return;
         const img = fig.querySelector('img');
-        if (!img || !img.getAttribute('src')) return;
+        if (!img) return;
+        // 优先用原图（src 是压过的缩图，放大看会糊）
+        const full = img.dataset.full || img.getAttribute('src');
+        if (!full) return;
         e.stopPropagation();
-        openLightbox(img.getAttribute('src'), img.getAttribute('alt') || '');
+        openLightbox(full, img.getAttribute('alt') || '');
       });
 
       section.addEventListener('keydown', (e) => {
