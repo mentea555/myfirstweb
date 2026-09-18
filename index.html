@@ -2690,6 +2690,25 @@
       return out;
     }
 
+    /**
+     * 主人习惯直接拿日期当作品名（「26.9.1」这种），此时再显示一遍日期就成了
+     * 「26.9.1 2026年9月1日」两个日期并排。
+     * 所以：标题能解析成日期、且和笔记日期是同一天 → 标题是多余的，只留日期；
+     * 标题是真名字（如「桃金娘」）→ 标题和日期都要。
+     */
+    function titleIsJustTheDate(title, date) {
+      const t = String(title == null ? '' : title).trim();
+      if (!t || !date) return false;
+      const m = t.match(/^(\d{2}|\d{4})\s*[.\-/年]\s*(\d{1,2})\s*[.\-/月]\s*(\d{1,2})\s*日?$/);
+      if (!m) return false;
+      const y = m[1].length === 2 ? 2000 + Number(m[1]) : Number(m[1]);
+      const mo = Number(m[2]);
+      const da = Number(m[3]);
+      const d = new Date(date);
+      if (isNaN(d.getTime())) return false;
+      return y === d.getFullYear() && mo === d.getMonth() + 1 && da === d.getDate();
+    }
+
     /** 把笔记列表摊平成「张」列表 */
     function buildCarouselSlides(posts, cfg) {
       const limit = Math.max(1, Math.min(CAROUSEL_HARD_MAX, num(cfg && cfg.slide_limit, 8) || 8));
@@ -2816,7 +2835,8 @@
         if (c.show_caption !== false && (s.title || s.date)) {
           const cap = document.createElement('figcaption');
           cap.className = 'carousel-cap';
-          if (s.title) {
+          // 标题本身就是这条笔记的日期时，只显示日期那一种写法，别并排出现两个日期
+          if (s.title && !titleIsJustTheDate(s.title, s.date)) {
             const t = document.createElement('span');
             t.textContent = s.title;
             cap.appendChild(t);
