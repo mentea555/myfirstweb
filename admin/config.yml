@@ -53,7 +53,7 @@ collections:
   - name: "notes"
     label: "笔记与作品"
     label_singular: "一篇内容"
-    description: "在这里写的内容，保存后会立即出现在网站首页的卡片流里。"
+    description: "在这里写的内容，保存后会立即出现在网站首页的卡片流里。只想发到「画廊」页、不上首页的，把下面的「只发画廊」勾上。"
     folder: "content/notes"
     create: true
     slug: "{{year}}-{{month}}-{{day}}-{{slug}}"
@@ -81,13 +81,19 @@ collections:
       - {
           label: "标签（可选，可加多个）",
           name: "tags",
-          widget: "select",
+          widget: "tags",
           required: false,
-          multiple: true,
-          creatable: true,
           default: [],
           options: ["插画", "随笔", "更新", "测试", "草图", "作品"],
-          hint: "★ 想加几个就加几个：从下拉里选，或直接打字然后按【回车】新增；每个标签右边有个 × 可以删掉。前台会自动按标签生成筛选按钮，「插画」这个标签会让文章出现在画廊页。",
+          hint: "★ 想加几个就加几个：打字后按【回车】（或逗号）就新增一个，也可以点下面的下拉建议；每颗标签右边有个 × 可以删掉。已选好的标签就是最终结果 —— 打了字没按回车直接点别处也会自动收进去，不会白打。前台会自动按标签生成筛选按钮，「插画」这个标签会让文章出现在画廊页。",
+        }
+      - {
+          label: "只发画廊（首页不显示）",
+          name: "gallery_only",
+          widget: "boolean",
+          default: false,
+          required: false,
+          hint: "勾上：这篇会出现在「画廊」页，但不会出现在首页的内容流里（适合随时随手发的插画）。★ 例外：在首页点「#插画」这个标签时，它们会显示出来 —— 相当于一个小画框；点「全部」则看不到，首页保持以文字为主。",
         }
       - { label: "置顶", name: "featured", widget: "boolean", default: false, required: false }
       - {

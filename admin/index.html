@@ -80,13 +80,14 @@
     /*
      * ★ 关掉 Decap 的「自动初始化」，改为我们自己按顺序启动。
      *
-     * 为什么需要：config.yml 里配了 media_library.name = imgbed（自建图床）。
-     * Decap 是在 CMS.init() 那一刻去查「这个媒体库注册了没」的 —— 查不到就直接
-     * 配置报错、后台白屏。而 Decap 主脚本一加载完就会立刻自动 init，抢在中间注册
-     * 的窗口只有几毫秒，不可靠。
+     * 为什么需要：config.yml 里引用了几样「Decap 自己不认识、由我们现注册」的东西，
+     * 而 Decap 是在 CMS.init() 那一刻去查它们注册了没有 —— 查不到就直接配置报错、
+     * 后台白屏。但 Decap 主脚本一加载完就会立刻自动 init，抢在中间注册的窗口只有
+     * 几毫秒，不可靠。所以设这个标志让它「只挂好 window.CMS、先别启动」。
      *
      * 设了这个标志后，decap-cms 只会挂好 window.CMS 而不启动；等下面把
-     * /admin/imgbed-media.js 加载完（里面会 registerMediaLibrary），再手动 CMS.init()。
+     * /admin/imgbed-media.js（图床媒体库）和 /admin/tags-widget.js（标签控件）
+     * 都加载完，再手动 CMS.init()。
      */
     window.CMS_MANUAL_INIT = true;
   </script>
@@ -114,21 +115,36 @@
         if (el) el.remove();
         /*
          * CMS 主脚本已就绪，但此刻**还不能**直接 CMS.init()：
-         * 必须先把图床媒体库注册进去，否则 config.yml 里的
-         * media_library.name = imgbed 查不到实现，后台会直接配置报错。
+         * 必须先把自注册的东西装上，否则 config.yml 里引用了它们的地方
+         * 查不到实现，后台会直接配置报错。顺序如下：
+         *   ① /admin/imgbed-media.js —— 图床媒体库（media_library.name = imgbed）
+         *   ② /admin/tags-widget.js  —— 自定义标签控件（widget: tags）
          */
-        var m = document.createElement('script');
-        m.src = '/admin/imgbed-media.js';
-        m.async = false;
-        m.onload = start;
-        m.onerror = function () {
-          console.warn('[admin] /admin/imgbed-media.js 加载失败，退回默认媒体库');
-          start();
-        };
-        document.head.appendChild(m);
+        loadPlugins(['/admin/imgbed-media.js', '/admin/tags-widget.js'], start);
       }
 
-      /* 图床媒体库就绪后才真正启动后台 */
+      /*
+       * 顺序加载插件脚本，全部走完（成功或失败都算）再回调。
+       * 单个插件挂掉不能拖住整个后台 —— 尤其 imgbed-media.js，它没加载成功时
+       * start() 里还有一层兜底注册，保证后台至少能进得去。
+       */
+      function loadPlugins(list, cb) {
+        var i = 0;
+        (function step() {
+          if (i >= list.length) { cb(); return; }
+          var s = document.createElement('script');
+          s.src = list[i++];
+          s.async = false;
+          s.onload = step;
+          s.onerror = function () {
+            console.warn('[admin] 插件加载失败：' + s.src);
+            step();
+          };
+          document.head.appendChild(s);
+        })();
+      }
+
+      /* 插件就绪后才真正启动后台 */
       function start() {
         if (!window.__imgbedMediaReady) {
           /*

@@ -2165,6 +2165,8 @@
           description: data.description || data.summary || '',
           tags: Array.isArray(data.tags) ? data.tags : (data.tags ? [data.tags] : []),
           featured: data.featured === true || data.featured === 'true',
+          // 「只发画廊」：勾了就不进首页的「全部」流（但点具体标签时能看到）
+          galleryOnly: data.gallery_only === true || data.gallery_only === 'true',
           body: body.trim(),
           filename: file.name
         });
@@ -2197,7 +2199,7 @@
       if (!Array.isArray(posts)) return null;
       return posts.filter((p) => p && typeof p === 'object').map((p) => Object.assign({
         title: '', date: '', cover: '', description: '',
-        tags: [], featured: false, body: '', filename: ''
+        tags: [], featured: false, galleryOnly: false, body: '', filename: ''
       }, p));
     }
 
@@ -2210,12 +2212,29 @@
       const feed = $('feed');
       const showTags = settings.show_tags !== false;
 
-      const list = activeTag === '全部' || !activeTag
-        ? posts
-        : posts.filter((p) => p.tags.indexOf(activeTag) !== -1);
+      const isAll = !activeTag || activeTag === '全部';
+
+      /*
+       * 「只发画廊」的内容（后台勾了「只发画廊」开关）不进首页的「全部」流 ——
+       * 主人要首页以文字为主，随手发的插画不占位置。
+       *
+       * 但**主动点某个标签时要能看到**：那一刻的意思是「我想看这个标签的全部」，
+       * 再藏起来就反直觉了（点 #插画 却看不到插画最奇怪）。
+       *
+       * ⚠️ 标签栏（renderTagBar）必须拿**全量 posts** 生成。否则当插画全是
+       *    「只发画廊」时，「#插画」这颗按钮压根不会出现 —— 就成了死路：
+       *    想看却没入口。
+       */
+      const pool = isAll ? posts.filter((p) => !p.galleryOnly) : posts;
+      const list = isAll ? pool : pool.filter((p) => p.tags.indexOf(activeTag) !== -1);
 
       if (list.length === 0) {
-        feed.innerHTML = `<div class="status-box"><p>${posts.length === 0 ? '暂无已发布内容' : '该标签下暂无内容'}</p></div>`;
+        const onlyGallery = isAll && posts.length > 0;
+        feed.innerHTML = `<div class="status-box"><p>${posts.length === 0
+          ? '暂无已发布内容'
+          : onlyGallery
+            ? '首页这里暂时没有内容。还有内容只发在「画廊」页 —— 点上面的标签就能看到。'
+            : '该标签下暂无内容'}</p></div>`;
         return;
       }
 
