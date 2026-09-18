@@ -659,19 +659,19 @@
        可见 5 张 = 当前这张 + 左右各 2 张。
        ⚠️ 显隐用 visibility（is-far），不用 opacity —— 半透明的中间态会漏出后面的东西。
           整卡 opacity 恒为 1；「越远越暗」由卡内薄纱 --veil 负责。 */
-    /* 拖拽时整条轨道跟着指针走（--drag 由 JS 每帧写进去），松手后归零 → 由过渡滑回去。
-       拖的过程中 is-dragging 把过渡关掉，所以是 1:1 跟手，不会「拖不动、追着跑」。
-       归零的过渡与卡片自身的过渡用同一条曲线、同样时长，
-       于是「轨道回位 + 卡片换位」两段动画叠起来是一段连贯的运动。 */
-    .carousel-track {
-      position: absolute;
-      inset: 0;
-      transform: translateX(var(--drag, 0px));
-      transition: transform 0.55s cubic-bezier(0.22, 0.61, 0.36, 1);
-    }
+    /* 拖拽时**只有手指按着的那一张**跟着走，其余卡片原地不动 —— 不再整条轨道平移。
+       跟手位移写在那一张卡自己的 --drag 上（由 JS 每帧写进去）。
+       ⚠️ --drag 必须写在**卡片元素**上：写到 .carousel-track / .carousel-viewport 上
+          会被所有子卡继承，那就又变成「整条一起动」了。
+       拖的过程中 is-dragging 把过渡关掉（1:1 跟手，不会「拖不动、追着跑」）；
+       **到阈值自动脱手**那一刻先摘掉这个类，过渡恢复 →
+       旧卡平滑滑走、新卡平滑滑到中间，两段动画接成一段连贯的运动。 */
+    .carousel-track { position: absolute; inset: 0; }
     .carousel-viewport.is-dragging { cursor: grabbing; }
-    .carousel-viewport.is-dragging .carousel-track { transition: none; }
-    .carousel-viewport.is-dragging .carousel-slide { cursor: grabbing; }
+    .carousel-viewport.is-dragging .carousel-slide { cursor: grabbing; transition: none; }
+    /* 被「拿起来」的那一张：临时压到最上层。
+       （按着旁边的卡拖时它本来被中间的卡盖住，抬到最上面才看得见它在跟手。） */
+    .carousel-slide.is-dragging-card { z-index: 300 !important; }
     .carousel-slide {
       position: absolute;
       top: 50%;
@@ -686,7 +686,9 @@
       cursor: pointer;
       opacity: 1;
       visibility: visible;
-      transform: translate(-50%, -50%) translateX(var(--dx, 0px)) rotateY(var(--rot, 0deg)) scale(var(--s, 1));
+      /* --dx  = 这张卡在堆叠里的站位（applyCarouselLayout() 写）
+         --drag = 手指正拖着它的临时位移（只有被拿起的那一张有值，其它卡恒为 0） */
+      transform: translate(-50%, -50%) translateX(calc(var(--dx, 0px) + var(--drag, 0px))) rotateY(var(--rot, 0deg)) scale(var(--s, 1));
       transition: transform 0.55s cubic-bezier(0.22, 0.61, 0.36, 1),
                   box-shadow 0.4s ease, visibility 0s;
       will-change: transform;
@@ -1545,22 +1547,23 @@
         if (!img.dataset.thumbSrc && useFull) img.dataset.thumbSrc = thumb;
         const want = useFull ? full : (img.dataset.thumbSrc || thumb);
         if (img.getAttribute('src') === want) return;
-      if (!useFull) { img.setAttribute('src', want); return; }
-      /* 原图直连与代理**赛跑**，谁先载完用谁：
-         直连通常更快；但图床在部分网络直连不可达（如 i.ibb.co），等超时要几十秒。
-         两条路拿到的都是原图字节，不损画质。都失败就维持缩图不动（别把能看的换成破图）。 */
-      let picked = false;
-      const pick = (u) => { if (!picked) { picked = true; img.setAttribute('src', u); } };
-      const a = new Image();
-      a.onload = () => pick(full);
-      a.src = full;
-      if (proxiableImage(full) && !/^https?:\/\/wsrv\.nl\//i.test(full)) {
-        const pu = proxiedImageUrl(full);
-        const b = new Image();
-        b.onload = () => pick(pu);
-        b.src = pu;
-      }
-    });
+        /* 收回：换回缩图，立刻换就行（缩图本来就在缓存里） */
+        if (!useFull) { img.setAttribute('src', want); return; }
+        /* 放大：原图直连与代理**赛跑**，谁先载完用谁：
+           直连通常更快；但图床在部分网络直连不可达（如 i.ibb.co），等超时要几十秒。
+           两条路拿到的都是原图字节，不损画质。都失败就维持缩图不动（别把能看的换成破图）。 */
+        let picked = false;
+        const pick = (u) => { if (!picked) { picked = true; img.setAttribute('src', u); } };
+        const a = new Image();
+        a.onload = () => pick(full);
+        a.src = full;
+        if (proxiableImage(full) && !/^https?:\/\/wsrv\.nl\//i.test(full)) {
+          const pu = proxiedImageUrl(full);
+          const b = new Image();
+          b.onload = () => pick(pu);
+          b.src = pu;
+        }
+      });
     }
 
     // 缩图打不开 → 换回原图直连 → 再走代理 → 仍失败就把图摘掉，绝不留破图标
@@ -3346,18 +3349,54 @@
         if (!section.contains(e.relatedTarget)) carouselState.paused = false;
       });
 
-      /* ---- 拖拽跟随：整条轨道跟着指针走，松手按位移量翻页 ----
+      /* ---- 拖拽跟随：**只有手指按着的那一张**跟着走，其余卡片原地不动 ----
          鼠标 / 触屏 / 触控笔同一套 Pointer Events，不用写两遍。
+         · 跟手位移写在那一张卡自己的 --drag 上
+           （⚠️ 不能写到 .carousel-track / .carousel-viewport 上 —— 会被所有子卡继承，
+              那就又变成「整条一起动」了）
+         · 拖到阈值（约卡宽的 42%）**自动脱手**翻一张，不用等手指抬起；
+           本次拖拽到此为止：旧卡平滑滑走、新卡平滑滑到中间，抬手后可接着拖下一张。
+         · 按在卡片之间的空白处也算 —— 回落到「当前这张」。
          （触屏的横向手势靠 CSS 的 touch-action: pan-y 让给我们，纵向滚动不受影响。） */
-      const DRAG_SLOP = 6;      // 超过这么多像素才算「在拖」，否则仍按点击处理
-      const DRAG_MIN = 30;      // 松手时位移至少这么多才翻页（防手抖）
+      const DRAG_SLOP = 6;          // 超过这么多像素才算「在拖」，否则仍按点击处理
+      const DRAG_RATIO = 0.42;      // 拖过卡宽的 42% 就自动脱手翻一张
+      const DRAG_LIMIT_MIN = 40;    // 阈值下限（窄屏卡片小时别太敏感）
+      const DRAG_LIMIT_MAX = 150;   // 阈值上限（大屏也别拖半天才翻）
       const track = $('carouselTrack');
       let drag = null;
+
+      const currentCardEl = () => (track ? track.querySelector('.carousel-slide.is-current') : null);
+
+      /** 当前该按多少像素算「拖到头」——按卡宽自适应 */
+      const dragLimit = () => {
+        const w = (drag && drag.el && drag.el.offsetWidth)
+          || parseFloat(getComputedStyle(viewport).getPropertyValue('--carousel-card-w'))
+          || 240;
+        return Math.round(Math.max(DRAG_LIMIT_MIN, Math.min(DRAG_LIMIT_MAX, w * DRAG_RATIO)));
+      };
+
+      /** ★ 到阈值 → 撒手换页：旧卡平滑滑走、新卡平滑滑到中间 */
+      const releaseDragCard = (dir, limit) => {
+        const el = drag.el;
+        drag.used += (dir === 1 ? -limit : limit);     // 记下这一程已经被翻页消耗的位移
+        drag.lock = true;                              // 本次拖拽不再跟手（等抬手才能再拖）
+        drag.el = null;
+        if (el) {
+          el.style.removeProperty('--drag');
+          el.classList.remove('is-dragging-card');
+        }
+        viewport.classList.remove('is-dragging');      // 先恢复过渡…
+        showCarouselSlide(carouselState.index + dir, true);   // …再换页，于是是「滑走 / 滑进来」
+      };
 
       viewport.addEventListener('pointerdown', (e) => {
         if (IS_DESIGNER || e.button !== 0 || carouselState.slides.length < 2) return;
         if (e.target.closest('.carousel-nav')) return;      // 左右箭头自己管自己
-        drag = { id: e.pointerId, x0: e.clientX, y0: e.clientY, dx: 0, active: false };
+        const fig = e.target.closest('.carousel-slide');
+        if (fig && fig.classList.contains('is-far')) return;      // 按在已经隐掉的卡上不算
+        // fig 为空 = 按在卡片之间的空白处 → 激活时回落到当前这张
+        drag = { id: e.pointerId, x0: e.clientX, y0: e.clientY, el: fig || null,
+                 used: 0, active: false, lock: false };
       });
 
       viewport.addEventListener('pointermove', (e) => {
@@ -3367,40 +3406,45 @@
         if (!drag.active) {
           if (Math.abs(dx) < DRAG_SLOP) return;
           if (Math.abs(dx) <= Math.abs(dy)) { drag = null; return; }   // 竖着划 → 让页面滚
+          if (!drag.el) drag.el = currentCardEl();                     // 空白处按下 → 拖当前这张
+          if (!drag.el) { drag = null; return; }
           drag.active = true;
           carouselState.dragging = true;
           stopCarouselAutoplay();                                      // 手按着的时候别自动播
           viewport.classList.add('is-dragging');                       // 关掉过渡 → 1:1 跟手
+          drag.el.classList.add('is-dragging-card');                   // 拿起来的这张压到最上层
           try { viewport.setPointerCapture(drag.id); } catch (err) {}
         }
-        const limit = viewport.clientWidth * 0.9;
-        drag.dx = Math.max(-limit, Math.min(limit, dx));
-        viewport.style.setProperty('--drag', Math.round(drag.dx) + 'px');
+        if (drag.lock) return;                       // 已经脱手换过一张：本次拖拽到此为止
+        const rest = dx - drag.used;                 // 还没被「换页」消耗掉的位移
+        const limit = dragLimit();
+        if (Math.abs(rest) >= limit) {               // ★ 到阈值就自动脱手，不用等抬手
+          releaseDragCard(rest < 0 ? 1 : -1, limit); // 往左拖 = 下一张；往右拖 = 上一张
+          return;
+        }
+        drag.el.style.setProperty('--drag', Math.round(rest) + 'px');
         if (e.cancelable) e.preventDefault();
       });
 
-      const endDrag = (e, cancelled) => {
+      const endDrag = (e) => {
         if (!drag || (e && e.pointerId !== drag.id)) return;
         const wasActive = drag.active;
-        const dx = drag.dx;
+        const el = drag.el;
         const id = drag.id;
         drag = null;
         viewport.classList.remove('is-dragging');                      // 先恢复过渡…
         try { viewport.releasePointerCapture(id); } catch (err) {}
-        viewport.style.setProperty('--drag', '0px');                   // …再归零，于是是「滑回去」
+        if (el) {                                                      // …再归零，于是是「滑回去」
+          el.style.removeProperty('--drag');
+          el.classList.remove('is-dragging-card');
+        }
         carouselState.dragging = false;
         if (!wasActive) return;                                        // 只是点了一下，交给 click
         carouselState.dragEndAt = Date.now();                          // 吞掉紧随其后的那次 click
-        if (cancelled || Math.abs(dx) < DRAG_MIN) {                    // 没到翻页的坎：原地回位
-          if (!carouselState.paused) startCarouselAutoplay();
-          return;
-        }
-        const step = Math.max(1, carouselState.step);
-        const moves = Math.min(3, Math.max(1, Math.round(Math.abs(dx) / step)));
-        showCarouselSlide(carouselState.index + (dx < 0 ? moves : -moves), true);
+        if (!carouselState.paused) startCarouselAutoplay();
       };
-      viewport.addEventListener('pointerup', (e) => endDrag(e, false));
-      viewport.addEventListener('pointercancel', (e) => endDrag(e, true));   // 手势被系统收走（如开始滚动）
+      viewport.addEventListener('pointerup', (e) => endDrag(e));
+      viewport.addEventListener('pointercancel', (e) => endDrag(e));   // 手势被系统收走（如开始滚动）
       viewport.addEventListener('dragstart', (e) => e.preventDefault());     // 别触发图片原生拖拽
 
       // 可用宽度变了要重算卡片尺寸（横竖屏切换、窗口缩放、设计器里拉宽画布…）
