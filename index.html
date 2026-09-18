@@ -635,19 +635,36 @@
       flex: 0 0 100%;
       height: 100%;
       margin: 0;
+      overflow: hidden;
       cursor: zoom-in;
     }
     .carousel-slide:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-    .carousel-slide img {
+    /* 作品原图有横有竖 —— 用 cover 会把竖图裁成一条（画面被切掉大半）。
+       所以前景一律「完整显示」，空出来的两边用同一张图放大模糊铺底，
+       横图竖图都不会出现突兀的黑边。背景用 inherit 拿到行内设的那张图，
+       不额外发请求（同一个网址浏览器只会取一次）。 */
+    .carousel-slide::before {
+      content: '';
+      position: absolute;
+      inset: -40px;
+      background-image: inherit;
+      background-size: cover;
+      background-position: center;
+      filter: blur(26px) brightness(0.68) saturate(1.1);
+      pointer-events: none;
+    }
+    .carousel-img {
+      position: relative;
+      z-index: 1;
       display: block;
       width: 100%;
       height: 100%;
-      object-fit: cover;
-      /* 图还没到位时别闪白：容器底色已经是 --chip-bg */
+      object-fit: contain;
     }
     /* 标题压在图上的那一层：用半透明黑底，两种配色模式下都读得清 */
     .carousel-cap {
       position: absolute;
+      z-index: 2;          /* 必须高于图片那层（.carousel-img 的 z-index: 1） */
       left: 0;
       right: 0;
       bottom: 0;
@@ -667,6 +684,8 @@
 
     /* 图片实在打不开时的占位。保留格子（不抽掉），翻页才不会错位。 */
     .carousel-fallback {
+      position: relative;
+      z-index: 1;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -2782,12 +2801,16 @@
         fig.setAttribute('aria-label', (s.title ? s.title + ' — ' : '') + '点击看大图');
 
         const img = document.createElement('img');
+        img.className = 'carousel-img';
         // 前 3 张立刻要（首屏就看得到、翻页立刻有），其余先惰性、稍后后台预热
         img.loading = k < 3 ? 'eager' : 'lazy';
         if (k === 0) img.setAttribute('fetchpriority', 'high');
         img.alt = s.title || '';
         img.dataset.full = s.src;                  // 看大图用原图
-        img.src = carouselThumbUrl(s.src);         // 显示用缩放后的 webp
+        const thumb = carouselThumbUrl(s.src);     // 显示用缩放后的 webp
+        img.src = thumb;
+        // 同一张图交给 ::before 当模糊底（CSS 里 background-image: inherit）
+        fig.style.backgroundImage = 'url("' + String(thumb).replace(/["\\\r\n]/g, '') + '")';
         fig.appendChild(img);
 
         if (c.show_caption !== false && (s.title || s.date)) {
