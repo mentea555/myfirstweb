@@ -1,16 +1,27 @@
 {
+  "float_buttons_enabled": true,
   "site_title": "Mentea Website",
   "posts_dir": "content/notes",
   "show_admin_button": false,
+  "float_home_enabled": true,
+  "body_color": "",
+  "heading_color": "",
+  "badge_color": "#262636",
   "admin_button_text": "管理后台 →",
+  "dim_color": "",
+  "float_link_url": "/about/",
   "custom_head": "",
   "accent_color": "#2d2d2f",
   "posts_limit": 0,
   "site_subtitle": "个人博客小站",
+  "text_color": "",
+  "float_link_label": "关于我",
+  "float_home_url": "/",
   "background_color": "",
   "font_family": "jakarta",
   "custom_css": "",
   "page_width": 1020,
+  "float_home_label": "回到首页",
   "theme_mode": "dark",
   "show_tags": true,
   "nav_links": [
@@ -19,33 +30,14 @@
       "url": "/"
     },
     {
-      "label": "作品",
+      "label": "内容",
       "url": "/#feed"
     },
     {
       "label": "画廊",
       "url": "/gallery/"
-    },
-    {
-      "label": "我的B站",
-      "url": "https://space.bilibili.com/434856923?spm_id_from=333.1007.0.0"
-    },
-    {
-      "label": "我的Osu主页",
-      "url": "https://osu.ppy.sh/users/8828088"
     }
   ],
-  "heading_color": "",
-  "badge_color": "#262636",
-  "body_color": "",
-  "text_color": "",
-  "dim_color": "",
   "link_color": "",
-  "float_buttons_enabled": true,
-  "float_home_enabled": true,
-  "float_home_url": "/",
-  "float_home_label": "回到首页",
-  "float_link_enabled": true,
-  "float_link_url": "/about/",
-  "float_link_label": "关于我"
+  "float_link_enabled": true
 }
