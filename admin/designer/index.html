@@ -460,7 +460,7 @@
       announce: { name: '公告条',      desc: '页面顶部的提示条',      align: ['left', 'center', 'right'] },
       header:   { name: '页头',        desc: '站名与导航链接',        align: ['space-between', 'left', 'center', 'right'] },
       hero:     { name: '首屏区',      desc: '大标题与副标题',        align: ['left', 'center', 'right'] },
-      carousel: { name: '轮播图',      desc: '自动播放的作品图',      align: ['stretch', 'center'] },
+      carousel: { name: '轮播图',      desc: '卡牌堆叠，可见 5 张',    align: ['stretch', 'center'] },
       toolbar:  { name: '标签筛选',    desc: '分类筛选按钮',          align: ['left', 'center', 'right'] },
       feed:     { name: '内容流',      desc: '文章卡片列表',          align: ['stretch', 'center'] },
       about:    { name: '关于我',      desc: '个人介绍板块',          align: ['left', 'center', 'right'] },
@@ -483,7 +483,7 @@
         { id: 'announce', enabled: true, align: 'left', gap: 24, bg: '' },
         { id: 'header', enabled: true, align: 'space-between', gap: 36, bg: '' },
         { id: 'hero', enabled: true, align: 'left', gap: 34, bg: '', titleSize: 34 },
-        { id: 'carousel', enabled: true, align: 'stretch', gap: 34, bg: '', height: 320 },
+        { id: 'carousel', enabled: true, align: 'stretch', gap: 34, bg: '', height: 440 },
         { id: 'toolbar', enabled: true, align: 'left', gap: 26, bg: '' },
         { id: 'feed', enabled: true, align: 'stretch', gap: 40, bg: '', columns: 1 },
         { id: 'about', enabled: true, align: 'left', gap: 46, bg: '' },
@@ -889,8 +889,8 @@
 
           ${sel.id === 'hero' ? rangeRow('标题字号', 'px', 'block', 'titleSize', num(sel.titleSize, 34), 20, 64, 1) : ''}
 
-          ${sel.id === 'carousel' ? rangeRow('轮播图高度', 'px', 'block', 'height', num(sel.height, 320), 140, 640, 10) : ''}
-          ${sel.id === 'carousel' ? `<div class="hint">这里放的是「勾了【加入首页轮播图】的笔记」里的图片。<br>标题、右上角按钮、播放速度在后台「前端页面设置 → 首页轮播图」里改。<br>一张可轮播的图都没有时，这个区块在网站上会自动隐藏（不影响这里的位置设置）。</div>` : ''}
+          ${sel.id === 'carousel' ? rangeRow('轮播图高度', 'px', 'block', 'height', num(sel.height, 440), 200, 900, 10) : ''}
+          ${sel.id === 'carousel' ? `<div class="hint">卡片是竖屏的（3:4），中间那张最大，左右各 2 张越远越小越淡 —— 同时可见 5 张。<br>上面这个高度是<b>上限</b>：窄屏（手机）放不下 5 张时会自动变矮。<br>图片来自「勾了【加入首页轮播图】的笔记」；标题、右上角按钮、播放速度在后台「前端页面设置 → 首页轮播图」里改。<br>一张可轮播的图都没有时，这个区块在网站上会自动隐藏（不影响这里的位置设置）。</div>` : ''}
 
           ${sel.id === 'feed' ? `<label class="row">
             <span class="lbl"><span>每行列数</span></span>

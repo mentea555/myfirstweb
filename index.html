@@ -502,15 +502,20 @@
        ⚠️ 只对「没有自定义背景色」的页头兜底。
        区块一旦设了背景色，applyLayout() 会写上行内 padding，
        行内样式优先级高于本规则 —— 那边同步写入了避让量，
-       所以这里用 .has-bg 类把它排除掉，避免两处打架。 */
+       所以这里用 .has-bg 类把它排除掉，避免两处打架。
+
+       ⚠️ 轮播区那颗「进入画廊」按钮**不做**避让（它的位置跟区块一起滚动，
+          只有恰好滚到悬浮按钮那一带时才会重叠，继续滚一下就分开了；
+          给它让位反而让按钮永远离右边很远）。主人明确说过这个不重要。 */
     @media (max-width: 960px) {
       header:not(.has-bg) { padding-right: var(--float-safe); }
-      /* 轮播区右上角那颗「进入画廊」按钮同理：窄屏时它正好落在悬浮按钮底下，
-         实测被盖住约 29px（首页那两颗圆按钮压在「进入画廊」字样上）。 */
-      .block[data-block="carousel"]:not(.has-bg) .carousel-head {
-        padding-right: var(--float-safe);
-      }
     }
+
+    /* 点导航里的「内容」会跳到 /#feed，而标签栏（#toolbar）正好在内容区上方 ——
+       不加这一段，标签栏会被滚出视野顶端，主人抱怨过「点了内容看不到标签」。
+       ⚠️ 避让量不能用常数：标签在窄屏会换行、标签数量也会变。
+       实测值由 syncFeedAnchor() 算好写进 --feed-anchor。 */
+    #feed { scroll-margin-top: var(--feed-anchor, 0px); }
 
     /* 可视化编辑器画布里不显示（它不属于任何可排布区块，会干扰点选） */
     html.designer-mode .float-dock { display: none !important; }
@@ -573,9 +578,12 @@
     .chip:hover { color: var(--text-strong); border-color: var(--accent); }
     .chip.active { background: var(--accent); border-color: var(--accent); color: var(--accent-on, #fff); }
 
-    /* ============ 首页轮播图 ============
-       结构：标题行（左标题 + 右按钮）→ 图片视口 → 圆点。
-       高度由 --carousel-height 驱动（可视化编辑器里可调）。 */
+    /* ============ 首页轮播图（卡牌堆叠式） ============
+       结构：标题行（左标题 + 右按钮）→ 卡牌视口 → 圆点。
+       中间是当前这一张（竖屏卡片），左右各 2 张往两边排开 → 同时可见 5 张；
+       离当前越远的越小、越透明（由 JS 按距离写 --o / --s / --dx）。
+       卡片高度上限由 --carousel-height 驱动（可视化编辑器里可调），
+       实际尺寸由 layoutCarousel() 按可用宽度算。 */
     .carousel { display: flex; flex-direction: column; gap: 14px; }
 
     .carousel-head {
@@ -620,29 +628,50 @@
       color: var(--accent-on, #fff);
     }
 
+    /* 视口高度 = 卡片高度（由 layoutCarousel() 按可用宽度算好，写进 --carousel-card-h）。
+       「轮播图高度」滑杆（--carousel-height）是**上限**：
+       窄屏塞不下 5 张竖卡时会自动变矮。 */
     .carousel-viewport {
       position: relative;
       width: 100%;
-      height: var(--carousel-height, 320px);
+      height: var(--carousel-card-h, var(--carousel-height, 320px));
       overflow: hidden;
       border: 1px solid var(--card-border);
       border-radius: var(--radius);
       background: var(--chip-bg);
+      perspective: 1600px;      /* 两侧卡片的 rotateY 要有它才有立体感 */
     }
-    .carousel-track {
-      display: flex;
-      height: 100%;
-      transition: transform 0.5s cubic-bezier(0.22, 0.61, 0.36, 1);
-      will-change: transform;
-    }
+    /* ---------- 卡牌堆叠 ----------
+       每张卡都绝对定位在正中，靠 --dx / --rot / --s / --o 摆位
+       （applyCarouselLayout() 按「离当前这张有多远」写进去）。
+       离得越远：位移越大、缩得越小、越透明；2 张之外直接淡出。
+       可见 5 张 = 当前这张 + 左右各 2 张。 */
+    .carousel-track { position: absolute; inset: 0; }
     .carousel-slide {
-      position: relative;
-      flex: 0 0 100%;
-      height: 100%;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: var(--carousel-card-w, 240px);
+      height: var(--carousel-card-h, 320px);
       margin: 0;
       overflow: hidden;
-      cursor: zoom-in;
+      border-radius: calc(var(--radius) - 2px);
+      background: var(--chip-bg);
+      box-shadow: 0 14px 30px rgba(0, 0, 0, 0.32);
+      cursor: pointer;
+      opacity: var(--o, 1);
+      transform: translate(-50%, -50%) translateX(var(--dx, 0px)) rotateY(var(--rot, 0deg)) scale(var(--s, 1));
+      transition: transform 0.55s cubic-bezier(0.22, 0.61, 0.36, 1),
+                  opacity 0.55s ease, box-shadow 0.4s ease;
+      will-change: transform, opacity;
     }
+    /* 中间那张：层级最高（z-index 由 JS 给），点它才是「看大图」 */
+    .carousel-slide.is-current {
+      cursor: zoom-in;
+      box-shadow: 0 20px 44px rgba(0, 0, 0, 0.42);
+    }
+    /* 已经淡出到看不见的：别让它们还能被点到 / Tab 到 */
+    .carousel-slide.is-far { pointer-events: none; }
     .carousel-slide:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
     /* 作品原图有横有竖 —— 用 cover 会把竖图裁成一条（画面被切掉大半）。
        所以前景一律「完整显示」，空出来的两边用同一张图放大模糊铺底，
@@ -666,7 +695,9 @@
       height: 100%;
       object-fit: contain;
     }
-    /* 标题压在图上的那一层：用半透明黑底，两种配色模式下都读得清 */
+    /* 标题压在图上的那一层：用半透明黑底，两种配色模式下都读得清。
+       ⚠️ 卡片只有 240px 宽（旧版是整行 1020px），内边距与字号都要收小，
+          否则一行字就把画面盖掉一半。 */
     .carousel-cap {
       position: absolute;
       z-index: 2;          /* 必须高于图片那层（.carousel-img 的 z-index: 1） */
@@ -675,17 +706,17 @@
       bottom: 0;
       display: flex;
       align-items: baseline;
-      gap: 10px;
+      gap: 8px;
       flex-wrap: wrap;
-      padding: 34px 18px 14px;
+      padding: 26px 13px 11px;
       color: #fff;
-      font-size: 0.86rem;
+      font-size: 0.8rem;
       font-weight: 600;
       text-shadow: 0 1px 3px rgba(0, 0, 0, 0.65);
       background: linear-gradient(to top, rgba(0, 0, 0, 0.72), rgba(0, 0, 0, 0));
       pointer-events: none;
     }
-    .carousel-cap-time { font-size: 0.78rem; font-weight: 500; opacity: 0.82; }
+    .carousel-cap-time { font-size: 0.72rem; font-weight: 500; opacity: 0.82; }
 
     /* 图片实在打不开时的占位。保留格子（不抽掉），翻页才不会错位。 */
     .carousel-fallback {
@@ -759,10 +790,10 @@
     /* 小屏：手指左右滑即可，箭头太挤就收起来 */
     @media (max-width: 560px) {
       .carousel-nav { display: none; }
-      .carousel-cap { font-size: 0.8rem; padding: 28px 14px 12px; }
+      .carousel-cap { font-size: 0.74rem; padding: 22px 10px 9px; }
     }
     @media (prefers-reduced-motion: reduce) {
-      .carousel-track { transition: none; }
+      .carousel-slide { transition: none; }
     }
 
     /* ============ 作品卡片流 ============ */
@@ -1143,7 +1174,7 @@
         { id: 'announce', enabled: true, align: 'left', gap: 34, bg: '' },
         { id: 'header', enabled: true, align: 'left', gap: 50, bg: '#222325' },
         { id: 'hero', enabled: true, align: 'left', gap: 34, bg: '', titleSize: 44 },
-        { id: 'carousel', enabled: true, align: 'stretch', gap: 34, bg: '', height: 320 },
+        { id: 'carousel', enabled: true, align: 'stretch', gap: 34, bg: '', height: 440 },
         { id: 'toolbar', enabled: true, align: 'left', gap: 26, bg: '' },
         { id: 'feed', enabled: true, align: 'center', gap: 102, bg: '', columns: 2 },
         { id: 'about', enabled: true, align: 'left', gap: 60, bg: '' },
@@ -2409,15 +2440,21 @@
         if (b.id === 'feed') {
           el.setAttribute('data-columns', num(b.columns, 1) >= 2 ? '2' : '1');
         }
-        // 6.5) 轮播区：高度可调；「居中」= 收窄并居中（大图铺满整页会很压迫）
+        // 6.5) 轮播区：高度可调（竖屏卡片，默认比旧版高一些）；「居中」= 收窄并居中
         if (b.id === 'carousel') {
-          el.style.setProperty('--carousel-height', Math.max(140, num(b.height, 320)) + 'px');
+          el.style.setProperty('--carousel-height', Math.max(140, num(b.height, 440)) + 'px');
           const narrow = b.align === 'center';
           el.style.maxWidth = narrow ? '720px' : '';
           el.style.marginLeft = narrow ? 'auto' : '';
           el.style.marginRight = narrow ? 'auto' : '';
+          // 高度变了卡片尺寸也要重算（宽度没变时 layoutCarousel 会跳过，所以先把缓存清掉）
+          carouselState.layoutW = 0;
+          if (layoutCarousel()) applyCarouselLayout();
         }
       });
+
+      // 区块顺序/间距变了 → 标签栏与内容区之间的相对位置也变了，锚点跟着重算
+      syncFeedAnchor();
     }
 
     /* ---------------- 拉取文章 ----------------
@@ -2631,7 +2668,12 @@
       const tags = [];
       posts.forEach((p) => p.tags.forEach((t) => { if (tags.indexOf(t) === -1) tags.push(t); }));
 
-      if (settings.show_tags === false || tags.length === 0) { toolbar.hidden = true; return; }
+      // 标签栏的高度决定了「点导航里的内容要留多少」——渲染前后都要同步一次
+      if (settings.show_tags === false || tags.length === 0) {
+        toolbar.hidden = true;
+        syncFeedAnchor();
+        return;
+      }
 
       toolbar.hidden = false;
       toolbar.innerHTML = '';
@@ -2641,6 +2683,49 @@
         btn.textContent = tag === '全部' ? '全部' : '#' + tag;
         btn.onclick = () => onChange(tag);
         toolbar.appendChild(btn);
+      });
+
+      syncFeedAnchor();
+    }
+
+    /* ---------------- 导航「内容」的锚点 ----------------
+       导航里的「内容」指向 /#feed，而标签筛选栏（#toolbar）正好贴在内容区上方：
+       直接跳过去，标签栏会被滚出视野顶端 —— 看起来就是「点了内容却没有标签可选」。
+       这里实测标签栏高度（窄屏会换行、标签数量也会变，不是常数）写成 --feed-anchor，
+       由 #feed 的 scroll-margin-top 使用，跳转后标签栏刚好留在视野顶端。 */
+    function syncFeedAnchor() {
+      const tb = $('toolbar');
+      const feed = $('feed');
+      if (!tb || !feed) return 0;
+      let anchor = 0;
+      if (!tb.hidden && tb.offsetHeight > 0) {
+        const tr = tb.getBoundingClientRect();
+        const fr = feed.getBoundingClientRect();
+        // 只在标签栏确实位于内容区上方时才避让：主人可以在可视化布局里换顺序，
+        // 换过之后这里自动归零（不会凭空多出一段空白）。
+        if (tr.bottom <= fr.top + 4) {
+          anchor = Math.round(tr.height + Math.max(0, fr.top - tr.bottom) + 10);
+        }
+      }
+      document.documentElement.style.setProperty('--feed-anchor', anchor + 'px');
+      return anchor;
+    }
+
+    /** 带 #feed 进站（从别的页面点「内容」）时，内容异步到达后锚点位置还会变，重新对齐一次 */
+    function scrollToFeedIfHashed() {
+      if (location.hash !== '#feed') return;
+      const feed = $('feed');
+      if (!feed) return;
+      syncFeedAnchor();
+      feed.scrollIntoView({ block: 'start' });
+    }
+
+    /** 视口宽度变了 → 标签可能重新换行 → 标签栏高度变 → 锚点要重算 */
+    function setupFeedAnchor() {
+      window.addEventListener('resize', syncFeedAnchor);
+      window.addEventListener('load', () => { syncFeedAnchor(); scrollToFeedIfHashed(); });
+      window.addEventListener('hashchange', () => {
+        if (location.hash === '#feed') scrollToFeedIfHashed();
       });
     }
 
@@ -2657,6 +2742,16 @@
     const CAROUSEL_HARD_MAX = 20;         // 兜底上限，防止配置写出天文数字
     const CAROUSEL_MIN_INTERVAL = 1.5;    // 自动播放最小间隔（秒），再快会晕
 
+    /* 卡牌堆叠的参数 */
+    const CAROUSEL_VISIBLE = 5;                       // 同时可见 5 张
+    const CAROUSEL_HALF = Math.floor(CAROUSEL_VISIBLE / 2);   // 左右各 2 张（=可见的边界）
+    const CAROUSEL_CARD_RATIO = 0.75;                 // 竖屏卡片：宽 = 高 × 0.75（即 3:4）
+    const CAROUSEL_STEP_RATIO = 0.62;                 // 相邻两张的间距 = 卡宽 × 0.62（余下 38% 互相叠着）
+    // 按「离当前这张有多远」取值：越远越小、越淡（第 3 张之外直接 0）
+    const CAROUSEL_SCALE = [1, 0.88, 0.78, 0.7];
+    const CAROUSEL_OPACITY = [1, 0.62, 0.34, 0];
+    const CAROUSEL_ROT_DEG = 7;                       // 两侧卡片的倾斜角（度/每档）
+
     const carouselState = {
       slides: [],
       index: 0,
@@ -2665,7 +2760,9 @@
       paused: false,
       signature: '',    // 内容指纹：没变就不重建 DOM，免得把看到一半的轮播打回第一张
       bound: false,
-      cfg: null
+      cfg: null,
+      step: 0,          // 相邻卡片的横向间距（layoutCarousel 算出来）
+      layoutW: 0        // 上次算尺寸时的可用宽度，宽度没变就不重算
     };
 
     function reducedMotion() {
@@ -2731,9 +2828,7 @@
       const n = carouselState.slides.length;
       if (!n) return;
       carouselState.index = ((i % n) + n) % n;
-
-      const track = $('carouselTrack');
-      if (track) track.style.transform = 'translateX(' + (-carouselState.index * 100) + '%)';
+      applyCarouselLayout();
 
       const dots = $('carouselDots');
       if (dots) {
@@ -2745,6 +2840,66 @@
       }
       // 手动翻页后重新计时，免得刚点完就被自动播放抢走
       if (userAction && !carouselState.paused) startCarouselAutoplay();
+    }
+
+    /**
+     * 第 k 张卡离「当前这张」有多远（0 = 正中间，±1 = 左右各一张，可以越过一圈）。
+     * 为什么要绕圈算：首尾要相接 —— 第 1 张的左边那张就是最后一张，
+     * 这样任何时刻「可见的 5 张」永远填得满，两侧不会出现空位。
+     */
+    function carouselOffset(k) {
+      const n = carouselState.slides.length;
+      if (!n) return 0;
+      let d = (((k - carouselState.index) % n) + n) % n;      // 0 .. n-1
+      if (d > Math.floor(n / 2)) d -= n;                      // 折到负半边
+      return d;
+    }
+
+    /**
+     * 按可用宽度算一次卡片尺寸与间距（宽度没变就不重算）。
+     * · 竖屏卡片：宽 = 高 × 0.75（3:4），「轮播图高度」滑杆是**上限**；
+     * · 相邻间距：取「卡宽的 62%」与「刚好塞得下 5 张」的较小值 ——
+     *   窄屏上后者生效，于是 5 张挤成一叠、每张只露出一条边（卡牌堆叠的观感）。
+     */
+    function layoutCarousel() {
+      const viewport = $('carouselViewport');
+      const section = $('carousel');
+      if (!viewport || !section || viewport.hidden) return false;
+      const w = viewport.clientWidth;
+      if (!w) return false;
+      if (w === carouselState.layoutW) return false;   // 宽度没变：别白算，也避免 ResizeObserver 打转
+      carouselState.layoutW = w;
+
+      const maxH = parseFloat(getComputedStyle(section).getPropertyValue('--carousel-height')) || 320;
+      const cardW = Math.max(96, Math.min(w * 0.62, maxH * CAROUSEL_CARD_RATIO));
+      const cardH = Math.round(cardW / CAROUSEL_CARD_RATIO);
+      const stepMax = (w - cardW) / (2 * CAROUSEL_HALF + 0.2);   // 让最外边那张刚好留在视口内
+      carouselState.step = Math.round(Math.min(cardW * CAROUSEL_STEP_RATIO, Math.max(0, stepMax)));
+      viewport.style.setProperty('--carousel-card-w', Math.round(cardW) + 'px');
+      viewport.style.setProperty('--carousel-card-h', cardH + 'px');
+      return true;
+    }
+
+    /** 按距离摆好每一张卡：位移 / 倾斜 / 缩放 / 透明度 / 层级 */
+    function applyCarouselLayout() {
+      const track = $('carouselTrack');
+      if (!track) return;
+      const step = carouselState.step;
+      Array.prototype.forEach.call(track.children, (fig, k) => {
+        const d = carouselOffset(k);
+        const ad = Math.abs(d);
+        const far = ad > CAROUSEL_HALF;                  // 第 3 张之外：淡出、不可点、Tab 不到
+        const lv = Math.min(ad, CAROUSEL_SCALE.length - 1);
+        fig.style.setProperty('--dx', Math.round(d * step) + 'px');
+        fig.style.setProperty('--rot', (far ? 0 : -d * CAROUSEL_ROT_DEG) + 'deg');
+        fig.style.setProperty('--s', CAROUSEL_SCALE[lv]);
+        fig.style.setProperty('--o', far ? 0 : CAROUSEL_OPACITY[lv]);
+        fig.style.zIndex = String(100 - ad);             // 中间的压在最上面
+        fig.classList.toggle('is-current', ad === 0);
+        fig.classList.toggle('is-far', far);
+        fig.tabIndex = far ? -1 : 0;
+        fig.setAttribute('aria-hidden', far ? 'true' : 'false');
+      });
     }
 
     function stopCarouselAutoplay() {
@@ -2823,11 +2978,15 @@
         fig.tabIndex = 0;
         fig.setAttribute('role', 'button');
         fig.setAttribute('aria-label', (s.title ? s.title + ' — ' : '') + '点击看大图');
+        fig.dataset.index = String(k);
 
         const img = document.createElement('img');
         img.className = 'carousel-img';
-        // 前 3 张立刻要（首屏就看得到、翻页立刻有），其余先惰性、稍后后台预热
-        img.loading = k < 3 ? 'eager' : 'lazy';
+        // ⚠️ 堆叠布局下「首屏看得到」的不止开头几张：当前张在正中时，
+        //    最后 2 张会从左侧露出来（首尾相接）。所以要一起 eager，
+        //    否则刚进页面左边那两张是空的。
+        const firstView = k < Math.ceil(CAROUSEL_VISIBLE / 2) || k >= slides.length - CAROUSEL_HALF;
+        img.loading = firstView ? 'eager' : 'lazy';
         if (k === 0) img.setAttribute('fetchpriority', 'high');
         img.alt = s.title || '';
         img.dataset.full = s.src;                  // 看大图用原图
@@ -2859,7 +3018,7 @@
       guardImages(track, guardCarouselImage);
 
       // 首屏先不跟图片抢带宽；等页面闲下来再把剩下的图预热好，
-      // 这样翻到第 4 张时不会先白一下。
+      // 这样往两边翻时不会先白一下。
       clearTimeout(carouselState.preloadTimer);
       carouselState.preloadTimer = setTimeout(function preloadRest() {
         if (!carouselState.slides.length) return;
@@ -2949,6 +3108,9 @@
       $('carouselPrev').hidden = single;
       $('carouselNext').hidden = single;
 
+      // 卡片尺寸依赖可用宽度与高度上限，先把尺寸算好再摆位
+      carouselState.layoutW = 0;
+      layoutCarousel();
       showCarouselSlide(carouselState.index);
       startCarouselAutoplay();
     }
@@ -2970,17 +3132,24 @@
         showCarouselSlide(carouselState.index + 1, true);
       });
 
-      // 点图看大图（编辑器画布里不启用，免得干扰拖拽与选中）
+      // 点卡片：点旁边那几张 = 把它转到中间；点中间那张 = 看大图
+      // （编辑器画布里都不启用，免得干扰拖拽与选中）
       viewport.addEventListener('click', (e) => {
         if (IS_DESIGNER) return;
         const fig = e.target.closest('.carousel-slide');
         if (!fig) return;
+        const k = num(fig.dataset.index, -1);
+        if (k < 0) return;
+        e.stopPropagation();
+        if (k !== carouselState.index) {
+          showCarouselSlide(k, true);
+          return;
+        }
         const img = fig.querySelector('img');
         if (!img) return;
         // 优先用原图（src 是压过的缩图，放大看会糊）
         const full = img.dataset.full || img.getAttribute('src');
         if (!full) return;
-        e.stopPropagation();
         openLightbox(full, img.getAttribute('alt') || '');
       });
 
@@ -3022,6 +3191,19 @@
           showCarouselSlide(carouselState.index + (dx < 0 ? 1 : -1), true);
         }
       }, { passive: true });
+
+      // 可用宽度变了要重算卡片尺寸（横竖屏切换、窗口缩放、设计器里拉宽画布…）
+      const relayout = () => {
+        carouselState.layoutW = 0;
+        if (layoutCarousel()) applyCarouselLayout();
+      };
+      if (typeof ResizeObserver === 'function') {
+        // 只在宽度变化时才算（layoutCarousel 里用 layoutW 挡掉了高度变化引起的回调），
+        // 否则「改高度 → 触发回调 → 又改高度」会自己打转。
+        new ResizeObserver(relayout).observe(viewport);
+      } else {
+        window.addEventListener('resize', relayout);
+      }
 
       // 切回本标签页时重新对齐计时（后台标签里定时器会被浏览器节流）
       document.addEventListener('visibilitychange', () => {
@@ -3162,6 +3344,7 @@
       setupZoom();
       setupZoomKeyboard();
       setupCarousel();              // 轮播区的事件只挂一次（重建内容时不重复绑定）
+      setupFeedAnchor();            // 导航「内容」的锚点（让标签栏留在视野里）
       renderCarousel(null, DEFAULT_CAROUSEL);
 
       // ---- B1. 本地缓存：老访客走这条，几乎瞬开 ----
@@ -3240,6 +3423,10 @@
 
           // 存起来给下次访问用（只存能序列化的数据）
           writeCache(s, h, l, posts, cr);
+
+          // 内容与轮播都到位了，区块高度才稳定 —— 这时才谈得上把 #feed 锚点对准确
+          syncFeedAnchor();
+          scrollToFeedIfHashed();
         } catch (postErr) {
           // 文章拉失败：如果缓存已经顶上去了，就安静保留缓存内容；
           // 否则才展示错误，让主人知道要检查什么。
