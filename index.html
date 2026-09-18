@@ -3342,11 +3342,19 @@
       });
 
       // 鼠标移上去 / 键盘聚焦时暂停，走开再继续
+      /* ⚠️ 「继续」不能只把 paused 置回 false：拖拽激活时会 stopCarouselAutoplay() 把定时器清掉，
+         而拖拽必然伴随 mouseenter（paused=true），于是 endDrag 里那句「不暂停就重启」永远不成立
+         → 只要拖过一次，自动播放就再也不回来了。所以恢复播放时顺手确保定时器在
+         （startCarouselAutoplay 自己会先 stop，重复调用是幂等的）。 */
+      const resumeCarousel = () => {
+        carouselState.paused = false;
+        if (!carouselState.timer) startCarouselAutoplay();
+      };
       section.addEventListener('mouseenter', () => { carouselState.paused = true; });
-      section.addEventListener('mouseleave', () => { carouselState.paused = false; });
+      section.addEventListener('mouseleave', resumeCarousel);
       section.addEventListener('focusin', () => { carouselState.paused = true; });
       section.addEventListener('focusout', (e) => {
-        if (!section.contains(e.relatedTarget)) carouselState.paused = false;
+        if (!section.contains(e.relatedTarget)) resumeCarousel();
       });
 
       /* ---- 拖拽跟随：**只有手指按着的那一张**跟着走，其余卡片原地不动 ----
