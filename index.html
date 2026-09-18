@@ -505,6 +505,11 @@
        所以这里用 .has-bg 类把它排除掉，避免两处打架。 */
     @media (max-width: 960px) {
       header:not(.has-bg) { padding-right: var(--float-safe); }
+      /* 轮播区右上角那颗「进入画廊」按钮同理：窄屏时它正好落在悬浮按钮底下，
+         实测被盖住约 29px（首页那两颗圆按钮压在「进入画廊」字样上）。 */
+      .block[data-block="carousel"]:not(.has-bg) .carousel-head {
+        padding-right: var(--float-safe);
+      }
     }
 
     /* 可视化编辑器画布里不显示（它不属于任何可排布区块，会干扰点选） */
