@@ -44,10 +44,23 @@
  *   → 预检失败 → 真正的 POST 根本发不出去，页面上只看到一个莫名的失败。
  *   放查询串属于简单请求，不触发预检，跨域直接通。详见 uploadFile() 的注释。
  *
- * 【注册时机】
- *   registerMediaLibrary 必须发生在 CMS.init() 之前，否则配置里写 media_library 时
- *   会找不到已注册的库。admin/index.html 里已经设置了 window.CMS_MANUAL_INIT = true
- *   来阻止 Decap 自动初始化，加载完本文件后再手动 CMS.init()。
+ * 【上传前压缩：一律转 webp，尺寸不变】（2026-09-19 主人拍板）
+ *   原来写的是「原图直传、不改格式」，但实测主人这台机器的**上行只有 ~200KB/s**
+ *   （拿 Cloudflare 官方测速端点 speed.cloudflare.com/__up 量的：4.21MB 用了 21.7 秒，
+ *     同一时刻传到图床 4.21MB 用 23 秒 —— 也就是说那 20 多秒几乎全是「把字节送出去」，
+ *     图床本身只占一两秒，换任何图床都一样）。一张 4.2MB 的插画就是要等 22 秒，
+ *   主人反馈「卡很久，影响体验了」。
+ *   而主人的插画是大色块风格，PNG 对它极不划算 —— 拿图床里真实的三张量过：
+ *       1小时.png   3496x2480  4184KB → webp q92 同尺寸  385KB（9%）
+ *       1.png       2480x3508  2444KB → webp q92 同尺寸  284KB（12%）
+ *       伊吹8.2.png 1384x2501   611KB → webp q92 同尺寸   80KB（13%）
+ *   所以在浏览器里先转 webp（**尺寸一个像素都不动**）再传：22 秒 → 2 秒。
+ *
+ *   ⚠️ 下面几条是兜底，别删（任何一条丢了都可能让主人传不上图）：
+ *     · GIF（会丢动画）、SVG（矢量转栅格失真，而且本来就小）、已经是 webp 的 → 原样传
+ *     · 转完**没有更小** → 原样传（不能把本来就好好的图转坏）
+ *     · canvas 转不动（超大图 / 解码失败 / 老浏览器）→ 原样传
+ *     · 再造 File 时**必须带上原来的 lastModified** —— auto-date.js 靠它填「发布日期」
  */
 (function () {
   'use strict';
@@ -62,6 +75,14 @@
 
   var RECENT_KEY = 'imgbed_recent_v1';
   var RECENT_MAX = 30;
+
+  /* 上传前压缩用的 webp 质量。0.92 是实测过的：主人插画是大色块风格，
+     同尺寸下肉眼与 PNG 看不出差别，体积却只有 9%~13%。往下调会开始出现色带。 */
+  var WEBP_QUALITY = 0.92;
+
+  /* 上传超时：主人的上行只有 ~200KB/s，大图慢是正常的，这里只兜「彻底卡死」。
+     数据发完到图床回包之间不会推进度条，所以这个值要宽裕一点。 */
+  var UPLOAD_TIMEOUT_MS = 180000;
 
   /* 要盖住 Decap 自己的弹层（它的层级在几百量级，官方 Cloudinary 用的是 99999） */
   var Z = 999999;
@@ -110,6 +131,25 @@
     } catch (e) {
       return url;
     }
+  }
+
+  /*
+   * 面板里的小缩略图一律走 wsrv.nl 现缩（和前端页面同一套做法，见 index.html 的
+   * thumbImageUrl）—— 卡片最窄 112px，给 240px 够 2 倍屏。
+   *
+   * ⚠️⚠️ 千万别改回 img.src = item.url 直连原图：
+   *   「最近上传」最多存 30 条（RECENT_MAX），而主人图床里的插画单张 0.6~4.2MB。
+   *   直连原图 = 打开一次面板就下几十 MB，在 ~200KB/s 的宽带上直接把面板卡死。
+   *   主人报的「卡很久」，有一份就来自这里（和大图上传是两个独立原因）。
+   */
+  var THUMB_PROXY = 'https://wsrv.nl/?url=';
+  var THUMB_W = 240;
+
+  function thumbUrl(u) {
+    var s = String(u || '');
+    if (!isHttpUrl(s)) return s;
+    if (/^https?:\/\/wsrv\.nl\//i.test(s)) return s;      /* 已经是代理地址，别套娃 */
+    return THUMB_PROXY + encodeURIComponent(s) + '&w=' + THUMB_W + '&output=webp&q=80';
   }
 
   /* ============================================================
@@ -169,7 +209,123 @@
 
   /* ============================================================
      四、上传
+
+     4.0 上传前压缩（转 webp）
+     4.1 真正传上去
      ============================================================ */
+
+  /* ---------- 4.0 上传前压缩 ---------- */
+
+  /*
+   * 哪些文件不该转：
+   *   · GIF  —— canvas 只取第一帧，动图会变成静图
+   *   · SVG  —— 矢量，转栅格会失真，而且本来就几 KB
+   *   · webp —— 已经是了
+   * 其余图片（png / jpg / bmp …）都转。
+   */
+  function shouldConvert(file) {
+    var t = String(file.type || '').toLowerCase();
+    if (t === 'image/gif') return false;
+    if (t === 'image/svg+xml') return false;
+    if (t === 'image/webp') return false;
+    return /^image\//.test(t);
+  }
+
+  function renameToWebp(name) {
+    var s = String(name || 'image');
+    var m = /^(.*)\.[^.\/\\]+$/.exec(s);
+    return (m ? m[1] : s) + '.webp';
+  }
+
+  /* Chrome 的 canvas 单边上限是 16384；再往上还有总面积限制。
+     超过就干脆别转，原样传 —— 宁可慢，也不能传不上去。 */
+  var CANVAS_MAX_SIDE = 16384;
+
+  /**
+   * 把一张图转成同尺寸的 webp。
+   * @returns {Promise<Blob|null>} 失败/不该转时给 null，调用方原样传
+   */
+  function toWebp(file) {
+    return new Promise(function (resolve) {
+      if (typeof createImageBitmap !== 'function' && typeof window.Image !== 'function') {
+        resolve(null);
+        return;
+      }
+      var url = '';
+      var done = false;
+      function finish(blob) {
+        if (done) return;
+        done = true;
+        try { if (url) URL.revokeObjectURL(url); } catch (e) { /* ignore */ }
+        resolve(blob || null);
+      }
+
+      var img = new Image();
+      img.onload = function () {
+        try {
+          var w = img.naturalWidth || img.width || 0;
+          var h = img.naturalHeight || img.height || 0;
+          if (!w || !h || w > CANVAS_MAX_SIDE || h > CANVAS_MAX_SIDE) {
+            finish(null);
+            return;
+          }
+          var c = document.createElement('canvas');
+          c.width = w;               /* ★ 尺寸原样，只换编码 */
+          c.height = h;
+          var ctx = c.getContext('2d');
+          if (!ctx || typeof c.toBlob !== 'function') {
+            finish(null);
+            return;
+          }
+          /* 主人的插画有些是带透明背景的 PNG，白色底会把透明区涂死 */
+          ctx.drawImage(img, 0, 0, w, h);
+          c.toBlob(function (blob) { finish(blob); }, 'image/webp', WEBP_QUALITY);
+        } catch (e) {
+          finish(null);
+        }
+      };
+      img.onerror = function () { finish(null); };
+
+      try {
+        url = URL.createObjectURL(file);
+        img.src = url;
+      } catch (e) {
+        finish(null);
+      }
+    });
+  }
+
+  /**
+   * 决定这张图实际要传哪个 File。
+   * @returns {Promise<{file:File, converted:boolean, before:number, after:number}>}
+   */
+  function prepareFile(file) {
+    var passthrough = { file: file, converted: false, before: file.size, after: file.size };
+    if (!shouldConvert(file)) return Promise.resolve(passthrough);
+
+    return toWebp(file).then(function (blob) {
+      /* 没转出来、或者转完反而更大 → 原样传 */
+      if (!blob || !blob.size || blob.size >= file.size) return passthrough;
+      var nf;
+      try {
+        /*
+         * ★ lastModified 必须沿用原文件的 —— auto-date.js 拿它当「作品日期」
+         *   （对补发旧作品来说这才是主人要的），丢了就退化成"今天"。
+         */
+        nf = new File([blob], renameToWebp(file.name), {
+          type: 'image/webp',
+          lastModified: file.lastModified || Date.now(),
+        });
+      } catch (e) {
+        return passthrough;
+      }
+      return { file: nf, converted: true, before: file.size, after: nf.size };
+    }).catch(function () {
+      return passthrough;
+    });
+  }
+
+  /* ---------- 4.1 真正传上去 ---------- */
 
   /**
    * @param {Object} cfg   形如 {base, upload_channel, folder, auth_code, auth_code_config}
@@ -205,9 +361,18 @@
       var xhr = new XMLHttpRequest();
       xhr.open('POST', url, true);
 
+      /* 兜「彻底卡死」。主人的上行只有 ~200KB/s，大图慢是正常的，
+         所以这个值给得宽裕（见 UPLOAD_TIMEOUT_MS）。 */
+      xhr.timeout = UPLOAD_TIMEOUT_MS;
+
+      /* 用来区分超时超在哪一段：字节发完了 / 还没发完 */
+      var sentAll = false;
+
       if (xhr.upload && onProgress) {
         xhr.upload.onprogress = function (e) {
-          if (e.lengthComputable) onProgress(e.loaded / e.total);
+          if (!e.lengthComputable) return;
+          if (e.loaded >= e.total) sentAll = true;
+          onProgress(e.loaded / e.total, e.loaded, e.total);
         };
       }
 
@@ -246,7 +411,10 @@
         reject(new Error('连不上图床，检查网络或图床地址是否可访问：' + cfg.base));
       };
       xhr.ontimeout = function () {
-        reject(new Error('上传超时'));
+        var sec = Math.round(UPLOAD_TIMEOUT_MS / 1000);
+        reject(new Error(sentAll
+          ? '数据已经传完，但图床 ' + sec + ' 秒都没回话（图床那边可能在排队或转存，稍后再试）'
+          : '上传超时：数据还没传完（等了 ' + sec + ' 秒）。网络可能断了，重试一次。'));
       };
 
       xhr.send(fd);
@@ -513,8 +681,13 @@
         card.title = item.url;
         var img = document.createElement('img');
         img.loading = 'lazy';
+        img.decoding = 'async';
         img.alt = item.name || '';
-        img.src = item.url;
+        img.src = thumbUrl(item.url);
+        /* 代理挂了 / 缩图取不到 → 退回原图，绝不留破图标 */
+        img.onerror = function () {
+          if (img.getAttribute('src') !== item.url) img.setAttribute('src', item.url);
+        };
         card.appendChild(img);
         card.appendChild(el('span', null, item.name || fileNameOf(item.url)));
         card.onclick = function () {
@@ -605,13 +778,56 @@
           return;
         }
         var f = imgs[i];
-        say('ok', '正在上传 ' + (i + 1) + '/' + imgs.length + '：' + f.name + '（' + humanSize(f.size) + '）');
-        uploadFile(cfg, f, function (ratio) {
-          busy(true, (i + ratio) / imgs.length);
-        }).then(
+        var tag = (imgs.length > 1 ? (i + 1) + '/' + imgs.length + '：' : '') + f.name;
+        say('ok', '正在准备 ' + tag + '（' + humanSize(f.size) + '）…');
+
+        /* 压缩是异步的（解码 + 重编码），几千像素的插画约 1 秒 */
+        prepareFile(f).then(function (prep) {
+          var uf = prep.file;          /* 真正要传上去的那一个 */
+
+          if (prep.converted) {
+            say('ok', '已压缩 ' + humanSize(prep.before) + ' → ' + humanSize(prep.after) +
+              '（同尺寸 webp）。正在上传…');
+          } else {
+            say('ok', '正在上传 ' + tag + '（' + humanSize(uf.size) + '）…');
+          }
+
+          var t0 = Date.now();
+          var lastPaint = 0;
+          var sentNotified = false;
+
+          uploadFile(cfg, uf, function (ratio, loaded, total) {
+            var now = Date.now();
+            var isSent = loaded != null && total != null && loaded >= total;
+
+            /*
+             * 进度事件非常密（大文件一秒几十次），节流到 ~8fps。
+             * 不然光为了显示进度就把主线程占满 —— 那就成了「治卡顿的东西自己卡」。
+             */
+            if (!isSent && now - lastPaint < 120) return;
+            lastPaint = now;
+
+            busy(true, (i + ratio) / imgs.length);
+            if (loaded == null || total == null) return;
+
+            if (isSent) {
+              if (!sentNotified) {
+                sentNotified = true;
+                say('ok', '数据已传完（' + humanSize(total) + '），图床正在处理…');
+              }
+              return;
+            }
+
+            var sec = (Date.now() - t0) / 1000;
+            if (sec < 0.6) return;       /* 刚开始那一下算出来的速度没意义 */
+            var speed = loaded / sec;
+            var left = speed > 0 ? Math.max(0, (total - loaded) / speed) : 0;
+            say('ok', '正在上传 ' + tag + '　' + humanSize(loaded) + ' / ' + humanSize(total) +
+              '（' + humanSize(speed) + '/s，约还需 ' + (left < 1 ? '不到 1' : Math.round(left)) + ' 秒）');
+          }).then(
           function (res) {
             /* 单张时立刻收工，多张时攒齐再说 */
-            done.push({ url: res.url, name: res.name || f.name });
+            done.push({ url: res.url, name: res.name || uf.name });
 
             /*
              * ★ 广播给 /admin/auto-date.js：把这张图片「自己在磁盘上的修改时间」
@@ -621,22 +837,28 @@
              *   选出来就带着 —— 对「补发以前的作品」来说，这才是主人想要的日期，
              *   图床文件名里那串时间戳只是上传时刻（永远是今天），没用。
              *
+             *   ⚠️ 这里用**原始文件 f** 的 lastModified，不要用 uf（压缩产物）——
+             *      uf 是我们自己 new File 造的，虽然也带了 f.lastModified，
+             *      但直接用 f 最不容易出错。
+             *
              *   广播失败也绝不能影响上传，所以整段包 try。
              */
             try {
               window.dispatchEvent(new CustomEvent('imgbed:uploaded', {
                 detail: {
                   url: res.url,
-                  name: res.name || f.name,
+                  name: res.name || uf.name,
                   lastModified: f.lastModified,
-                  size: f.size
+                  size: uf.size
                 }
               }));
             } catch (e) { /* 老浏览器没有 CustomEvent，忽略 */ }
 
             if (!o.allowMultiple) {
               busy(false);
-              say('ok', '上传成功：' + f.name);
+              say('ok', '上传成功：' + uf.name + (prep.converted
+                ? '　' + humanSize(prep.before) + ' → ' + humanSize(prep.after)
+                : ''));
               renderRecent();
               setTimeout(function () {
                 finish(done);
@@ -653,6 +875,7 @@
             next();
           }
         );
+        });
       }
       next();
     }
