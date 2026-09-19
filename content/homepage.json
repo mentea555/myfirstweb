@@ -5,6 +5,6 @@
   "announcement": "",
   "about_enabled": true,
   "about_title": "关于Mentea",
-  "about_body": "这里是我存放作品与想法的地方\n\n后期会慢慢添加新功能",
+  "about_body": "这里是我存放作品与想法的地方\n\n后期会慢慢添加[新功能](#/about/)",
   "footer_text": "© 2026 Mentea.All rights reserved.\n\n{{<c:#FDDBDB>}}<a href=\"https://icp.gov.moe/?keyword=20267398\" target=\"_blank\">萌ICP备20267398号</a>{{</c>}}"
 }
