@@ -4,7 +4,7 @@
   "hero_subtitle": "记录作品、随笔与思考。",
   "announcement": "",
   "about_enabled": true,
-  "about_title": "关于<ahref=\"/about/\">Mentea</a>",
+  "about_title": "关于<a href=\"/about/\">Mentea</a>",
   "about_body": "这里是我存放作品与想法的地方\n\n后期会慢慢添加新功能",
   "footer_text": "© 2026 Mentea.All rights reserved.\n\n{{<c:#FDDBDB>}}<a href=\"https://icp.gov.moe/?keyword=20267398\" target=\"_blank\">萌ICP备20267398号</a>{{</c>}}"
 }
