@@ -6,15 +6,58 @@
   <meta name="robots" content="noindex, nofollow" />
   <title>内容管理后台 | Mentea's Web</title>
   <link href="/admin/config.yml" type="text/yaml" rel="cms-config-url" />
+  <link rel="stylesheet" href="/admin/skin.css?v=1" />
+  <!-- 提前握手：登录后 Decap 全程打 api.github.com，图床上传也早连 -->
+  <link rel="preconnect" href="https://api.github.com" crossorigin />
+  <link rel="dns-prefetch" href="https://api.github.com" />
+  <link rel="preconnect" href="https://cloudflare-imgbed-bnw.pages.dev" crossorigin />
+  <link rel="dns-prefetch" href="https://cloudflare-imgbed-bnw.pages.dev" />
+  <!--
+    ★ 预加载 4 个插件脚本：它们**必须在主脚本之后执行**（见下面注释，它们直接依赖 window.CMS），
+    但「下载」不必等 —— 主脚本 5MB 下载的同时就把这 79KB 一起拉回来，
+    等主脚本解析完就能立刻按顺序执行，省掉 4 个往返。
+    （只是下载，不会提前执行；加载顺序仍由下面的 loadPlugins 串行保证。）
+  -->
+  <link rel="preload" as="script" href="/admin/imgbed-media.js" />
+  <link rel="preload" as="script" href="/admin/tags-widget.js" />
+  <link rel="preload" as="script" href="/admin/auto-date.js" />
+  <link rel="preload" as="script" href="/admin/color-button.js" />
   <style>
     body {
       margin: 0;
       font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
     }
+    /* ★ 现代化启动屏：渐变标志 + 流动进度条（替代原白屏灰字） */
     #boot {
-      display: flex; align-items: center; justify-content: center;
-      height: 100vh; color: #64748b; font-size: 14px; line-height: 1.8; text-align: center;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 22px; height: 100vh; background: #f7f8fc; color: #475569;
+      font-size: 14px; line-height: 1.8; text-align: center; user-select: none;
     }
+    #boot .logo {
+      width: 64px; height: 64px; border-radius: 18px;
+      background: linear-gradient(135deg, #6366f1, #a855f7);
+      color: #fff; font-size: 30px; font-weight: 800; line-height: 64px;
+      box-shadow: 0 12px 32px rgba(99, 102, 241, .38);
+      animation: bootFloat 2.4s ease-in-out infinite;
+    }
+    @keyframes bootFloat {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-6px); }
+    }
+    #boot .bar {
+      width: 220px; height: 6px; border-radius: 999px; overflow: hidden;
+      background: #e2e8f0;
+    }
+    #boot .bar i {
+      display: block; width: 40%; height: 100%; border-radius: 999px;
+      background: linear-gradient(90deg, #6366f1, #a855f7);
+      animation: bootSlide 1.3s ease-in-out infinite;
+    }
+    @keyframes bootSlide {
+      0% { transform: translateX(-110%); }
+      100% { transform: translateX(560%); }
+    }
+    #bootHint { max-width: 30em; }
     /* 右下角入口：跳到可视化布局编辑器 */
     #designer-entry {
       position: fixed;
@@ -44,9 +87,12 @@
 </head>
 <body>
   <div id="boot">
-    正在加载内容管理后台...<br />
-    <span id="bootHint">如果 15 秒后还停在这一步，可以点下面的按钮换个线路重试。</span>
-    <br /><br />
+    <div class="logo">M</div>
+    <div class="bar"><i></i></div>
+    <div>
+      正在加载内容管理后台...<br />
+      <span id="bootHint">如果 15 秒后还停在这一步，可以点下面的按钮换个线路重试。</span>
+    </div>
     <button id="bootRetry" style="display:none;padding:9px 18px;border:0;border-radius:8px;background:#6366f1;color:#fff;font-size:13px;font-weight:600;cursor:pointer;">
       换线路重试
     </button>
@@ -95,17 +141,21 @@
   <script>
     /*
      * Decap CMS 主脚本体积约 5MB，加载源很关键：
+     *   0. ★ 首选本仓库自托管 /admin/vendor/decap-cms.js（3.16.2 固定版）——
+     *      与站点同域，走 Vercel 边缘节点，不用每次回源 jsDelivr/unpkg 慢慢拉；
+     *      主站静态文件有长缓存，二次打开基本秒进。
      *   1. unpkg.com 在国内经常很慢，且带 `^` 范围写法会多一次 302 跳转；
-     *   2. 这里按 jsDelivr → unpkg(精确版本) → unpkg(范围) 依次回退，
+     *   2. 这里按 本地 → jsDelivr → unpkg(精确版本) → unpkg(范围) 依次回退，
      *      任一加载成功即接管页面，避免单点故障把后台卡死。
      */
     (function () {
       var SRC = {
+        local: '/admin/vendor/decap-cms-3.16.2.js',
         jsdelivr: 'https://cdn.jsdelivr.net/npm/decap-cms@3/dist/decap-cms.js',
         unpkgPin: 'https://unpkg.com/decap-cms@3/dist/decap-cms.js',
         unpkgRange: 'https://unpkg.com/decap-cms@^3.0.0/dist/decap-cms.js'
       };
-      var order = ['jsdelivr', 'unpkgPin', 'unpkgRange'];
+      var order = ['local', 'jsdelivr', 'unpkgPin', 'unpkgRange'];
       var idx = 0;
       var done = false;
       var timer = null;

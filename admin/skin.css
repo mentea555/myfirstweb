@@ -1,0 +1,446 @@
+/* ============================================================
+ * skin.css —— 后台外观皮肤（现代 · 浅色）
+ * ------------------------------------------------------------
+ * ⚠️ Decap 3.16 的类名是 emotion 生成的哈希名，但**哈希里带组件名**
+ *   （例如 css-1ff92bv-SidebarContainer-card-card），所以用
+ *   [class*="SidebarContainer"] 这种「片段匹配」是稳的。
+ *
+ * ⚠️ 两个必须遵守的写法：
+ *   1. **每条选择器前面挂 body**（`body [class*="X"]`）。
+ *      emotion 的样式是 CMS 启动后才注入 <head> 的，位置在本文件之后；
+ *      同权重下后者胜出。`body [class*=...]` 权重 (0,1,1) 高于单个类 (0,1,0)，
+ *      这样才压得住，不必满屏 !important。
+ *   2. 动的是**颜色/圆角/阴影/间距**，不动 display/定位 —— 免得把布局搞散。
+ *
+ * ⚠️ 升级 /admin/vendor/decap-cms.js 后请重跑 tools/verify-admin-skin.js，
+ *   类名片段可能变（脚本会断言关键片段还在）。
+ * ============================================================ */
+
+:root {
+  --sk-accent: #6366f1;
+  --sk-accent-2: #a855f7;
+  --sk-accent-soft: #eef0fe;
+  --sk-bg: #f5f6fa;
+  --sk-surface: #ffffff;
+  --sk-line: #e9ebf2;
+  --sk-line-strong: #dfe2ec;
+  --sk-text: #1e2233;
+  --sk-text-2: #5b6178;
+  --sk-text-3: #8f95ab;
+  --sk-radius: 14px;
+  --sk-radius-sm: 10px;
+  --sk-shadow-sm: 0 1px 2px rgba(24, 28, 48, .05);
+  --sk-shadow: 0 4px 16px rgba(24, 28, 48, .07);
+  --sk-shadow-lg: 0 18px 48px rgba(24, 28, 48, .14);
+  --sk-font: "Inter", -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+}
+
+/* ==================== 基底 ==================== */
+body,
+body [class*="AppMainContainer"],
+body [class*="CollectionContainer"],
+body [class*="EditorContainer"] {
+  font-family: var(--sk-font);
+  -webkit-font-smoothing: antialiased;
+}
+body [class*="AppMainContainer"] {
+  background: var(--sk-bg) !important;
+  color: var(--sk-text);
+}
+
+::selection { background: rgba(99, 102, 241, .22); }
+
+/* 细一点的滚动条 */
+body ::-webkit-scrollbar { width: 10px; height: 10px; }
+body ::-webkit-scrollbar-track { background: transparent; }
+body ::-webkit-scrollbar-thumb {
+  background: #d5d9e6; border: 3px solid transparent; border-radius: 999px;
+  background-clip: padding-box;
+}
+body ::-webkit-scrollbar-thumb:hover { background: #bcc2d4; background-clip: padding-box; border: 3px solid transparent; }
+
+/* 键盘可达性：统一焦点环 */
+body :focus-visible { outline: 2px solid rgba(99, 102, 241, .55); outline-offset: 2px; }
+
+/* ==================== 顶部条 ==================== */
+body header[class*="AppHeader"] {
+  background: rgba(255, 255, 255, .86) !important;
+  backdrop-filter: saturate(160%) blur(12px);
+  border-bottom: 1px solid var(--sk-line) !important;
+  box-shadow: none !important;
+}
+body [class*="AppHeaderNavLink"] {
+  border-radius: 999px !important;
+  border: 0 !important;
+  color: var(--sk-text-2) !important;
+  font-weight: 600 !important;
+  letter-spacing: .2px;
+  transition: background .16s ease, color .16s ease;
+}
+body [class*="AppHeaderNavLink"]:hover { background: #f1f2f8 !important; color: var(--sk-text) !important; }
+/* ⚠️ 选中态必须用真实标记类 .header-link-active / .sidebar-active：
+   emotion 会把「所有变体名」都塞进 class 串（每个链接都带 buttonActive、
+   sidebarNavLinkActive 字样），用 [class*="...Active"] 匹配会把未选中项一起点亮。 */
+body [class*="AppHeaderNavLink"].header-link-active {
+  background: var(--sk-accent-soft) !important;
+  color: var(--sk-accent) !important;
+}
+body [class*="AppHeaderNavLink"].header-link-active * { color: var(--sk-accent) !important; }
+body [class*="AppHeaderSiteLink"] { color: var(--sk-text-3) !important; font-weight: 500 !important; }
+body [class*="AppHeaderSiteLink"]:hover { color: var(--sk-accent) !important; }
+body [class*="AvatarDropdownButton"],
+body [class*="AvatarPlaceholderIcon"] {
+  background: linear-gradient(135deg, var(--sk-accent), var(--sk-accent-2)) !important;
+  color: #fff !important;
+  border: 0 !important;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, .35) !important;
+}
+
+/* ==================== 按钮（通用） ==================== */
+/* 主按钮：与站点同款渐变 */
+body [class*="PublishButton"],
+body [class*="CollectionTopNewButton"],
+body [class*="AppHeaderQuickNewButton"] {
+  background: linear-gradient(135deg, var(--sk-accent), var(--sk-accent-2)) !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  color: #fff !important;
+  font-weight: 600 !important;
+  box-shadow: 0 6px 18px rgba(99, 102, 241, .32) !important;
+  transition: transform .16s ease, box-shadow .16s ease, filter .16s ease;
+}
+body [class*="PublishButton"]:hover,
+body [class*="CollectionTopNewButton"]:hover,
+body [class*="AppHeaderQuickNewButton"]:hover {
+  filter: brightness(1.06);
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(99, 102, 241, .42) !important;
+}
+body [class*="PublishButton"] * ,
+body [class*="CollectionTopNewButton"] *,
+body [class*="AppHeaderQuickNewButton"] * { color: #fff !important; }
+
+/* 次级/中性按钮 */
+body [class*="ToolbarButton"]:not([class*="PublishButton"]),
+body [class*="ControlButton"],
+body [class*="ViewControlsButton"],
+body [class*="StyledToolbarButton"],
+body [class*="ToolbarToggle"] {
+  border-radius: 999px !important;
+  border: 1px solid var(--sk-line-strong) !important;
+  background: #fff !important;
+  color: var(--sk-text-2) !important;
+  font-weight: 600 !important;
+  transition: background .16s ease, border-color .16s ease, color .16s ease;
+}
+body [class*="ToolbarButton"]:not([class*="PublishButton"]):hover,
+body [class*="ControlButton"]:hover,
+body [class*="ViewControlsButton"]:hover,
+body [class*="StyledToolbarButton"]:hover,
+body [class*="ToolbarToggle"]:hover {
+  background: #f6f7fc !important;
+  border-color: #cfd4e6 !important;
+  color: var(--sk-text) !important;
+}
+/* 危险操作（删除）保持柔和红 */
+body [class*="DeleteButton"] {
+  background: #fff !important;
+  border: 1px solid #f6cdd2 !important;
+  color: #d6455b !important;
+}
+body [class*="DeleteButton"]:hover { background: #fdf2f4 !important; border-color: #f0b5bd !important; }
+body [class*="DeleteButton"] * { color: #d6455b !important; }
+
+/* 圆角图标按钮（预览/编辑切换） */
+body [class*="ButtonRound"] {
+  border-radius: 12px !important;
+  border: 1px solid var(--sk-line-strong) !important;
+  background: #fff !important;
+  color: var(--sk-text-2) !important;
+}
+body [class*="ButtonRound"]:hover { background: var(--sk-accent-soft) !important; color: var(--sk-accent) !important; }
+
+/* ==================== 侧栏 ==================== */
+body [class*="SidebarContainer"] {
+  background: var(--sk-surface) !important;
+  border: 1px solid var(--sk-line) !important;
+  border-radius: var(--sk-radius) !important;
+  box-shadow: var(--sk-shadow-sm) !important;
+}
+body [class*="SidebarHeading"] {
+  color: var(--sk-text-3) !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: .12em !important;
+  text-transform: uppercase;
+}
+body [class*="SearchInput"] {
+  background: #f4f5fa !important;
+  border: 1px solid transparent !important;
+  border-radius: var(--sk-radius-sm) !important;
+  color: var(--sk-text) !important;
+  /* ⚠️ 左侧必须留出放大镜的位置：默认样式就是靠 padding-left 让位的，
+     覆盖 padding 时漏掉会导致图标压住 placeholder 文字（"earch all"） */
+  padding: 9px 12px 9px 34px !important;
+  transition: background .16s ease, border-color .16s ease, box-shadow .16s ease;
+}
+body [class*="SearchInput"]:focus {
+  background: #fff !important;
+  border-color: rgba(99, 102, 241, .5) !important;
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, .12) !important;
+  outline: none !important;
+}
+body [class*="SidebarNavLink"] {
+  border-radius: var(--sk-radius-sm) !important;
+  border: 0 !important;
+  box-shadow: none !important;      /* 默认选中态会挂一条粗色条，这里拍掉，只用胶囊底色表达选中 */
+  color: var(--sk-text-2) !important;
+  font-weight: 600 !important;
+  transition: background .16s ease, color .16s ease;
+}
+body [class*="SidebarNavLink"]:hover { background: #f4f5fa !important; color: var(--sk-text) !important; }
+body [class*="SidebarNavLink"].sidebar-active {
+  background: var(--sk-accent-soft) !important;
+  color: var(--sk-accent) !important;
+}
+body [class*="SidebarNavLink"].sidebar-active * { color: var(--sk-accent) !important; }
+
+/* ==================== 列表页 ==================== */
+body [class*="CollectionTopContainer"] {
+  background: var(--sk-surface) !important;
+  border: 1px solid var(--sk-line) !important;
+  border-radius: var(--sk-radius) !important;
+  box-shadow: var(--sk-shadow-sm) !important;
+}
+body [class*="CollectionTopHeading"] { color: var(--sk-text) !important; font-weight: 700 !important; letter-spacing: -.01em; }
+body [class*="CollectionTopDescription"] { color: var(--sk-text-2) !important; line-height: 1.85 !important; }
+body [class*="CardsGrid"] { background: transparent !important; }
+
+body [class*="ListCard"] {
+  background: var(--sk-surface) !important;
+  border: 1px solid var(--sk-line) !important;
+  border-radius: var(--sk-radius-sm) !important;
+  box-shadow: var(--sk-shadow-sm) !important;
+  transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease;
+}
+body [class*="ListCard"]:hover {
+  border-color: rgba(99, 102, 241, .45) !important;
+  box-shadow: var(--sk-shadow) !important;
+  transform: translateY(-1px);
+}
+body [class*="ListCardLink"] { color: var(--sk-text) !important; }
+body [class*="ListCardTitle"] { color: var(--sk-text) !important; font-weight: 600 !important; }
+body [class*="TitleIcons"] { color: var(--sk-accent) !important; }
+
+/* 视图切换 / 排序那一行 */
+body [class*="CollectionControlsContainer"] { color: var(--sk-text-2) !important; }
+
+/* ==================== 编辑器 ==================== */
+body [class*="ToolbarContainer"] {
+  background: rgba(255, 255, 255, .92) !important;
+  backdrop-filter: saturate(160%) blur(10px);
+  border-bottom: 1px solid var(--sk-line) !important;
+  box-shadow: none !important;
+}
+body [class*="ToolbarSectionBackLink"] { color: var(--sk-text-3) !important; }
+body [class*="ToolbarSectionBackLink"]:hover { color: var(--sk-accent) !important; }
+body [class*="BackCollection"] { color: var(--sk-text) !important; font-weight: 600 !important; }
+body [class*="BackArrow"] { color: var(--sk-text-3) !important; }
+
+/* 状态徽标（草稿 / 已修改 / 已发布） */
+body [class*="BackStatus"],
+body [class*="textBadge"] {
+  border-radius: 999px !important;
+  padding: 3px 10px !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: .02em;
+  background: #f4f5fa !important;
+  color: var(--sk-text-2) !important;
+  border: 1px solid var(--sk-line) !important;
+}
+body [class*="textBadgeDanger"] { background: #fdf2f4 !important; color: #d6455b !important; border-color: #f6cdd2 !important; }
+body [class*="textBadgeSuccess"] { background: #eefaf3 !important; color: #1a8f5a !important; border-color: #cdeedd !important; }
+
+body [class*="ControlPaneContainer"],
+body [class*="PreviewPaneContainer"] { background: var(--sk-bg) !important; }
+body [class*="StyledSplitPane"] { background: var(--sk-bg) !important; }
+body [class*="StyledSplitPane"], body [class*="StyledSplitPane"] .Pane {
+  border: 0 !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+body .Resizer {
+  background: transparent !important;
+  border: 0 !important;
+  opacity: 1 !important;
+  transition: background .16s ease;
+}
+/* 细线就好：悬停淡染色、真按住拖才实色（太粗会像一条蓝杠横在中间） */
+body .Resizer:hover { background: rgba(99, 102, 241, .22) !important; }
+body .Resizer:active { background: var(--sk-accent) !important; }
+
+/* 字段块：白卡片 + 悬停高亮；间距收紧一点，别一片空 */
+body [class*="ControlContainer"] {
+  background: var(--sk-surface) !important;
+  border: 1px solid var(--sk-line) !important;
+  border-radius: var(--sk-radius) !important;
+  box-shadow: var(--sk-shadow-sm) !important;
+  margin-top: 18px !important;
+  /* ★ 默认 padding 是 0 → 输入框边框紧贴卡片边框，看着像「双线」。
+     给内边距，标签与控件才有呼吸感。 */
+  padding: 16px 18px !important;
+  transition: border-color .18s ease, box-shadow .18s ease;
+}
+body [class*="ControlContainer"]:hover { border-color: #d9dced !important; box-shadow: var(--sk-shadow) !important; }
+body [class*="ControlTopbar"] { background: transparent !important; border: 0 !important; padding: 0 0 8px !important; }
+body [class*="FieldLabel"] {
+  /* ★ 默认是 #dfdfe3 灰底、3px 圆角的「文件夹小标签」，很土 → 拍平成干净的标题 */
+  background: transparent !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  margin: 0 !important;
+  font-size: 12.5px !important;
+  letter-spacing: .01em;
+  color: var(--sk-text) !important;
+  font-weight: 600 !important;
+}
+body [class*="ControlHint"] {
+  color: var(--sk-text-3) !important;
+  font-size: 12px !important;
+  line-height: 1.75 !important;
+  margin-top: 8px !important;
+}
+body [class*="PreviewPaneFrame"] { background: #fff !important; border-radius: var(--sk-radius) !important; border: 1px solid var(--sk-line) !important; }
+
+/* 输入框 / 文本域 / 下拉 */
+body [class*="TextControl"] input,
+body [class*="TextControl"] textarea,
+body [class*="DateTimeControl"] input,
+body [class*="DateTimeControl"] button,
+body [class*="NumberControl"] input,
+body [class*="SelectControl"] select,
+body [class*="ListControl"],
+body [class*="ObjectControl"] > input,
+body [class*="StringControl"] input,
+body [class*="MarkdownControl"] textarea {
+  background: #fbfbfe !important;
+  border: 1px solid var(--sk-line-strong) !important;
+  border-radius: var(--sk-radius-sm) !important;
+  color: var(--sk-text) !important;
+  transition: border-color .16s ease, box-shadow .16s ease, background .16s ease;
+}
+body [class*="TextControl"] input:focus,
+body [class*="TextControl"] textarea:focus,
+body [class*="DateTimeControl"] input:focus,
+body [class*="StringControl"] input:focus {
+  background: #fff !important;
+  border-color: rgba(99, 102, 241, .55) !important;
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, .12) !important;
+  outline: none !important;
+}
+body [class*="TextControl"] input::placeholder,
+body [class*="TextControl"] textarea::placeholder { color: #a9aec2 !important; }
+
+/* 开关（布尔字段） */
+body [class*="ToggleBackground"] {
+  border-radius: 999px !important;
+  background: #e3e6f0 !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+body [class*="ToggleBackground"][class*="BooleanBackground-css"] { background: #e3e6f0 !important; }
+body [class*="ToggleContainer"] { position: relative; }
+body [class*="ToggleHandle"] { box-shadow: 0 1px 3px rgba(24, 28, 48, .25) !important; }
+/* 打开态：emotion 用行内背景色，这里按结构补一层渐变 */
+body [class*="ToggleBackground"][style*="rgb(99, 102, 241)"],
+body [class*="ToggleBackground"][style*="#6366f1"] { background: linear-gradient(135deg, var(--sk-accent), var(--sk-accent-2)) !important; }
+
+/* 富文本：工具栏 + 正文 */
+body [class*="EditorControlBar"] {
+  background: #f7f8fc !important;
+  border: 1px solid var(--sk-line) !important;
+  border-radius: var(--sk-radius-sm) var(--sk-radius-sm) 0 0 !important;
+}
+body [class*="StyledToolbarButton"],
+body [class*="ToolbarDropdownWrapper"] {
+  border: 0 !important;
+  background: transparent !important;
+  border-radius: 8px !important;
+}
+body [class*="StyledToolbarButton"]:hover { background: #eceffb !important; }
+body [class*="ToolbarToggleLabel"] { color: var(--sk-text-2) !important; font-weight: 600 !important; }
+body [class*="editorStyles"] {
+  background: #fff !important;
+  border: 1px solid var(--sk-line) !important;
+  border-radius: 0 0 var(--sk-radius-sm) var(--sk-radius-sm) !important;
+  color: var(--sk-text) !important;
+  line-height: 1.9 !important;
+}
+body [class*="editorStyles"] h2,
+body [class*="editorStyles"] h3 { color: var(--sk-text) !important; font-weight: 700 !important; }
+body [class*="editorStyles"] blockquote {
+  border-left: 3px solid var(--sk-accent) !important;
+  background: var(--sk-accent-soft) !important;
+  border-radius: 0 var(--sk-radius-sm) var(--sk-radius-sm) 0 !important;
+  color: var(--sk-text-2) !important;
+}
+body [class*="editorStyles"] code,
+body [class*="editorStyles"] pre {
+  background: #f4f5fa !important;
+  border-radius: 8px !important;
+  color: #b4305c !important;
+}
+body [class*="editorStyles"] a { color: var(--sk-accent) !important; }
+
+/* ==================== 弹层 / 下拉 / 提示 ==================== */
+body [class*="DropdownButton"] + div,
+body [class*="StyledWrapper"] [role="menu"],
+body [class*="DropdownList"] { border-radius: var(--sk-radius-sm) !important; }
+
+body [role="dialog"],
+body [class*="Modal"],
+body [class*="Dialog"] {
+  border-radius: 18px !important;
+  box-shadow: var(--sk-shadow-lg) !important;
+  border: 1px solid var(--sk-line) !important;
+}
+body [class*="DialogHeader"], body [class*="ModalHeader"] { border-bottom: 1px solid var(--sk-line) !important; }
+body [class*="DialogFooter"], body [class*="ModalFooter"] { border-top: 1px solid var(--sk-line) !important; }
+
+/* Toast 通知 */
+body .Toastify__toast {
+  border-radius: var(--sk-radius) !important;
+  box-shadow: var(--sk-shadow-lg) !important;
+  font-family: var(--sk-font) !important;
+}
+
+/* ==================== 自定义控件：标签（twg-*）= */
+body .tgw-wrap { gap: 8px !important; }
+body .tgw-chip {
+  background: var(--sk-accent-soft) !important;
+  border: 1px solid #dfe2fb !important;
+  border-radius: 999px !important;
+  color: var(--sk-accent) !important;
+  font-weight: 600 !important;
+}
+body .tgw-chip-text { color: var(--sk-accent) !important; }
+body .tgw-chip-x { color: #8f95ab !important; }
+body .tgw-chip-x:hover { color: #d6455b !important; }
+body .tgw-input {
+  border-radius: var(--sk-radius-sm) !important;
+  border: 1px solid var(--sk-line-strong) !important;
+  background: #fbfbfe !important;
+  color: var(--sk-text) !important;
+}
+body .tgw-input:focus {
+  background: #fff !important;
+  border-color: rgba(99, 102, 241, .55) !important;
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, .12) !important;
+  outline: none !important;
+}
+body .tgw-count { color: var(--sk-text-3) !important; }
+body .tgw-box { border: 0 !important; background: transparent !important; }
+
+/* 自动日期插件在字段下插的说明 */
+body .ad-tip { color: var(--sk-text-3) !important; }
