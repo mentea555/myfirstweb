@@ -13,13 +13,14 @@
   <link rel="preconnect" href="https://cloudflare-imgbed-bnw.pages.dev" crossorigin />
   <link rel="dns-prefetch" href="https://cloudflare-imgbed-bnw.pages.dev" />
   <!--
-    ★ 预加载 4 个插件脚本：它们**必须在主脚本之后执行**（见下面注释，它们直接依赖 window.CMS），
-    但「下载」不必等 —— 主脚本 5MB 下载的同时就把这 79KB 一起拉回来，
-    等主脚本解析完就能立刻按顺序执行，省掉 4 个往返。
+    ★ 预加载 5 个插件脚本：它们**必须在主脚本之后执行**（见下面注释，它们直接依赖 window.CMS），
+    但「下载」不必等 —— 主脚本 5MB 下载的同时就把这些一起拉回来，
+    等主脚本解析完就能立刻按顺序执行，省掉几个往返。
     （只是下载，不会提前执行；加载顺序仍由下面的 loadPlugins 串行保证。）
   -->
   <link rel="preload" as="script" href="/admin/imgbed-media.js" />
   <link rel="preload" as="script" href="/admin/tags-widget.js" />
+  <link rel="preload" as="script" href="/admin/carousel-slots.js" />
   <link rel="preload" as="script" href="/admin/auto-date.js" />
   <link rel="preload" as="script" href="/admin/color-button.js" />
   <style>
@@ -172,12 +173,22 @@
          * CMS 主脚本已就绪，但此刻**还不能**直接 CMS.init()：
          * 必须先把自注册的东西装上，否则 config.yml 里引用了它们的地方
          * 查不到实现，后台会直接配置报错。顺序如下：
-         *   ① /admin/imgbed-media.js —— 图床媒体库（media_library.name = imgbed）
-         *   ② /admin/tags-widget.js  —— 自定义标签控件（widget: tags）
-         *   ③ /admin/auto-date.js    —— 自动日期（不注册任何东西，只监听 DOM 与
-         *                               图床上传事件；放在最后，万一挂了也不影响后台）
+         *   ① /admin/imgbed-media.js   —— 图床媒体库（media_library.name = imgbed）
+         *   ② /admin/tags-widget.js    —— 自定义标签控件（widget: tags）
+         *   ③ /admin/carousel-slots.js —— 轮播图占位提示（不注册 widget，只给内置的
+         *                                 「加入首页轮播图」开关外挂一块面板 + 满员拦截）
+         *   ④ /admin/auto-date.js      —— 自动日期（不注册任何东西，只监听 DOM 与
+         *                                 图床上传事件；放在最后，万一挂了也不影响后台）
          */
-        loadPlugins(['/admin/imgbed-media.js', '/admin/tags-widget.js', '/admin/auto-date.js'], start);
+        loadPlugins(
+          [
+            '/admin/imgbed-media.js',
+            '/admin/tags-widget.js',
+            '/admin/carousel-slots.js',
+            '/admin/auto-date.js',
+          ],
+          start
+        );
       }
 
       /*

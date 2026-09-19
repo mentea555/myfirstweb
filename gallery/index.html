@@ -802,6 +802,20 @@
       return hits.length ? hits : null;
     }
 
+    /**
+     * 单路超时。raw 在墙内经常是「连得上但不回数据」的黑洞，
+     * 不设超时就会一直挂着，把整页拖到浏览器默认超时（几十秒）——
+     * /about/ 之前就是因为这个偶发地整块空白（bio 与社交链接全没了）。
+     */
+    const SRC_TIMEOUT_MS = 4000;
+
+    function fetchWithTimeout(url, ms) {
+      if (typeof AbortController !== 'function') return fetch(url, { cache: 'default' });
+      const ctl = new AbortController();
+      const timer = setTimeout(() => ctl.abort(), ms);
+      return fetch(url, { cache: 'default', signal: ctl.signal }).finally(() => clearTimeout(timer));
+    }
+
     const textSources = [
       // 1) 本站代理（带 PAT 时 5000/h，不带时也走得到）
       //    ⚠️ 故意不带 ?t= 时间戳：带了会让 Vercel CDN 缓存失效，变成
@@ -825,7 +839,7 @@
       for (const build of textSources) {
         const url = build(path);
         try {
-          const res = await fetch(url, { cache: 'default' });
+          const res = await fetchWithTimeout(url, SRC_TIMEOUT_MS);
           if (!res.ok) { lastErr = new Error('HTTP ' + res.status); continue; }
           const text = await res.text();
           if (text && text.trim()) return { text, from: url };

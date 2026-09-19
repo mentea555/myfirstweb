@@ -1379,6 +1379,20 @@
     ];
 
     /**
+     * 单路超时。raw 在墙内经常是「连得上但不回数据」的黑洞，
+     * 不设超时就会一直挂着，把整页拖到浏览器默认超时（几十秒）——
+     * /about/ 之前就是因为这个偶发地整块空白（bio 与社交链接全没了）。
+     */
+    const SRC_TIMEOUT_MS = 4000;
+
+    function fetchWithTimeout(url, ms) {
+      if (typeof AbortController !== 'function') return fetch(url, { cache: 'default' });
+      const ctl = new AbortController();
+      const timer = setTimeout(() => ctl.abort(), ms);
+      return fetch(url, { cache: 'default', signal: ctl.signal }).finally(() => clearTimeout(timer));
+    }
+
+    /**
      * 按顺序尝试各路数据源，返回第一个成功响应的文本。
      * 用「顺序」而不是「全部并发」是有意的：jsDelivr 大多命中缓存、够快，
      * 没必要为了抢几十毫秒而把三个源的请求都打满。
@@ -1392,7 +1406,7 @@
       for (const build of textSources) {
         const url = build(path);
         try {
-          const res = await fetch(url, { cache: 'default' });
+          const res = await fetchWithTimeout(url, SRC_TIMEOUT_MS);
           if (!res.ok) { lastErr = new Error('HTTP ' + res.status); continue; }
           const text = await res.text();
           if (text && text.trim()) return { text, from: url };

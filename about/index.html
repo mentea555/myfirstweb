@@ -408,19 +408,88 @@
     };
     const GH_SLUG = SITE.user + '/' + SITE.repo;
 
-    /* 内容源：与主站同一套「实时优先、稳定兜底」顺序 */
+    /* ============================================================
+       内容源链：与主站 index.html / gallery 完全对齐
+       ------------------------------------------------------------
+       ⚠️ 这里以前只有「raw → jsDelivr → ghproxy」三路，而且**第一路就是
+       raw.githubusercontent.com** —— 那个域名在国内**时通时断**。
+
+       通了整页正常；断了要等浏览器自己超时（几十秒）才换下一路，
+       表现就是主人遇到的「偶发地整块空白 / 加载慢得离谱」：
+       bio、社交链接全没了，只剩头像和名字（那两样走的是本地默认值）。
+
+       现在补上主站早就有的两路：
+         第 0 路 /api/bundle —— 1 个请求带回整个 content/（1 点配额）
+         第 1 路 /api/file   —— 本站 Vercel 代理，同域、最稳最快
+       并且给**每一路加单路超时**：任何一路卡成黑洞都不会拖住整页。
+       ============================================================ */
+    let bundleFiles = null;
+    let bundlePromise = null;
+
+    function loadBundle() {
+      if (!bundlePromise) {
+        bundlePromise = fetch('/api/bundle', { cache: 'default' })
+          .then((r) => (r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status))))
+          .then((j) => {
+            if (!j || j.ok !== true || !j.files) throw new Error('返回格式异常');
+            bundleFiles = j.files;
+            return bundleFiles;
+          })
+          .catch((e) => {
+            console.warn('bundle 不可用，改用逐文件读取：', e && e.message);
+            return null;
+          });
+      }
+      return bundlePromise;
+    }
+
+    const BUNDLE_WAIT_MS = 2500;
+
+    /** 从 bundle 里取某个文件的文本；超时/失败/无此文件都返回 null。 */
+    async function bundleText(path) {
+      const files = await Promise.race([
+        loadBundle(),
+        new Promise((resolve) => setTimeout(() => resolve(null), BUNDLE_WAIT_MS))
+      ]);
+      return (files && Object.prototype.hasOwnProperty.call(files, path)) ? files[path] : null;
+    }
+
+    /**
+     * 单路超时。raw 在墙内经常是「连得上但不回数据」的黑洞，
+     * 不设超时就会一直挂着，把整页拖到浏览器默认超时（几十秒）。
+     */
+    const SRC_TIMEOUT_MS = 4000;
+
+    function fetchWithTimeout(url, ms) {
+      if (typeof AbortController !== 'function') return fetch(url, { cache: 'default' });
+      const ctl = new AbortController();
+      const timer = setTimeout(() => ctl.abort(), ms);
+      return fetch(url, { cache: 'default', signal: ctl.signal }).finally(() => clearTimeout(timer));
+    }
+
     const textSources = [
+      // 第 1 路：本站 Vercel 代理（同域，最稳；配了 PAT 有 5000/h 配额）
+      //         ⚠️ 故意不带 ?t= 时间戳 —— 带了会让 Vercel CDN 缓存全失效，
+      //         变成「每个访客每次刷新都实打实消耗一次 GitHub 配额」。
+      (path) => `/api/file?path=${encodeURIComponent(path)}`,
+      // 第 2 路：GitHub 官方 raw（带时间戳，改完立刻可见，但本机网络时通时断）
       (path) => `https://raw.githubusercontent.com/${SITE.user}/${SITE.repo}/${SITE.branch}/${path}?t=${Date.now()}`,
+      // 第 3 路：jsDelivr —— 缓存 CDN，国内可达、稳定，作为兜底
       (path) => `https://cdn.jsdelivr.net/gh/${GH_SLUG}/${path}`,
+      // 第 4 路：公共加速代理
       (path) => `https://ghproxy.net/https://raw.githubusercontent.com/${SITE.user}/${SITE.repo}/${SITE.branch}/${path}`
     ];
 
     async function fetchTextMulti(path) {
+      // 第 0 路：bundle 内存 —— 一次请求已经把全部文件带回来了，命中即零请求
+      const bt = await bundleText(path);
+      if (bt !== null && String(bt).trim()) return { text: bt, from: 'bundle' };
+
       let lastErr = null;
       for (const build of textSources) {
         const url = build(path);
         try {
-          const res = await fetch(url, { cache: 'default' });
+          const res = await fetchWithTimeout(url, SRC_TIMEOUT_MS);
           if (!res.ok) { lastErr = new Error('HTTP ' + res.status); continue; }
           const text = await res.text();
           if (text && text.trim()) return { text, from: url };
