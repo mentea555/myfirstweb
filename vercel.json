@@ -14,6 +14,13 @@
       ]
     },
     {
+      "comment": "boot-cache.js 在 head 里同步执行（要抢在 Decap 主脚本之前包 fetch），会阻塞首屏 —— 给它一段短缓存，避免每次开场都回源校验",
+      "source": "/admin/boot-cache.js",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=600" }
+      ]
+    },
+    {
       "source": "/assets/images/(.*)",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=86400" }

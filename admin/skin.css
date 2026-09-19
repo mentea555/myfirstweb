@@ -312,15 +312,18 @@ body [class*="PreviewPaneFrame"] {
    ⚠️ 必须按**结构**抓：Decap 普通文本框的类名是纯哈希（如 css-83wr9v），
       不带组件名，所以 [class*="TextControl"] input 根本匹配不到 —— 它默认带
       `2px solid #dfdfe3` 边框和 `0 5px 5px` 的怪圆角，正是「一圈线 + 圆角框」的来源。
-      日期/数字控件则相反：类名就在 <input> 自己身上，下面两种写法都留着兜底。 */
-body [class*="ControlPaneContainer"] input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+   ⚠️ 日期字段（type=datetime-local）**故意排除在外**：主人点名要保留那圈圆角框，
+      它由文件末尾「③ 日期字段」那条规则单独画。
+      ★ 这里必须写 :not([type="datetime-local"])，不能在末尾靠后置规则去压 ——
+        `:not()` 会把参数的选择器权重也算进去，这条的权重是 (0,4,2)，
+        末尾那条只有 (0,1,2)，同样都是 !important 时**权重高的赢**，
+        后置规则压不住（踩过：日期框怎么改都不出现）。 */
+body [class*="ControlPaneContainer"] input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="datetime-local"]),
 body [class*="ControlPaneContainer"] textarea,
 body [class*="ControlPaneContainer"] select,
 body [class*="TextControl"] input,
 body [class*="StringControl"] input,
-body [class*="NumberControl"] input,
-body input[class*="DateTimeControl"],
-body [class*="DateTimeControl"] input {
+body [class*="NumberControl"] input {
   background: var(--sk-fill) !important;
   border: 0 !important;
   border-radius: var(--sk-radius-sm) !important;
@@ -332,12 +335,11 @@ body [class*="DateTimeControl"] input {
 body [class*="ControlPaneContainer"] input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="datetime-local"]),
 body [class*="ControlPaneContainer"] textarea { padding: 12px 15px !important; }
 
-body [class*="ControlPaneContainer"] input:not([type="checkbox"]):not([type="radio"]):focus,
+body [class*="ControlPaneContainer"] input:not([type="checkbox"]):not([type="radio"]):not([type="datetime-local"]):focus,
 body [class*="ControlPaneContainer"] textarea:focus,
 body [class*="ControlPaneContainer"] select:focus,
 body [class*="TextControl"] input:focus,
-body [class*="StringControl"] input:focus,
-body input[class*="DateTimeControl"]:focus {
+body [class*="StringControl"] input:focus {
   background: #fff !important;
   box-shadow: var(--sk-ring) !important;
   outline: none !important;
@@ -494,3 +496,123 @@ body [class*="GoBackButtonStyle"] {
 }
 body [class*="GoBackButtonStyle"]:hover { color: var(--sk-accent) !important; }
 body [class*="GoBackButtonStyle"] * { color: inherit !important; }
+
+/* ============================================================
+ * ★ 字段区排版（第二轮，按主人要求）
+ *   1. 4 个开关不要各占一行
+ *   2. 字段下方的注释不要一股脑堆在下面
+ *   3. 日期那圈圆角框保留
+ * ============================================================ */
+
+/* ---------- ① 字段列表改成「可换行的弹性列」：开关两两并排 ----------
+ * Decap 把每个字段渲染成一张卡片，默认一列排到底。4 个布尔开关
+ * （只发画廊 / 加入首页轮播图 / 置顶 / 存为草稿）每个独占一行，白白拉长列表。
+ *   · 普通字段 flex-basis 100% → 仍独占一行（文本框需要整行宽度）
+ *   · 布尔字段 flex-basis 50%  → 两两并排，4 个正好 2×2
+ * 用 :has() 精确挑出「内部有开关的卡片」，不必改 config.yml。
+ *   ⚠️ :not([class*="PreviewPaneContainer"]) 是为了避开外层那个同名容器
+ *      （Decap 3.16 里外层叫 PreviewPaneContainer-ControlPaneContainer，
+ *       把它设成 flex 会动到分栏布局）。 */
+body [class*="ControlPaneContainer"]:not([class*="PreviewPaneContainer"]) {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-content: flex-start !important;
+  gap: 14px !important;
+}
+body [class*="ControlPaneContainer"]:not([class*="PreviewPaneContainer"]) > [class*="ControlContainer"] {
+  flex: 1 1 100% !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  margin-top: 0 !important;      /* 间距统一交给父级 gap，否则和 16px margin 叠成 30px */
+  overflow: visible !important;  /* 注释浮层要能溢出卡片 */
+}
+body [class*="ControlPaneContainer"]:not([class*="PreviewPaneContainer"]) > [class*="ControlContainer"]:has([class*="BooleanBackground"]) {
+  flex: 0 1 calc(50% - 7px) !important;   /* 7 = gap 14 的一半 */
+  width: calc(50% - 7px) !important;
+  padding: 13px 16px !important;
+}
+
+/* ---------- ② 字段注释：收成标签旁一颗 ⓘ，鼠标移上去才展开 ----------
+ * 注释**仍在原地**（DOM 不动、文字不丢），只是从「占一整行」变成「一颗小圆点」。
+ * Decap 的注释是 <p class="...ControlHint...">，正好是字段卡片的直接子元素，
+ * 所以卡片设 position:relative 后可以直接绝对定位到右上角。 */
+body [class*="ControlContainer"] { position: relative; }
+body [class*="ControlHint"] {
+  position: absolute !important;
+  top: 11px !important;
+  right: 14px !important;
+  width: 20px !important;
+  height: 20px !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;     /* 收起时把整段文字裁掉，只留 ::before 画的圆点 */
+  border: 0 !important;
+  border-radius: 999px !important;
+  background: var(--sk-fill) !important;
+  color: transparent !important;
+  font-size: 0 !important;
+  line-height: 0 !important;
+  cursor: help;
+  z-index: 6;
+  transition: background .16s ease;
+}
+body [class*="ControlHint"] * { color: transparent !important; font-size: 0 !important; }
+body [class*="ControlHint"]::before {
+  content: "i";
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: italic 700 11px/20px Georgia, "Times New Roman", serif;
+  color: var(--sk-text-3);
+}
+body [class*="ControlHint"]:hover::before { content: none; }
+body [class*="ControlHint"]:hover {
+  width: 330px !important;
+  height: auto !important;
+  max-height: 340px !important;
+  overflow: auto !important;
+  padding: 11px 13px !important;
+  border-radius: var(--sk-radius-sm) !important;
+  background: #fff !important;
+  border: 1px solid var(--sk-line) !important;
+  box-shadow: var(--sk-shadow-lg) !important;
+  color: var(--sk-text-2) !important;
+  font-size: 12px !important;
+  line-height: 1.75 !important;
+  z-index: 60;
+}
+body [class*="ControlHint"]:hover * { color: inherit !important; font-size: inherit !important; }
+/* 触屏兜底：触屏没有 hover，而 <p> 不可聚焦 ⇒ :focus 用不上，
+   所以补一条 :active —— 手指按住那一下也能把说明展开。 */
+body [class*="ControlHint"]:active {
+  width: 330px !important;
+  height: auto !important;
+  overflow: auto !important;
+  padding: 11px 13px !important;
+  color: var(--sk-text-2) !important;
+  font-size: 12px !important;
+  background: #fff !important;
+}
+
+/* ---------- ③ 日期字段：保留一圈圆角框（主人点名要留） ----------
+ * 上面那条通用输入框规则已经用 :not([type="datetime-local"]) 把日期让出来了，
+ * 所以这里直接画框即可，不需要跟谁比权重。 */
+body [class*="DateTimeControl"] input,
+body [class*="ControlPaneContainer"] input[type="datetime-local"] {
+  background: #fff !important;
+  border: 1px solid #e2e5f0 !important;
+  border-radius: var(--sk-radius-sm) !important;
+  color: var(--sk-text) !important;
+  box-shadow: none !important;
+  padding: 10px 13px !important;
+}
+body [class*="DateTimeControl"]:focus-within input,
+body [class*="ControlPaneContainer"] input[type="datetime-local"]:focus {
+  border-color: var(--sk-accent) !important;
+  box-shadow: var(--sk-ring) !important;
+  background: #fff !important;
+  outline: none !important;
+}

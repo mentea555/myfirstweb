@@ -6,7 +6,7 @@
   <meta name="robots" content="noindex, nofollow" />
   <title>内容管理后台 | Mentea's Web</title>
   <link href="/admin/config.yml" type="text/yaml" rel="cms-config-url" />
-  <link rel="stylesheet" href="/admin/skin.css?v=2" />
+  <link rel="stylesheet" href="/admin/skin.css?v=3" />
   <!-- 提前握手：登录后 Decap 全程打 api.github.com，图床上传也早连 -->
   <link rel="preconnect" href="https://api.github.com" crossorigin />
   <link rel="dns-prefetch" href="https://api.github.com" />
@@ -81,6 +81,13 @@
     }
     #designer-entry .ic { font-size: 15px; line-height: 1; }
   </style>
+  <!--
+    ★ 读请求内存缓存：专治「每点一下集合卡片都转圈 loading entry」。
+    必须在 Decap 主脚本**之前**执行 —— 它要抢先把 window.fetch 包起来，
+    否则 Decap 拿到的还是原生 fetch，缓存就白做了。
+    是个同步小脚本（~2KB），放 head 末尾既不影响启动屏渲染，又能保证顺序。
+  -->
+  <script src="/admin/boot-cache.js"></script>
 </head>
 <body>
   <div id="boot">
