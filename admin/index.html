@@ -165,8 +165,11 @@
       var idx = 0;
       var done = false;
       var timer = null;
+      var booted = false;
 
       function boot() {
+        if (booted) return;          /* 兜底：晚到的脚本 + 轮询守望可能同时触发，只能启动一次 */
+        booted = true;
         var el = document.getElementById('boot');
         if (el) el.remove();
         /*
@@ -252,12 +255,42 @@
         if (btn) btn.style.display = 'inline-block';
       }
 
+      /*
+       * ★★ 慢网络下后台「假死」的修法（2026-09-19 实测踩到，不是猜）
+       *
+       *   主脚本 5.16MB。本机实测**下载要 39 秒**（132KB/s），而下面每条线路 12 秒
+       *   就判超时 ⇒ 三条线路全判失败 ⇒ 界面停在「所有线路都没连上，点下面按钮重试」。
+       *   可主脚本其实还在下，而且**最后确实执行成功了**（window.CMS 就有了）——
+       *   只是那三个 onload 早被清掉，**boot() 再也没人调用**，于是永远卡在启动屏。
+       *   （主人在自己网络上没遇到，是因为那边 5MB 几秒就下完了。）
+       *
+       *   两处兜底：
+       *     ① 超时**不再清掉 onload** —— 晚到的脚本只要带来了 window.CMS，立刻启动
+       *     ② 全线路判失败后**不马上放弃**，改成轮询等 window.CMS（最多 90 秒）
+       */
+      var watchdog = null;
+      function awaitCms(ms) {
+        if (watchdog || done) return;
+        var t0 = Date.now();
+        hint('主脚本约 5MB，正在等它下完（慢网络可能要一会儿）...');
+        watchdog = setInterval(function () {
+          if (done) { clearInterval(watchdog); watchdog = null; return; }
+          if (window.CMS) {
+            clearInterval(watchdog); watchdog = null;
+            done = true;
+            boot();
+            return;
+          }
+          if (Date.now() - t0 > (ms || 90000)) {
+            clearInterval(watchdog); watchdog = null;
+            hint('所有线路都没连上，点下面按钮重试。');
+          }
+        }, 500);
+      }
+
       function next() {
         if (done) return;
-        if (idx >= order.length) {
-          hint('所有线路都没连上，点下面按钮重试。');
-          return;
-        }
+        if (idx >= order.length) { awaitCms(90000); return; }
         var key = order[idx++];
         var s = document.createElement('script');
         s.src = SRC[key];
@@ -266,18 +299,19 @@
         timer = setTimeout(function () {
           if (settled || done) return;
           settled = true;
-          s.onload = s.onerror = null;
+          /* ⚠️ 故意不清 s.onload：这条线路可能只是「慢」，等它回来时 CMS 若已就绪就直接启动 */
           next();
         }, 12000);
         s.onload = function () {
-          if (settled) return;
-          settled = true;
           clearTimeout(timer);
-          if (window.CMS) { done = true; boot(); }
-          else next();
+          if (done) return;
+          if (window.CMS) { settled = true; done = true; boot(); return; }
+          if (settled) return;      /* 已判超时、且 CMS 还没到 → 让链自己继续往下走 */
+          settled = true;
+          next();
         };
         s.onerror = function () {
-          if (settled) return;
+          if (settled || done) return;
           settled = true;
           clearTimeout(timer);
           next();
@@ -295,6 +329,7 @@
       if (btn) {
         btn.onclick = function () {
           idx = 0; done = false;
+          if (watchdog) { clearInterval(watchdog); watchdog = null; }
           this.style.display = 'none';
           hint('正在重新尝试...');
           next();
