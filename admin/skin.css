@@ -1,6 +1,12 @@
 /* ============================================================
- * skin.css —— 后台外观皮肤（现代 · 浅色）
+ * skin.css —— 后台外观皮肤（现代 · 浅色 · 纯色 · 少线条）
  * ------------------------------------------------------------
+ * 设计原则（按主人要求）：
+ *   ★ 不要那么多线 —— 卡片一律「无边框 + 极淡阴影」，
+ *     输入框用「浅灰填充 + 无边框」，靠色块而不是描边划分区域。
+ *   ★ 不要渐变 —— 强调色统一用站点紫 #6366f1 纯色。
+ *   ★ Decap logo 保留 —— 不做品牌替换。
+ *
  * ⚠️ Decap 3.16 的类名是 emotion 生成的哈希名，但**哈希里带组件名**
  *   （例如 css-1ff92bv-SidebarContainer-card-card），所以用
  *   [class*="SidebarContainer"] 这种「片段匹配」是稳的。
@@ -10,28 +16,28 @@
  *      emotion 的样式是 CMS 启动后才注入 <head> 的，位置在本文件之后；
  *      同权重下后者胜出。`body [class*=...]` 权重 (0,1,1) 高于单个类 (0,1,0)，
  *      这样才压得住，不必满屏 !important。
- *   2. 动的是**颜色/圆角/阴影/间距**，不动 display/定位 —— 免得把布局搞散。
+ *   2. 只动颜色/圆角/阴影/间距，不动 display/定位 —— 免得把布局搞散。
  *
- * ⚠️ 升级 /admin/vendor/decap-cms.js 后请重跑 tools/verify-admin-skin.js，
+ * ⚠️ 升级 /admin/vendor/decap-cms-*.js 后请重跑 tools/verify-admin-skin.js，
  *   类名片段可能变（脚本会断言关键片段还在）。
  * ============================================================ */
 
 :root {
   --sk-accent: #6366f1;
-  --sk-accent-2: #a855f7;
   --sk-accent-soft: #eef0fe;
   --sk-bg: #f5f6fa;
   --sk-surface: #ffffff;
-  --sk-line: #e9ebf2;
-  --sk-line-strong: #dfe2ec;
+  --sk-fill: #f4f5fa;        /* 输入框等「填充式」控件底色（替代描边） */
+  --sk-line: #e9ebf2;        /* 只在必须分层的地方用一次极淡的线 */
   --sk-text: #1e2233;
   --sk-text-2: #5b6178;
   --sk-text-3: #8f95ab;
-  --sk-radius: 14px;
-  --sk-radius-sm: 10px;
+  --sk-radius: 12px;
+  --sk-radius-sm: 9px;
   --sk-shadow-sm: 0 1px 2px rgba(24, 28, 48, .05);
-  --sk-shadow: 0 4px 16px rgba(24, 28, 48, .07);
+  --sk-shadow: 0 6px 18px rgba(24, 28, 48, .07);
   --sk-shadow-lg: 0 18px 48px rgba(24, 28, 48, .14);
+  --sk-ring: 0 0 0 3px rgba(99, 102, 241, .16);
   --sk-font: "Inter", -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
 }
 
@@ -64,9 +70,9 @@ body :focus-visible { outline: 2px solid rgba(99, 102, 241, .55); outline-offset
 
 /* ==================== 顶部条 ==================== */
 body header[class*="AppHeader"] {
-  background: rgba(255, 255, 255, .86) !important;
+  background: rgba(255, 255, 255, .9) !important;
   backdrop-filter: saturate(160%) blur(12px);
-  border-bottom: 1px solid var(--sk-line) !important;
+  border-bottom: 1px solid var(--sk-line) !important;   /* 顶栏与内容之间留一条线，滚动时不糊在一起 */
   box-shadow: none !important;
 }
 body [class*="AppHeaderNavLink"] {
@@ -77,7 +83,7 @@ body [class*="AppHeaderNavLink"] {
   letter-spacing: .2px;
   transition: background .16s ease, color .16s ease;
 }
-body [class*="AppHeaderNavLink"]:hover { background: #f1f2f8 !important; color: var(--sk-text) !important; }
+body [class*="AppHeaderNavLink"]:hover { background: var(--sk-fill) !important; color: var(--sk-text) !important; }
 /* ⚠️ 选中态必须用真实标记类 .header-link-active / .sidebar-active：
    emotion 会把「所有变体名」都塞进 class 串（每个链接都带 buttonActive、
    sidebarNavLinkActive 字样），用 [class*="...Active"] 匹配会把未选中项一起点亮。 */
@@ -90,72 +96,62 @@ body [class*="AppHeaderSiteLink"] { color: var(--sk-text-3) !important; font-wei
 body [class*="AppHeaderSiteLink"]:hover { color: var(--sk-accent) !important; }
 body [class*="AvatarDropdownButton"],
 body [class*="AvatarPlaceholderIcon"] {
-  background: linear-gradient(135deg, var(--sk-accent), var(--sk-accent-2)) !important;
+  background: var(--sk-accent) !important;
   color: #fff !important;
   border: 0 !important;
-  box-shadow: 0 4px 12px rgba(99, 102, 241, .35) !important;
+  box-shadow: none !important;
 }
 
 /* ==================== 按钮（通用） ==================== */
-/* 主按钮：与站点同款渐变 */
+/* 主按钮：纯色 */
 body [class*="PublishButton"],
 body [class*="CollectionTopNewButton"],
 body [class*="AppHeaderQuickNewButton"] {
-  background: linear-gradient(135deg, var(--sk-accent), var(--sk-accent-2)) !important;
+  background: var(--sk-accent) !important;
+  background-image: none !important;
   border: 0 !important;
   border-radius: 999px !important;
   color: #fff !important;
   font-weight: 600 !important;
-  box-shadow: 0 6px 18px rgba(99, 102, 241, .32) !important;
-  transition: transform .16s ease, box-shadow .16s ease, filter .16s ease;
+  box-shadow: none !important;
+  transition: filter .16s ease;
 }
 body [class*="PublishButton"]:hover,
 body [class*="CollectionTopNewButton"]:hover,
-body [class*="AppHeaderQuickNewButton"]:hover {
-  filter: brightness(1.06);
-  transform: translateY(-1px);
-  box-shadow: 0 10px 24px rgba(99, 102, 241, .42) !important;
-}
-body [class*="PublishButton"] * ,
+body [class*="AppHeaderQuickNewButton"]:hover { filter: brightness(.93); box-shadow: none !important; }
+body [class*="PublishButton"] *,
 body [class*="CollectionTopNewButton"] *,
 body [class*="AppHeaderQuickNewButton"] * { color: #fff !important; }
 
-/* 次级/中性按钮 */
+/* 次级按钮：无边框，浅灰填充 */
 body [class*="ToolbarButton"]:not([class*="PublishButton"]),
 body [class*="ControlButton"],
 body [class*="ViewControlsButton"],
 body [class*="StyledToolbarButton"],
 body [class*="ToolbarToggle"] {
   border-radius: 999px !important;
-  border: 1px solid var(--sk-line-strong) !important;
-  background: #fff !important;
+  border: 0 !important;
+  background: var(--sk-fill) !important;
   color: var(--sk-text-2) !important;
   font-weight: 600 !important;
-  transition: background .16s ease, border-color .16s ease, color .16s ease;
+  box-shadow: none !important;
+  transition: background .16s ease, color .16s ease;
 }
 body [class*="ToolbarButton"]:not([class*="PublishButton"]):hover,
 body [class*="ControlButton"]:hover,
 body [class*="ViewControlsButton"]:hover,
 body [class*="StyledToolbarButton"]:hover,
-body [class*="ToolbarToggle"]:hover {
-  background: #f6f7fc !important;
-  border-color: #cfd4e6 !important;
-  color: var(--sk-text) !important;
-}
-/* 危险操作（删除）保持柔和红 */
-body [class*="DeleteButton"] {
-  background: #fff !important;
-  border: 1px solid #f6cdd2 !important;
-  color: #d6455b !important;
-}
-body [class*="DeleteButton"]:hover { background: #fdf2f4 !important; border-color: #f0b5bd !important; }
-body [class*="DeleteButton"] * { color: #d6455b !important; }
+body [class*="ToolbarToggle"]:hover { background: #e9ebf4 !important; color: var(--sk-text) !important; }
+/* 危险操作（删除）：淡红填充，不加边框 */
+body [class*="DeleteButton"] { background: #fdf0f2 !important; color: #cf3f55 !important; }
+body [class*="DeleteButton"]:hover { background: #fbe3e7 !important; }
+body [class*="DeleteButton"] * { color: #cf3f55 !important; }
 
 /* 圆角图标按钮（预览/编辑切换） */
 body [class*="ButtonRound"] {
-  border-radius: 12px !important;
-  border: 1px solid var(--sk-line-strong) !important;
-  background: #fff !important;
+  border-radius: 10px !important;
+  border: 0 !important;
+  background: var(--sk-fill) !important;
   color: var(--sk-text-2) !important;
 }
 body [class*="ButtonRound"]:hover { background: var(--sk-accent-soft) !important; color: var(--sk-accent) !important; }
@@ -163,7 +159,7 @@ body [class*="ButtonRound"]:hover { background: var(--sk-accent-soft) !important
 /* ==================== 侧栏 ==================== */
 body [class*="SidebarContainer"] {
   background: var(--sk-surface) !important;
-  border: 1px solid var(--sk-line) !important;
+  border: 0 !important;
   border-radius: var(--sk-radius) !important;
   box-shadow: var(--sk-shadow-sm) !important;
 }
@@ -175,30 +171,29 @@ body [class*="SidebarHeading"] {
   text-transform: uppercase;
 }
 body [class*="SearchInput"] {
-  background: #f4f5fa !important;
-  border: 1px solid transparent !important;
+  background: var(--sk-fill) !important;
+  border: 0 !important;
   border-radius: var(--sk-radius-sm) !important;
   color: var(--sk-text) !important;
   /* ⚠️ 左侧必须留出放大镜的位置：默认样式就是靠 padding-left 让位的，
-     覆盖 padding 时漏掉会导致图标压住 placeholder 文字（"earch all"） */
+     覆盖 padding 时漏掉会压住 placeholder 文字（"earch all"） */
   padding: 9px 12px 9px 34px !important;
-  transition: background .16s ease, border-color .16s ease, box-shadow .16s ease;
+  transition: background .16s ease, box-shadow .16s ease;
 }
 body [class*="SearchInput"]:focus {
   background: #fff !important;
-  border-color: rgba(99, 102, 241, .5) !important;
-  box-shadow: 0 0 0 4px rgba(99, 102, 241, .12) !important;
+  box-shadow: var(--sk-ring) !important;
   outline: none !important;
 }
 body [class*="SidebarNavLink"] {
   border-radius: var(--sk-radius-sm) !important;
   border: 0 !important;
-  box-shadow: none !important;      /* 默认选中态会挂一条粗色条，这里拍掉，只用胶囊底色表达选中 */
+  box-shadow: none !important;      /* 默认选中态挂了一条粗色条，拍掉，只用底色表达选中 */
   color: var(--sk-text-2) !important;
   font-weight: 600 !important;
   transition: background .16s ease, color .16s ease;
 }
-body [class*="SidebarNavLink"]:hover { background: #f4f5fa !important; color: var(--sk-text) !important; }
+body [class*="SidebarNavLink"]:hover { background: var(--sk-fill) !important; color: var(--sk-text) !important; }
 body [class*="SidebarNavLink"].sidebar-active {
   background: var(--sk-accent-soft) !important;
   color: var(--sk-accent) !important;
@@ -208,7 +203,7 @@ body [class*="SidebarNavLink"].sidebar-active * { color: var(--sk-accent) !impor
 /* ==================== 列表页 ==================== */
 body [class*="CollectionTopContainer"] {
   background: var(--sk-surface) !important;
-  border: 1px solid var(--sk-line) !important;
+  border: 0 !important;
   border-radius: var(--sk-radius) !important;
   box-shadow: var(--sk-shadow-sm) !important;
 }
@@ -218,26 +213,23 @@ body [class*="CardsGrid"] { background: transparent !important; }
 
 body [class*="ListCard"] {
   background: var(--sk-surface) !important;
-  border: 1px solid var(--sk-line) !important;
+  border: 0 !important;
   border-radius: var(--sk-radius-sm) !important;
   box-shadow: var(--sk-shadow-sm) !important;
-  transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease;
+  transition: box-shadow .16s ease, transform .16s ease;
 }
 body [class*="ListCard"]:hover {
-  border-color: rgba(99, 102, 241, .45) !important;
   box-shadow: var(--sk-shadow) !important;
   transform: translateY(-1px);
 }
 body [class*="ListCardLink"] { color: var(--sk-text) !important; }
 body [class*="ListCardTitle"] { color: var(--sk-text) !important; font-weight: 600 !important; }
 body [class*="TitleIcons"] { color: var(--sk-accent) !important; }
-
-/* 视图切换 / 排序那一行 */
 body [class*="CollectionControlsContainer"] { color: var(--sk-text-2) !important; }
 
 /* ==================== 编辑器 ==================== */
 body [class*="ToolbarContainer"] {
-  background: rgba(255, 255, 255, .92) !important;
+  background: rgba(255, 255, 255, .93) !important;
   backdrop-filter: saturate(160%) blur(10px);
   border-bottom: 1px solid var(--sk-line) !important;
   box-shadow: none !important;
@@ -247,20 +239,20 @@ body [class*="ToolbarSectionBackLink"]:hover { color: var(--sk-accent) !importan
 body [class*="BackCollection"] { color: var(--sk-text) !important; font-weight: 600 !important; }
 body [class*="BackArrow"] { color: var(--sk-text-3) !important; }
 
-/* 状态徽标（草稿 / 已修改 / 已发布） */
+/* 状态徽标（草稿 / 已修改 / 已发布）：纯色底、无边框 */
 body [class*="BackStatus"],
 body [class*="textBadge"] {
   border-radius: 999px !important;
+  border: 0 !important;
   padding: 3px 10px !important;
   font-size: 11px !important;
   font-weight: 700 !important;
   letter-spacing: .02em;
-  background: #f4f5fa !important;
+  background: var(--sk-fill) !important;
   color: var(--sk-text-2) !important;
-  border: 1px solid var(--sk-line) !important;
 }
-body [class*="textBadgeDanger"] { background: #fdf2f4 !important; color: #d6455b !important; border-color: #f6cdd2 !important; }
-body [class*="textBadgeSuccess"] { background: #eefaf3 !important; color: #1a8f5a !important; border-color: #cdeedd !important; }
+body [class*="textBadgeDanger"] { background: #fdf0f2 !important; color: #cf3f55 !important; }
+body [class*="textBadgeSuccess"] { background: #eaf8f1 !important; color: #17805a !important; }
 
 body [class*="ControlPaneContainer"],
 body [class*="PreviewPaneContainer"] { background: var(--sk-bg) !important; }
@@ -280,19 +272,17 @@ body .Resizer {
 body .Resizer:hover { background: rgba(99, 102, 241, .22) !important; }
 body .Resizer:active { background: var(--sk-accent) !important; }
 
-/* 字段块：白卡片 + 悬停高亮；间距收紧一点，别一片空 */
+/* 字段块：不要外框，白卡片直接用底色和极淡阴影区分（少一条线） */
 body [class*="ControlContainer"] {
   background: var(--sk-surface) !important;
-  border: 1px solid var(--sk-line) !important;
+  border: 0 !important;
   border-radius: var(--sk-radius) !important;
   box-shadow: var(--sk-shadow-sm) !important;
-  margin-top: 18px !important;
-  /* ★ 默认 padding 是 0 → 输入框边框紧贴卡片边框，看着像「双线」。
-     给内边距，标签与控件才有呼吸感。 */
+  margin-top: 16px !important;
   padding: 16px 18px !important;
-  transition: border-color .18s ease, box-shadow .18s ease;
+  transition: box-shadow .18s ease;
 }
-body [class*="ControlContainer"]:hover { border-color: #d9dced !important; box-shadow: var(--sk-shadow) !important; }
+body [class*="ControlContainer"]:hover { box-shadow: var(--sk-shadow) !important; }
 body [class*="ControlTopbar"] { background: transparent !important; border: 0 !important; padding: 0 0 8px !important; }
 body [class*="FieldLabel"] {
   /* ★ 默认是 #dfdfe3 灰底、3px 圆角的「文件夹小标签」，很土 → 拍平成干净的标题 */
@@ -311,55 +301,93 @@ body [class*="ControlHint"] {
   line-height: 1.75 !important;
   margin-top: 8px !important;
 }
-body [class*="PreviewPaneFrame"] { background: #fff !important; border-radius: var(--sk-radius) !important; border: 1px solid var(--sk-line) !important; }
+body [class*="PreviewPaneFrame"] {
+  background: #fff !important;
+  border: 0 !important;
+  border-radius: var(--sk-radius) !important;
+  box-shadow: var(--sk-shadow-sm) !important;
+}
 
-/* 输入框 / 文本域 / 下拉 */
+/* 输入框 / 文本域 / 下拉：浅灰填充、无边框（靠色块而不是描边）
+   ⚠️ 必须按**结构**抓：Decap 普通文本框的类名是纯哈希（如 css-83wr9v），
+      不带组件名，所以 [class*="TextControl"] input 根本匹配不到 —— 它默认带
+      `2px solid #dfdfe3` 边框和 `0 5px 5px` 的怪圆角，正是「一圈线 + 圆角框」的来源。
+      日期/数字控件则相反：类名就在 <input> 自己身上，下面两种写法都留着兜底。 */
+body [class*="ControlPaneContainer"] input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+body [class*="ControlPaneContainer"] textarea,
+body [class*="ControlPaneContainer"] select,
 body [class*="TextControl"] input,
-body [class*="TextControl"] textarea,
-body [class*="DateTimeControl"] input,
-body [class*="DateTimeControl"] button,
-body [class*="NumberControl"] input,
-body [class*="SelectControl"] select,
-body [class*="ListControl"],
-body [class*="ObjectControl"] > input,
 body [class*="StringControl"] input,
-body [class*="MarkdownControl"] textarea {
-  background: #fbfbfe !important;
-  border: 1px solid var(--sk-line-strong) !important;
+body [class*="NumberControl"] input,
+body input[class*="DateTimeControl"],
+body [class*="DateTimeControl"] input {
+  background: var(--sk-fill) !important;
+  border: 0 !important;
   border-radius: var(--sk-radius-sm) !important;
   color: var(--sk-text) !important;
-  transition: border-color .16s ease, box-shadow .16s ease, background .16s ease;
+  box-shadow: none !important;
+  transition: background .16s ease, box-shadow .16s ease;
 }
+/* 间距收紧一点（Decap 默认 16px 20px 偏空），日期控件自带内边距就不动它 */
+body [class*="ControlPaneContainer"] input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="datetime-local"]),
+body [class*="ControlPaneContainer"] textarea { padding: 12px 15px !important; }
+
+body [class*="ControlPaneContainer"] input:not([type="checkbox"]):not([type="radio"]):focus,
+body [class*="ControlPaneContainer"] textarea:focus,
+body [class*="ControlPaneContainer"] select:focus,
 body [class*="TextControl"] input:focus,
-body [class*="TextControl"] textarea:focus,
-body [class*="DateTimeControl"] input:focus,
-body [class*="StringControl"] input:focus {
+body [class*="StringControl"] input:focus,
+body input[class*="DateTimeControl"]:focus {
   background: #fff !important;
-  border-color: rgba(99, 102, 241, .55) !important;
-  box-shadow: 0 0 0 4px rgba(99, 102, 241, .12) !important;
+  box-shadow: var(--sk-ring) !important;
   outline: none !important;
 }
-body [class*="TextControl"] input::placeholder,
-body [class*="TextControl"] textarea::placeholder { color: #a9aec2 !important; }
+body [class*="ControlPaneContainer"] input::placeholder,
+body [class*="ControlPaneContainer"] textarea::placeholder { color: #a9aec2 !important; }
 
-/* 开关（布尔字段） */
+/* 控件的「外壳」也别画线：Decap 默认给这些外层容器也描了 2px 灰边，
+   结果就是「框里套框」——主人说的「不要那么多线 / 一圈圆角框」主要指这个。
+   ⚠️ 后两个是 Decap 3.16.2 里的纯哈希类（外壳没带组件名，只能用哈希抓）；
+      升级 /admin/vendor/decap-cms-*.js 后跑 tools/verify-admin-skin.js
+      的「描边普查」断言，会立刻报出来还差哪几个。 */
+body [class*="DateTimeControl"],
+body [class*="ImageWrapper"],
+body [class*="FileWidget"],
+body [class*="ObjectControl"],
+body .css-83wr9v,
+body .css-12rw7xp {
+  border: 0 !important;
+  box-shadow: none !important;
+}
+body [class*="DateTimeControl"] { background: transparent !important; }
+body [class*="ImageWrapper"] {
+  background: var(--sk-fill) !important;
+  border-radius: var(--sk-radius-sm) !important;
+}
+/* 日期字段右侧的 Now / Clear 也走填充式 */
+body [class*="DateTimeControl"] button {
+  background: var(--sk-fill) !important;
+  border: 0 !important;
+  border-radius: var(--sk-radius-sm) !important;
+  color: var(--sk-text-2) !important;
+}
+body [class*="DateTimeControl"] button:hover { background: #e9ebf4 !important; color: var(--sk-text) !important; }
+
+/* 开关（布尔字段）：开 = 纯色紫 */
 body [class*="ToggleBackground"] {
   border-radius: 999px !important;
   background: #e3e6f0 !important;
   border-color: transparent !important;
   box-shadow: none !important;
 }
-body [class*="ToggleBackground"][class*="BooleanBackground-css"] { background: #e3e6f0 !important; }
-body [class*="ToggleContainer"] { position: relative; }
 body [class*="ToggleHandle"] { box-shadow: 0 1px 3px rgba(24, 28, 48, .25) !important; }
-/* 打开态：emotion 用行内背景色，这里按结构补一层渐变 */
 body [class*="ToggleBackground"][style*="rgb(99, 102, 241)"],
-body [class*="ToggleBackground"][style*="#6366f1"] { background: linear-gradient(135deg, var(--sk-accent), var(--sk-accent-2)) !important; }
+body [class*="ToggleBackground"][style*="#6366f1"] { background: var(--sk-accent) !important; }
 
-/* 富文本：工具栏 + 正文 */
+/* 富文本：工具栏与正文靠底色分层，不用线 */
 body [class*="EditorControlBar"] {
-  background: #f7f8fc !important;
-  border: 1px solid var(--sk-line) !important;
+  background: var(--sk-fill) !important;
+  border: 0 !important;
   border-radius: var(--sk-radius-sm) var(--sk-radius-sm) 0 0 !important;
 }
 body [class*="StyledToolbarButton"],
@@ -368,11 +396,11 @@ body [class*="ToolbarDropdownWrapper"] {
   background: transparent !important;
   border-radius: 8px !important;
 }
-body [class*="StyledToolbarButton"]:hover { background: #eceffb !important; }
+body [class*="StyledToolbarButton"]:hover { background: #e4e7f4 !important; }
 body [class*="ToolbarToggleLabel"] { color: var(--sk-text-2) !important; font-weight: 600 !important; }
 body [class*="editorStyles"] {
   background: #fff !important;
-  border: 1px solid var(--sk-line) !important;
+  border: 0 !important;
   border-radius: 0 0 var(--sk-radius-sm) var(--sk-radius-sm) !important;
   color: var(--sk-text) !important;
   line-height: 1.9 !important;
@@ -387,56 +415,50 @@ body [class*="editorStyles"] blockquote {
 }
 body [class*="editorStyles"] code,
 body [class*="editorStyles"] pre {
-  background: #f4f5fa !important;
+  background: var(--sk-fill) !important;
   border-radius: 8px !important;
   color: #b4305c !important;
 }
 body [class*="editorStyles"] a { color: var(--sk-accent) !important; }
 
 /* ==================== 弹层 / 下拉 / 提示 ==================== */
-body [class*="DropdownButton"] + div,
-body [class*="StyledWrapper"] [role="menu"],
-body [class*="DropdownList"] { border-radius: var(--sk-radius-sm) !important; }
-
 body [role="dialog"],
 body [class*="Modal"],
 body [class*="Dialog"] {
-  border-radius: 18px !important;
+  border-radius: 16px !important;
   box-shadow: var(--sk-shadow-lg) !important;
-  border: 1px solid var(--sk-line) !important;
+  border: 0 !important;
 }
 body [class*="DialogHeader"], body [class*="ModalHeader"] { border-bottom: 1px solid var(--sk-line) !important; }
 body [class*="DialogFooter"], body [class*="ModalFooter"] { border-top: 1px solid var(--sk-line) !important; }
 
-/* Toast 通知 */
 body .Toastify__toast {
   border-radius: var(--sk-radius) !important;
   box-shadow: var(--sk-shadow-lg) !important;
   font-family: var(--sk-font) !important;
 }
 
-/* ==================== 自定义控件：标签（twg-*）= */
+/* ==================== 自定义控件：标签（tgw-*）= */
 body .tgw-wrap { gap: 8px !important; }
 body .tgw-chip {
   background: var(--sk-accent-soft) !important;
-  border: 1px solid #dfe2fb !important;
+  border: 0 !important;
   border-radius: 999px !important;
   color: var(--sk-accent) !important;
   font-weight: 600 !important;
 }
 body .tgw-chip-text { color: var(--sk-accent) !important; }
 body .tgw-chip-x { color: #8f95ab !important; }
-body .tgw-chip-x:hover { color: #d6455b !important; }
+body .tgw-chip-x:hover { color: #cf3f55 !important; }
 body .tgw-input {
   border-radius: var(--sk-radius-sm) !important;
-  border: 1px solid var(--sk-line-strong) !important;
-  background: #fbfbfe !important;
+  border: 1px solid transparent !important;
+  background: var(--sk-fill) !important;
   color: var(--sk-text) !important;
 }
 body .tgw-input:focus {
   background: #fff !important;
-  border-color: rgba(99, 102, 241, .55) !important;
-  box-shadow: 0 0 0 4px rgba(99, 102, 241, .12) !important;
+  box-shadow: var(--sk-ring) !important;
   outline: none !important;
 }
 body .tgw-count { color: var(--sk-text-3) !important; }
@@ -444,3 +466,31 @@ body .tgw-box { border: 0 !important; background: transparent !important; }
 
 /* 自动日期插件在字段下插的说明 */
 body .ad-tip { color: var(--sk-text-3) !important; }
+
+/* ==================== 登录页 ==================== */
+body [class*="StyledAuthenticationPage"] { background: var(--sk-bg) !important; }
+
+body [class*="LoginButton"] {
+  background: var(--sk-accent) !important;
+  background-image: none !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  color: #fff !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  padding: 12px 28px !important;
+  min-height: 44px !important;
+  box-shadow: none !important;
+  transition: filter .16s ease;
+}
+body [class*="LoginButton"]:hover { filter: brightness(.93); }
+body [class*="LoginButton"] * { color: #fff !important; fill: #fff !important; }
+
+body [class*="GoBackButtonStyle"] {
+  color: var(--sk-text-3) !important;
+  font-weight: 500 !important;
+  border-radius: 999px !important;
+  transition: color .16s ease;
+}
+body [class*="GoBackButtonStyle"]:hover { color: var(--sk-accent) !important; }
+body [class*="GoBackButtonStyle"] * { color: inherit !important; }

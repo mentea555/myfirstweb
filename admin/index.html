@@ -6,7 +6,7 @@
   <meta name="robots" content="noindex, nofollow" />
   <title>内容管理后台 | Mentea's Web</title>
   <link href="/admin/config.yml" type="text/yaml" rel="cms-config-url" />
-  <link rel="stylesheet" href="/admin/skin.css?v=1" />
+  <link rel="stylesheet" href="/admin/skin.css?v=2" />
   <!-- 提前握手：登录后 Decap 全程打 api.github.com，图床上传也早连 -->
   <link rel="preconnect" href="https://api.github.com" crossorigin />
   <link rel="dns-prefetch" href="https://api.github.com" />
@@ -27,17 +27,16 @@
       margin: 0;
       font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
     }
-    /* ★ 现代化启动屏：渐变标志 + 流动进度条（替代原白屏灰字） */
+    /* ★ 现代化启动屏：纯色标志 + 流动进度条（替代原白屏灰字） */
     #boot {
       display: flex; flex-direction: column; align-items: center; justify-content: center;
-      gap: 22px; height: 100vh; background: #f7f8fc; color: #475569;
+      gap: 22px; height: 100vh; background: #f5f6fa; color: #5b6178;
       font-size: 14px; line-height: 1.8; text-align: center; user-select: none;
     }
     #boot .logo {
-      width: 64px; height: 64px; border-radius: 18px;
-      background: linear-gradient(135deg, #6366f1, #a855f7);
+      width: 64px; height: 64px; border-radius: 16px;
+      background: #6366f1;
       color: #fff; font-size: 30px; font-weight: 800; line-height: 64px;
-      box-shadow: 0 12px 32px rgba(99, 102, 241, .38);
       animation: bootFloat 2.4s ease-in-out infinite;
     }
     @keyframes bootFloat {
@@ -46,11 +45,11 @@
     }
     #boot .bar {
       width: 220px; height: 6px; border-radius: 999px; overflow: hidden;
-      background: #e2e8f0;
+      background: #e3e6f0;
     }
     #boot .bar i {
       display: block; width: 40%; height: 100%; border-radius: 999px;
-      background: linear-gradient(90deg, #6366f1, #a855f7);
+      background: #6366f1;
       animation: bootSlide 1.3s ease-in-out infinite;
     }
     @keyframes bootSlide {
@@ -69,18 +68,16 @@
       gap: 8px;
       padding: 11px 18px;
       border-radius: 999px;
-      background: linear-gradient(135deg, #6366f1, #a855f7);
+      background: #6366f1;
       color: #fff !important;
       text-decoration: none;
       font-size: 13px;
       font-weight: 600;
       letter-spacing: .2px;
-      box-shadow: 0 6px 22px rgba(99, 102, 241, .45);
-      transition: transform .18s ease, box-shadow .18s ease;
+      transition: filter .18s ease;
     }
     #designer-entry:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 10px 28px rgba(99, 102, 241, .58);
+      filter: brightness(.93);
     }
     #designer-entry .ic { font-size: 15px; line-height: 1; }
   </style>
