@@ -20,7 +20,9 @@
  *
  * 【这个增强做了什么】
  *   · 开关右边显示占用：`轮播 5/8`
- *   · 下面按**前端真实顺序**列出「哪些进去了、各占第几张、各几张图」
+ *   · 下面常显一行摘要（共几篇占位、还空几位），**明细收在二级菜单里**：
+ *     按前端真实顺序列出「哪些进去了、各占第几张、各几张图」，点「查看明细」才展开
+ *     （8 篇往下排一长条太占地方；满员被拦时会自动展开，见下）
  *   · 告诉主人本篇有图几张、能排到第几位、会不会被上限挤掉
  *   · ★ 位置已满时点开关 → **拦下**（捕获阶段掐掉这次点击）并弹出提示，
  *        要求先关掉上面某一篇
@@ -43,6 +45,14 @@
   var NOTES_PREFIX = 'content/notes/';
   var FIELD_LABEL = '加入首页轮播图';
   var INDEX_TTL_MS = 10000;          // 同一批操作里别反复拉（每次拉 = 1 点 GitHub 配额）
+
+  /**
+   * 二级菜单的小三角。
+   * ⚠️ 用内联 SVG，**不要用字符 ▾ (U+25BE)**：Decap 那套字体里这个三角渲染出来
+   *   只有 2px 高，看着像个「·」，截图里根本认不出是展开箭头。SVG 到哪都一样。
+   */
+  var CARET_SVG = '<svg width="9" height="6" viewBox="0 0 9 6" aria-hidden="true" focusable="false">' +
+    '<path d="M0 0h9L4.5 6z" fill="currentColor"/></svg>';
 
   /* ============================================================
      一、工具
@@ -111,6 +121,10 @@
     inputRef: null,      // 上一次找到的那个开关按钮，留着复用（见 findSwitch）
     hit: '',             // 它是用哪一招找到的，只给验证脚本看
     switchCount: 0,      // 页面上 role="switch" 的个数，排查用
+    listOpen: false,     // ★ 占位明细列表是否展开（二级菜单）。
+                         //   ⚠️ 必须存在这里、**不能靠 DOM**：tick() 是
+                         //   `panel.innerHTML = html` 整块换掉的，DOM 里的展开态
+                         //   每帧都会被洗掉；而且 hashchange 换笔记时要重置。
     listeners: []
   };
 
@@ -270,6 +284,17 @@
       '.cs-badge.full{background:#fdecec;color:#c0392b}',
       '.cs-badge.muted{background:#f3f4f8;color:#8a90a6;font-weight:500}',
       '.cs-detail{margin-top:9px;font-size:12.5px;line-height:1.85;color:#5b6178}',
+      /* ★ 二级菜单：摘要一行常显，明细默认收起 */
+      '.cs-head{display:flex;align-items:baseline;gap:10px;margin-top:1px}',
+      '.cs-head-line{flex:1 1 auto;min-width:0;color:#4a5069}',
+      '.cs-toggle{flex:0 0 auto;border:0;background:none;padding:1px 0;color:#6366f1;font-size:12px;',
+      '  font-weight:600;cursor:pointer;white-space:nowrap;font-family:inherit}',
+      '.cs-toggle:hover{text-decoration:underline}',
+      '.cs-caret{display:inline-block;line-height:0;vertical-align:middle;margin-left:2px}',
+      '.cs-caret svg{display:block;transition:transform .15s ease}',
+      '.cs-caret[data-up="1"] svg{transform:rotate(180deg)}',
+      '.cs-fold{margin-top:5px;padding:5px 11px 7px;border-radius:8px;background:#f7f8fc}',
+      '.cs-fold[hidden]{display:none}',
       '.cs-list{margin:2px 0 0;padding:0;list-style:none}',
       '.cs-list li{display:flex;gap:8px;align-items:baseline;padding:1px 0}',
       '.cs-slot{flex:0 0 auto;font-variant-numeric:tabular-nums;color:#8a90a6;font-size:11.5px;min-width:66px}',
@@ -474,7 +499,23 @@
     } else {
       var vis = proj.entries.filter(function (x) { return x.count > 0; });
       if (vis.length) {
-        html += '<ul class="cs-list">';
+        var open = !!S.listOpen;
+        var free = Math.max(0, proj.limit - proj.used);
+
+        /* ★ 二级菜单的「一级」：常显的一行摘要 + 展开按钮。
+           明细默认收在下面 —— 8 张往下排一长条太占地方也难看。 */
+        html += '<div class="cs-head">' +
+          '<span class="cs-head-line">共 ' + vis.length + ' 篇占位' +
+            (free > 0 ? ' · 还空 ' + free + ' 位' : ' · 已满') +
+          '</span>' +
+          '<button type="button" class="cs-toggle" aria-expanded="' + (open ? 'true' : 'false') + '">' +
+            (open ? '收起明细' : '查看明细') +
+            '<span class="cs-caret"' + (open ? ' data-up="1"' : '') + '>' + CARET_SVG + '</span>' +
+          '</button>' +
+        '</div>';
+
+        /* ★ 二级菜单的「二级」：展开区（[hidden] 切换，不重建 DOM） */
+        html += '<div class="cs-fold"' + (open ? '' : ' hidden') + '><ul class="cs-list">';
         vis.forEach(function (x) {
           var range = x.total === 1 ? '第 ' + x.from + ' 张' : '第 ' + x.from + '-' + (x.from + x.total - 1) + ' 张';
           var here = x.path === path ? 'cs-here' : '';
@@ -482,7 +523,7 @@
             '<span class="cs-name" title="' + escapeHtml(x.title) + '">' + escapeHtml(x.title) + '</span>' +
             '<span class="cs-n">' + x.total + ' 张</span></li>';
         });
-        html += '</ul>';
+        html += '</ul></div>';
       } else {
         html += '<div>现在还没有任何笔记加入轮播。</div>';
       }
@@ -569,6 +610,10 @@
         e.stopPropagation();
         if (e.stopImmediatePropagation) e.stopImmediatePropagation();
 
+        /* ★ 顺手把明细展开：主人这时最需要看到的就是「是哪几篇占着」 */
+        S.listOpen = true;
+        try { tick(); } catch (err) {}
+
         var names = real.entries
           .filter(function (x) { return x.count > 0; })
           .map(function (x) { return '「' + x.title + '」占 ' + x.count + ' 张'; });
@@ -641,8 +686,27 @@
   ensureStyle();
   /* 开关是 <button role="switch">，只有 click 可用（没有 change 事件） */
   document.addEventListener('click', onDocClickCapture, true);
+
+  /* ★ 二级菜单的展开/收起：用**事件委托**挂在 document（冒泡阶段）。
+     两个理由：
+       ① tick() 是 `panel.innerHTML` 整块换掉的，绑在面板元素上的监听会随旧节点
+          一起消失（`.cs-refresh` 是靠每帧重绑才活着，这里没必要走那条路）。
+       ② 不能用原生 <details>/<summary>：innerHTML 整块替换会把原生展开态洗掉，
+          面板每 700ms 重算一次 ⇒ 展开一次抖一次。
+     ⚠️ 走冒泡阶段：捕获阶段的 onDocClickCapture 在「不是那个开关」时已经 return，
+        两者互不干扰。 */
+  document.addEventListener('click', function (e) {
+    var el = e.target;
+    if (!el || !el.closest) return;
+    if (!el.closest('.cs-toggle')) return;
+    e.preventDefault();
+    S.listOpen = !S.listOpen;
+    tick();
+  }, false);
+
   window.addEventListener('hashchange', function () {
     lastInput = null;
+    S.listOpen = false;           // ★ 换了一篇笔记，明细重新从「收起」开始
     setTimeout(function () { loadIndex(false); }, 200);
   });
   window.addEventListener('focus', function () { loadIndex(false); });
