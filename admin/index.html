@@ -138,21 +138,22 @@
   <script>
     /*
      * Decap CMS 主脚本体积约 5MB，加载源很关键：
-     *   0. ★ 首选本仓库自托管 /admin/vendor/decap-cms.js（3.16.2 固定版）——
-     *      与站点同域，走 Vercel 边缘节点，不用每次回源 jsDelivr/unpkg 慢慢拉；
-     *      主站静态文件有长缓存，二次打开基本秒进。
-     *   1. unpkg.com 在国内经常很慢，且带 `^` 范围写法会多一次 302 跳转；
-     *   2. 这里按 本地 → jsDelivr → unpkg(精确版本) → unpkg(范围) 依次回退，
-     *      任一加载成功即接管页面，避免单点故障把后台卡死。
+     *   0. ★ 首选本仓库自托管 /admin/vendor/decap-cms-<版本>.js ——
+     *      与站点同域，走 Vercel 边缘节点；配合 vercel.json 里的
+     *      `public, max-age=31536000, immutable`，二次打开直接命中本地缓存。
+     *      文件名带版本号才能安全上长缓存：升版本 = 换文件名。
+     *   1. 兜底 CDN 只留两条（jsDelivr → unpkg 精确版本）。
+     *      以前还有第三条 `unpkg.com/decap-cms@^3.0.0/...`，但带 `^` 会多一次
+     *      302 跳转，且前两条同时挂掉的概率极低，删掉省一次无谓分支。
+     *   2. 任一加载成功即接管页面，避免单点故障把后台卡死。
      */
     (function () {
       var SRC = {
         local: '/admin/vendor/decap-cms-3.16.2.js',
         jsdelivr: 'https://cdn.jsdelivr.net/npm/decap-cms@3/dist/decap-cms.js',
-        unpkgPin: 'https://unpkg.com/decap-cms@3/dist/decap-cms.js',
-        unpkgRange: 'https://unpkg.com/decap-cms@^3.0.0/dist/decap-cms.js'
+        unpkgPin: 'https://unpkg.com/decap-cms@3/dist/decap-cms.js'
       };
-      var order = ['local', 'jsdelivr', 'unpkgPin', 'unpkgRange'];
+      var order = ['local', 'jsdelivr', 'unpkgPin'];
       var idx = 0;
       var done = false;
       var timer = null;
