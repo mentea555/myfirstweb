@@ -3,7 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mentea's Web | 个人空间</title>
+  <title>Menteaの小站</title>
+  <!-- 网站图标。另有 /assets/icons/favicon.ico（内含 16/32/48 三档）
+       和根目录的 /favicon.ico —— 浏览器即使没看到 <link> 也会隐式去要 /favicon.ico，
+       所以那个根副本是必须的，别删。 -->
+  <link rel="icon" href="/assets/icons/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/assets/icons/favicon-16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/assets/icons/apple-touch-icon.png">
   <meta name="description" content="数字画作、笔记与灵感存档">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -2147,7 +2154,10 @@
       root.style.setProperty('--font', FONTS[s.font_family] || FONTS.jakarta);
       root.style.setProperty('--page-width', (parseInt(s.page_width, 10) || 900) + 'px');
 
-      document.title = (s.site_title || DEFAULT_SETTINGS.site_title) + ' | 个人空间';
+      // ★ 标签页标题：2026-09-19 主人要求**固定**成这个。
+      //   ⚠️ 特意**不**跟着后台的「站名」走 —— 站名仍是「Mentea Website」（见下一行 #siteTitle），
+      //      主人明确说过「只改标签页，可见站名不动」。改标签页标题就改这一行。
+      document.title = 'Menteaの小站';
       $('siteTitle').textContent = s.site_title || DEFAULT_SETTINGS.site_title;
       $('siteSubtitle').textContent = s.site_subtitle || '';
 

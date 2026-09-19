@@ -3,7 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>画廊 | Mentea</title>
+  <title>Menteaの小站</title>
+  <!-- 网站图标（与主站同一套） -->
+  <link rel="icon" href="/assets/icons/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/assets/icons/favicon-16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/assets/icons/apple-touch-icon.png">
   <meta name="description" content="插画作品画廊 —— 点开图片阅读笔记">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1661,7 +1666,8 @@
       const sub = String(g.subtitle || '').trim();
       if (sub) { $('pageSub').textContent = sub; $('pageSub').hidden = false; }
       else $('pageSub').hidden = true;
-      document.title = String(g.title || '画廊') + ' | ' + (s.site_title || 'Mentea');
+      // ★ 标签页标题：2026-09-19 主人要求全站固定成这一个（与后台「站名」解耦）
+      document.title = 'Menteaの小站';
 
       // ---- 拉文章 ----
       let posts = [];

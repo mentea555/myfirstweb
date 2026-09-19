@@ -3,7 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>关于我 | Mentea</title>
+  <title>Menteaの小站</title>
+  <!-- 网站图标（与主站同一套） -->
+  <link rel="icon" href="/assets/icons/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/assets/icons/favicon-16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/assets/icons/apple-touch-icon.png">
   <meta name="description" content="关于 Mentea —— 头像、简介与我的其他主页链接">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -873,7 +878,8 @@
 
       applyTokens(l.tokens, s);
       renderAbout(a, s);
-      document.title = (a.display_name || '关于我') + ' | ' + (s.site_title || 'Mentea');
+      // ★ 标签页标题：2026-09-19 主人要求全站固定成这一个（与后台「站名」解耦）
+      document.title = 'Menteaの小站';
       writeCache(settings, layout, about);
 
       // marked / DOMPurify 可能还没到位 → 回来后再补渲染一次简介
