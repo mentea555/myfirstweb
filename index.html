@@ -1993,6 +1993,44 @@
       return out;
     }
 
+    /**
+     * ★ 行内富文本 —— 给「单行文本字段」用（板块标题、主标题这类要塞进
+     *   <h1>/<h2>/<h3>/<span> 里的字段）。
+     *
+     * 和 md2html 只差一步：剥掉 marked 包在最外面的那层 <p>。
+     *
+     * 为什么必须剥：
+     *   这类字段在样式里是「一个标题」——由父元素控制字号、行高、外边距。
+     *   一旦塞进块级 <p>，它会自己带上下外边距，把整行撑开、和相邻元素错位。
+     *
+     * 为什么要有这个函数（而不是继续用 textContent）：
+     *   同样一句 `<a href="/about/">Mentea</a>`，写在页脚（markdown 字段）
+     *   能正常变成链接，写在板块标题里却会原样显示成一堆标签 —— 主人就踩到过，
+     *   来问「为什么不行」。前端既然已经有一套 md2html + DOMPurify 的渲染管线，
+     *   单行字段就没有理由绕开它。现在所有「人能填的展示文本」都是同一套规则：
+     *   支持 Markdown、链接、颜色短代码 {{<c:#xxx>}}。
+     *
+     * 安全：完全复用 md2html，也就是照旧过 DOMPurify（禁 script/iframe/form、
+     *      禁 on* 事件属性），不会因为改成 innerHTML 就开一个注入口子。
+     */
+    function inlineMd(md) {
+      if (!md) return '';
+      return unwrapSingleParagraph(md2html(String(md)));
+    }
+
+    /**
+     * 只剥「整体就是一个段落」的那层 <p>。
+     *
+     * 遇到多段落 / 代码块 / 列表（也就是 group 里还藏着块级标签）时原样返回 ——
+     * 宁可让它按块级排版，也不要把小块级元素揉进标题里。
+     */
+    function unwrapSingleParagraph(html) {
+      const t = String(html).trim();
+      const m = /^<p>([\s\S]*)<\/p>$/.exec(t);
+      if (m && m[1].indexOf('<p>') === -1 && m[1].indexOf('<pre') === -1) return m[1].trim();
+      return t;
+    }
+
     /*
      * 库「晚到」的补救。
      *
@@ -2261,13 +2299,13 @@
       if (settings) lastSettings = settings;
 
       const badge = $('heroBadge');
-      if (h.hero_badge) { badge.textContent = h.hero_badge; badge.hidden = false; }
+      if (h.hero_badge) { badge.innerHTML = inlineMd(h.hero_badge); badge.hidden = false; }
       else { badge.hidden = true; }
 
       const title = h.hero_title || settings.site_title || DEFAULT_SETTINGS.site_title;
       const subtitle = h.hero_subtitle || settings.site_subtitle || '';
-      $('heroTitle').textContent = title;
-      $('heroSubtitle').textContent = subtitle;
+      $('heroTitle').innerHTML = inlineMd(title);
+      $('heroSubtitle').innerHTML = inlineMd(subtitle);
       $('hero').hidden = !(h.hero_badge || title || subtitle);
 
       if (h.announcement) {
@@ -2279,7 +2317,8 @@
       }
 
       if (h.about_enabled && h.about_body) {
-        $('aboutTitle').textContent = h.about_title || '关于我';
+        /* innerHTML：标题允许写链接 / 颜色短代码（和正文、页脚同一套写法） */
+        $('aboutTitle').innerHTML = inlineMd(h.about_title || '关于我');
         $('aboutBody').innerHTML = md2html(h.about_body);
         guardImages($('aboutBody'));
         $('aboutCard').hidden = false;

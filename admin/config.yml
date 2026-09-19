@@ -155,9 +155,15 @@ collections:
               name: "hero_title",
               widget: "string",
               required: false,
-              hint: "留空则自动使用「全站设置」里的站点标题",
+              hint: "留空则自动使用「全站设置」里的站点标题；支持链接与颜色标注",
             }
-          - { label: "首页副标题", name: "hero_subtitle", widget: "string", required: false }
+          - {
+              label: "首页副标题",
+              name: "hero_subtitle",
+              widget: "string",
+              required: false,
+              hint: "支持链接与颜色标注",
+            }
           - {
               label: "公告条",
               name: "announcement",
@@ -166,7 +172,13 @@ collections:
               hint: "显示在页面最顶部，支持 Markdown。留空则不显示",
             }
           - { label: "显示「关于我」板块", name: "about_enabled", widget: "boolean", default: true, required: false }
-          - { label: "板块标题", name: "about_title", widget: "string", required: false }
+          - {
+              label: "板块标题",
+              name: "about_title",
+              widget: "string",
+              required: false,
+              hint: '支持链接与颜色标注（跟正文、页脚同一套写法），例：`关于<a href="/about/">Mentea</a>`',
+            }
           - { label: "板块正文", name: "about_body", widget: "markdown", required: false }
           - { label: "页脚文字", name: "footer_text", widget: "markdown", required: false }
 
