@@ -302,6 +302,11 @@
       '.cs-list li.cs-here .cs-name{font-weight:700;color:#3d43c4}',
       '.cs-list li.cs-here .cs-slot{color:#3d43c4}',
       '.cs-n{flex:0 0 auto;color:#8a90a6;font-size:11.5px}',
+      /* 「排队中」：开关开着但一张都显示不出来 —— 淡出 + 琥珀色，与真占位的区分开 */
+      '.cs-list li.cs-shadow .cs-slot{color:#c07d18;font-weight:600}',
+      '.cs-list li.cs-shadow .cs-name{color:#737a90}',
+      '.cs-list li.cs-shadow .cs-n{color:#b9a06a}',
+      '.cs-list li.cs-shadow.cs-here .cs-name{color:#8a6a1e;font-weight:700}',
       '.cs-warn{margin-top:7px;padding:7px 10px;border-radius:8px;background:#fdf3e7;color:#9a5b12;font-size:12.5px;line-height:1.7}',
       '.cs-note{margin-top:6px;color:#8a90a6;font-size:12px;line-height:1.7}',
       '.cs-err{padding:7px 10px;border-radius:8px;background:#f3f4f8;color:#8a90a6;font-size:12.5px}',
@@ -497,7 +502,12 @@
           : '正在核对全站轮播占用…') +
         '</div>';
     } else {
-      var vis = proj.entries.filter(function (x) { return x.count > 0; });
+      /* ★ 两组：真的显示出来的（count>0）／开关开着但一张都显示不出来的（count===0，排队中）。
+         ⚠️ 以前只列 count>0 的那组，「隐形占位」被整段过滤掉 —— 主人只看到「8/8 已满」，
+            根本不知道暗处还排着哪几篇，一腾出位置就冒出来一张旧图，被当成「偷偷占位」。 */
+      var shown = proj.entries.filter(function (x) { return x.count > 0; });
+      var peeking = proj.entries.filter(function (x) { return x.count === 0 && x.total > 0; });
+      var vis = shown.concat(peeking);
       if (vis.length) {
         var open = !!S.listOpen;
         var free = Math.max(0, proj.limit - proj.used);
@@ -505,8 +515,9 @@
         /* ★ 二级菜单的「一级」：常显的一行摘要 + 展开按钮。
            明细默认收在下面 —— 8 张往下排一长条太占地方也难看。 */
         html += '<div class="cs-head">' +
-          '<span class="cs-head-line">共 ' + vis.length + ' 篇占位' +
+          '<span class="cs-head-line">共 ' + shown.length + ' 篇占位' +
             (free > 0 ? ' · 还空 ' + free + ' 位' : ' · 已满') +
+            (peeking.length ? ' · ⚠ 另有 ' + peeking.length + ' 篇在排队' : '') +
           '</span>' +
           '<button type="button" class="cs-toggle" aria-expanded="' + (open ? 'true' : 'false') + '">' +
             (open ? '收起明细' : '查看明细') +
@@ -517,8 +528,16 @@
         /* ★ 二级菜单的「二级」：展开区（[hidden] 切换，不重建 DOM） */
         html += '<div class="cs-fold"' + (open ? '' : ' hidden') + '><ul class="cs-list">';
         vis.forEach(function (x) {
-          var range = x.total === 1 ? '第 ' + x.from + ' 张' : '第 ' + x.from + '-' + (x.from + x.total - 1) + ' 张';
           var here = x.path === path ? 'cs-here' : '';
+          if (x.count === 0) {
+            /* 开关开着，但被更靠前的排满了 ⇒ 首页一张都看不到 */
+            html += '<li class="cs-shadow' + (here ? ' ' + here : '') + '">' +
+              '<span class="cs-slot">排队中</span>' +
+              '<span class="cs-name" title="' + escapeHtml(x.title) + '">' + escapeHtml(x.title) + '</span>' +
+              '<span class="cs-n">看不到</span></li>';
+            return;
+          }
+          var range = x.total === 1 ? '第 ' + x.from + ' 张' : '第 ' + x.from + '-' + (x.from + x.total - 1) + ' 张';
           html += '<li class="' + here + '"><span class="cs-slot">' + range + '</span>' +
             '<span class="cs-name" title="' + escapeHtml(x.title) + '">' + escapeHtml(x.title) + '</span>' +
             '<span class="cs-n">' + x.total + ' 张</span></li>';
@@ -529,7 +548,12 @@
       }
 
       if (proj.overflow > 0) {
-        html += '<div class="cs-warn">还有 ' + proj.overflow + ' 张被上限挤掉了，首页上看不到 —— 想都显示出来，去「前端页面设置 → 首页轮播图」把上限调大。</div>';
+        var pk = proj.entries.filter(function (x) { return x.count === 0 && x.total > 0; }).length;
+        html += '<div class="cs-warn">⚠️ 位置不够：所有勾着的笔记合起来要占 ' + proj.slotRaw + ' 张，' +
+          '上限只有 ' + proj.limit + ' 张，多出来的 ' + proj.overflow + ' 张首页根本看不到' +
+          (pk ? '（其中 ' + pk + ' 篇是整篇都看不到，已标成「排队中」）' : '') + '。' +
+          '<br>这些笔记的开关还开着 —— 你每空出一个位置，它们就自动顶上来一张（这就是「删了又冒出来」的原因）。' +
+          '不想让它们上来，就打开对应笔记把开关关掉；想让它们都显示，去「前端页面设置 → 首页轮播图」把上限调大。</div>';
       }
 
       if (mine) {
@@ -558,7 +582,10 @@
       }
 
       if (real.full && !active) {
-        html += '<div class="cs-blocked-hint">⚠️ 位置已满（' + real.used + '/' + real.limit + '）：现在点这个开关会被拦下。要在已经加入轮播的那一篇里把它关掉，空出位置再来。</div>';
+        var rp = real.entries.filter(function (x) { return x.count === 0 && x.total > 0; }).length;
+        html += '<div class="cs-blocked-hint">⚠️ 位置已满（' + real.used + '/' + real.limit + '）：现在点这个开关会被拦下。要在已经加入轮播的那一篇里把它关掉，空出位置再来。' +
+          (rp ? '（⚠️ 另有 ' + rp + ' 篇的开关也开着、只是被挤得看不到，你空出的位置会先被它们抢走 —— 不想要它们，先把那几篇的开关关掉）' : '') +
+          '</div>';
       }
     }
 
@@ -617,6 +644,9 @@
         var names = real.entries
           .filter(function (x) { return x.count > 0; })
           .map(function (x) { return '「' + x.title + '」占 ' + x.count + ' 张'; });
+        var queue = real.entries
+          .filter(function (x) { return x.count === 0 && x.total > 0; })
+          .map(function (x) { return '「' + x.title + '」'; });
         window.__csDebug = {
           at: Date.now(), action: 'BLOCKED(capture)', on: false,
           ready: S.ready, used: real.used, limit: real.limit, full: real.full, path: path
@@ -625,6 +655,8 @@
           '轮播图位置已满（' + real.used + '/' + real.limit + '），这一篇加不进去',
           ['先到已经加入轮播的那几篇里，把它们的「加入首页轮播图」关掉，空出位置再回来勾这一篇。']
             .concat(names.length ? ['当前占位：' + names.join('、')] : [])
+            .concat(queue.length ? ['另有 ' + queue.length + ' 篇开关也开着、被挤得看不到：' + queue.join('、') +
+              ' —— 你空出的位置会先被它们顶上，不想要它们就先关掉。'] : [])
             .concat(['（想一次显示更多张，也可以去「前端页面设置 → 首页轮播图」把「最多显示几张」调大）']),
           'warn'
         );
