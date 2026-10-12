@@ -3,12 +3,12 @@
   "guard_text": "",
   "steps": [
     {
-      "title": "打开https://chatgpt.com/api/auth/session",
-      "text": "复制所有文字"
+      "title": "1",
+      "text": "2"
     },
     {
-      "title": "提交闲鱼昵称和页面的内容",
-      "text": "24小时内完成交易，请耐心等待。"
+      "title": "1",
+      "text": "3"
     }
   ],
   "success_text": "已提交！我会尽快在闲鱼上联系你，通常 24 小时内。",
@@ -26,7 +26,7 @@
   "submit_text": "提交需求",
   "faq": [],
   "subtitle": "",
-  "title": "先登录chatgpt.com，进入https://chatgpt.com/api/auth/session页面，复制全部文字",
+  "title": "1",
   "contact_title": "",
   "email": "2312772704@qq.com",
   "form_title": "提交需求"
