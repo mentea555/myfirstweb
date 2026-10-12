@@ -34,24 +34,17 @@
   ],
   "rewrites": [
     {
-      "source": "/__rwtest",
-      "destination": "/card/index.html"
-    },
-    {
-      "source": "/__hastest",
-      "has": [{ "type": "host", "value": "www.menteaweb.com" }],
-      "destination": "/card/index.html"
-    },
-    {
       "source": "/card",
+      "missing": [{ "type": "host", "value": "card.menteaweb.com" }],
       "destination": "/__card_page_has_no_public_path__"
     },
     {
       "source": "/card/:path*",
+      "missing": [{ "type": "host", "value": "card.menteaweb.com" }],
       "destination": "/__card_page_has_no_public_path__"
     },
     {
-      "source": "/",
+      "source": "/(.*)",
       "has": [{ "type": "host", "value": "card.menteaweb.com" }],
       "destination": "/card/index.html"
     }
