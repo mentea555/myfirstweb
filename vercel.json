@@ -32,21 +32,16 @@
       ]
     }
   ],
-  "rewrites": [
+  "redirects": [
     {
       "source": "/card",
-      "missing": [{ "type": "host", "value": "card.menteaweb.com" }],
-      "destination": "/__card_page_has_no_public_path__"
+      "destination": "https://card.menteaweb.com/",
+      "permanent": true
     },
     {
       "source": "/card/:path*",
-      "missing": [{ "type": "host", "value": "card.menteaweb.com" }],
-      "destination": "/__card_page_has_no_public_path__"
-    },
-    {
-      "source": "/(.*)",
-      "has": [{ "type": "host", "value": "card.menteaweb.com" }],
-      "destination": "/card/index.html"
+      "destination": "https://card.menteaweb.com/",
+      "permanent": true
     }
   ]
 }
