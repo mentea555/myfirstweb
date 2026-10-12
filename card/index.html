@@ -5,23 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Menteaの小站</title>
   <!-- ============================================================
-       ★★★ 上线前必须改的第 1 处：表单收件邮箱 ★★★
-       把下面 3 个地方的 __YOUR_EMAIL__ 全都换成你的真实邮箱
-       （就是你想收到接单通知的那个邮箱，比如 xxx@menteaweb.com）：
-         1. <form id="orderForm" data-mailto="__YOUR_EMAIL__">   ← 第 1 处
-         2. JS 里的 FORMSUBMIT_FALLBACK_MAILTO                   ← 第 2 处
-         3. <a id="mailtoLink" href="mailto:__YOUR_EMAIL__">      ← 第 3 处
-       改完第一次收到提交时，FormSubmit 会先给你发一封确认邮件，
-       点里面的激活链接之后才会真正开始转发。只激活一次。
-
-       ★ 上线前必须改的第 2 处：闲鱼主页链接
-         搜索 __YOUR_XIANYU__ 换成你的闲鱼主页地址（2 处）。
+       这个页面的所有文字、闲鱼链接、收件邮箱，都在后台「前端页面设置 → 接单页」里改，
+       不用动这个文件。页面会在打开时去主站读取 content/card.json 并自动替换；
+       万一读不到（网络问题），就会用下面写死的这份默认文案，照样能用。
        ============================================================ -->
   <link rel="icon" href="/assets/icons/favicon.ico" sizes="any">
   <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="/assets/icons/favicon-16.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/assets/icons/apple-touch-icon.png">
   <meta name="description" content="Mentea 接单台 —— 下单流程、填写表单与常见问题">
+  <meta name="robots" content="noindex">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Noto+Serif+SC:wght@400;600&display=swap">
@@ -33,7 +26,6 @@
       --accent-soft: rgba(99, 102, 241, 0.25);
       --radius: 16px;
       --font: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
-      --serif: 'Noto Serif SC', Georgia, serif;
     }
     html[data-theme="dark"] {
       --bg: #0f1117;
@@ -47,14 +39,12 @@
       --glow-2: rgba(236, 72, 153, 0.10);
       --shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
       --hover-border: rgba(255, 255, 255, 0.15);
-      --chip-bg: rgba(255, 255, 255, 0.06);
       --field-bg: rgba(255, 255, 255, 0.04);
       --ok-bg: rgba(34, 197, 94, 0.12);
       --ok-fg: #86efac;
       --warn-bg: rgba(245, 158, 11, 0.10);
       --warn-fg: #fcd34d;
       --warn-border: rgba(245, 158, 11, 0.35);
-      --err-fg: #fca5a5;
     }
     html[data-theme="light"] {
       --bg: #f6f7fb;
@@ -68,14 +58,12 @@
       --glow-2: rgba(236, 72, 153, 0.08);
       --shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
       --hover-border: rgba(15, 23, 42, 0.16);
-      --chip-bg: rgba(15, 23, 42, 0.05);
       --field-bg: rgba(15, 23, 42, 0.03);
       --ok-bg: rgba(22, 163, 74, 0.10);
       --ok-fg: #15803d;
       --warn-bg: rgba(217, 119, 6, 0.10);
       --warn-fg: #92400e;
       --warn-border: rgba(217, 119, 6, 0.30);
-      --err-fg: #b91c1c;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -97,26 +85,14 @@
 
     .container { max-width: 760px; margin: 0 auto; padding: 34px 22px 80px; }
 
-    /* ---------- 顶部返回条 ---------- */
-    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 34px; }
-    .back-link {
-      display: inline-flex; align-items: center; gap: 7px;
-      font-size: 13.5px; font-weight: 600; text-decoration: none;
-      color: var(--text-dim); padding: 8px 14px 8px 10px;
-      border: 1px solid var(--card-border); border-radius: 999px;
-      background: var(--card-bg); backdrop-filter: blur(10px);
-      transition: transform .18s, border-color .18s, color .18s;
-    }
-    .back-link svg { width: 17px; height: 17px; }
-    .back-link:hover { color: var(--text); border-color: var(--hover-border); transform: translateX(-2px); }
-    .back-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .topbar { display: flex; align-items: center; margin-bottom: 34px; }
     .site-name { font-size: 13px; font-weight: 700; letter-spacing: .02em; color: var(--text-dim); }
 
     /* ---------- 头部 ---------- */
     .hero { margin-bottom: 30px; }
     .eyebrow {
       display: inline-block; font-size: 12px; font-weight: 700; letter-spacing: .1em;
-      text-transform: uppercase; color: var(--accent);
+      text-transform: uppercase;
       background: var(--accent-soft); padding: 5px 12px; border-radius: 999px; margin-bottom: 16px;
     }
     .hero h1 { font-size: clamp(1.7rem, 5vw, 2.2rem); font-weight: 800; color: var(--text-strong); letter-spacing: -.02em; line-height: 1.25; margin-bottom: 12px; }
@@ -139,7 +115,7 @@
     .steps li { display: flex; gap: 13px; align-items: flex-start; }
     .steps .n {
       flex: 0 0 auto; width: 25px; height: 25px; border-radius: 50%;
-      background: var(--accent-soft); color: var(--accent);
+      background: var(--accent-soft);
       font-size: 12.5px; font-weight: 700;
       display: flex; align-items: center; justify-content: center; margin-top: 2px;
     }
@@ -152,20 +128,17 @@
     .field label { display: block; font-size: 13.5px; font-weight: 600; color: var(--text-strong); margin-bottom: 7px; }
     .field label .req { color: #ef4444; margin-left: 3px; }
     .field label .hint { font-weight: 400; color: var(--text-dim); font-size: 12.5px; margin-left: 6px; }
-    .field input[type=text], .field input[type=email], .field select, .field textarea {
+    .field input[type=text], .field textarea {
       width: 100%; font-family: inherit; font-size: 14.5px; color: var(--text);
       background: var(--field-bg); border: 1px solid var(--card-border);
       border-radius: 11px; padding: 11px 13px; outline: none;
-      transition: border-color .18s, box-shadow .18s; -webkit-appearance: none;
+      transition: border-color .18s, box-shadow .18s;
     }
-    .field textarea { min-height: 108px; resize: vertical; line-height: 1.65; }
-    .field select { background-image: none; cursor: pointer; }
-    .field input:focus, .field select:focus, .field textarea:focus {
+    .field textarea { min-height: 118px; resize: vertical; line-height: 1.65; }
+    .field input:focus, .field textarea:focus {
       border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft);
     }
     .field input::placeholder, .field textarea::placeholder { color: var(--text-dim); opacity: .75; }
-    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-    @media (max-width: 560px) { .row2 { grid-template-columns: 1fr; gap: 0; } }
 
     .hp { position: absolute !important; left: -9999px !important; opacity: 0; }
 
@@ -178,13 +151,10 @@
     }
     .btn:hover { filter: brightness(1.08); transform: translateY(-1px); }
     .btn:active { transform: scale(.985); }
-    .btn[disabled] { opacity: .6; cursor: default; transform: none; filter: none; }
-    .btn.ghost { background: transparent; color: var(--text-strong); border: 1px solid var(--card-border); }
-    .btn.ghost:hover { border-color: var(--hover-border); }
+    .btn[disabled], .btn[aria-disabled="true"] { opacity: .55; cursor: default; transform: none; filter: none; }
 
     .form-note { font-size: 12.5px; color: var(--text-dim); margin-top: 12px; text-align: center; }
 
-    /* 提交反馈 */
     .feedback { border-radius: 12px; padding: 12px 14px; font-size: 13.5px; margin-bottom: 18px; line-height: 1.65; }
     .feedback.ok { background: var(--ok-bg); color: var(--ok-fg); }
     .feedback.err { background: var(--warn-bg); color: var(--warn-fg); }
@@ -197,7 +167,6 @@
     }
     .guard svg { width: 18px; height: 18px; flex: 0 0 auto; margin-top: 2px; color: var(--warn-fg); }
     .guard p { font-size: 13px; color: var(--warn-fg); line-height: 1.6; }
-    .guard b { font-weight: 700; }
 
     /* ---------- FAQ ---------- */
     .faq { display: grid; gap: 2px; }
@@ -212,22 +181,19 @@
     .faq details[open] summary::after { content: '−'; }
     .faq .a { font-size: 14px; color: var(--body-text); padding-top: 9px; }
 
-    /* ---------- 底部 ---------- */
-    .foot { text-align: center; font-size: 12.5px; color: var(--text-dim); margin-top: 36px; }
-    .foot a { text-decoration: none; border-bottom: 1px solid var(--card-border); }
-    .foot a:hover { color: var(--text); }
+    .contact-desc { font-size: 14.5px; color: var(--body-text); margin-bottom: 16px; }
 
-    /* ★ 深色主题下，强调色原色（#6366f1）压在「浅色小底」上对比度不够，
-       徽标与步骤序号几乎看不见 → 另给一个提亮版 --accent-ink。
-       自定义属性在计算时才求值，所以这两条放在样式表末尾也照样生效；
-       下面这条选择器与原本的 .eyebrow / .steps .n 同权重、但更靠后，所以能覆盖。 */
+    .foot { text-align: center; font-size: 12.5px; color: var(--text-dim); margin-top: 36px; }
+
+    /* ★ 深色主题下强调色原色压在浅底上对比度不够 → 提亮版。
+       自定义属性计算时才求值，放末尾也生效；下面这条同权重但更靠后，所以能覆盖。 */
     html[data-theme="dark"] { --accent-ink: #a5b4fc; }
     html[data-theme="light"] { --accent-ink: #4f46e5; }
     .eyebrow, .steps .n { color: var(--accent-ink); }
 
     @media (prefers-reduced-motion: reduce) {
       * { transition: none !important; animation: none !important; }
-      .btn:hover, .back-link:hover { transform: none; }
+      .btn:hover { transform: none; }
     }
   </style>
 </head>
@@ -239,14 +205,14 @@
     </div>
 
     <header class="hero">
-      <span class="eyebrow">Order Desk</span>
-      <h1>填写需求，我来接单</h1>
-      <p>在下面把要求写清楚，提交后我会收到通知，并按顺序联系你确认细节。急着走的话也可以直接在闲鱼私聊我。</p>
+      <span class="eyebrow" data-tx="eyebrow">Order Desk</span>
+      <h1 data-tx="title">填写需求，我来接单</h1>
+      <p data-tx="subtitle">在下面把要求写清楚，提交后我会收到通知，并按顺序联系你确认细节。急着走的话也可以直接在闲鱼私聊我。</p>
     </header>
 
     <section class="card">
-      <h2><span class="dot"></span>下单流程</h2>
-      <ol class="steps">
+      <h2><span class="dot"></span><span data-tx="steps_title">下单流程</span></h2>
+      <ol class="steps" id="stepsList">
         <li><span class="n">1</span><span class="t"><b>填下面的表单</b> —— 写清你要什么、大概什么时候要。</span></li>
         <li><span class="n">2</span><span class="t"><b>等我回复报价</b> —— 通常 24 小时内，确认价格和交期。</span></li>
         <li><span class="n">3</span><span class="t"><b>在闲鱼下单付款</b> —— 走平台交易，双方都有保障。</span></li>
@@ -255,7 +221,7 @@
     </section>
 
     <section class="card">
-      <h2><span class="dot"></span>提交需求</h2>
+      <h2><span class="dot"></span><span data-tx="form_title">提交需求</span></h2>
 
       <div class="guard">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -263,35 +229,34 @@
           <path d="M12 9v4"/><path d="M12 17h.01"/>
           <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
         </svg>
-        <p><b>请不要在本页面填写任何密码、短信验证码、登录令牌或账号凭据。</b>
-           我永远不会向你索要这些 —— 整个下单流程都不需要。任何要求你提供这类信息的人都是骗子，请直接举报。</p>
+        <p data-tx="guard_text">请不要在本页面填写任何密码、短信验证码、登录令牌或账号凭据。我永远不会向你索要这些 —— 整个下单流程都不需要。任何要求你提供这类信息的人都是骗子，请直接举报。</p>
       </div>
 
       <div id="feedback" class="feedback" hidden></div>
 
-      <form id="orderForm" data-mailto="__YOUR_EMAIL__" novalidate>
-        <!-- FormSubmit 的反垃圾蜜罐：真人看不见，机器人会填 → 直接被丢弃 -->
+      <form id="orderForm" novalidate>
         <input type="text" name="_honey" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
 
         <div class="field">
-          <label for="xyId">闲鱼昵称<span class="req">*</span></label>
-          <input type="text" id="xyId" name="闲鱼昵称" required maxlength="60" autocomplete="off" placeholder="你的闲鱼昵称">
+          <label for="xyId"><span data-tx="field1_label">闲鱼昵称</span><span class="req">*</span></label>
+          <input type="text" id="xyId" name="闲鱼昵称" required maxlength="60" autocomplete="off"
+                 data-tx-ph="field1_placeholder" placeholder="你的闲鱼昵称">
         </div>
 
         <div class="field">
-          <label for="detail">信息<span class="req">*</span><span class="hint">要什么、数量、什么时候要，都写在这里</span></label>
+          <label for="detail"><span data-tx="field2_label">信息</span><span class="req">*</span><span class="hint" data-tx="field2_hint">要什么、数量、什么时候要，都写在这里</span></label>
           <textarea id="detail" name="信息" required maxlength="2000"
-                    placeholder="写清你要什么、有什么要求、大概什么时候要"></textarea>
+                    data-tx-ph="field2_placeholder" placeholder="写清你要什么、有什么要求、大概什么时候要"></textarea>
         </div>
 
-        <button type="submit" class="btn" id="submitBtn">提交需求</button>
-        <p class="form-note">提交后会直接发到我的邮箱，通常 24 小时内回复。</p>
+        <button type="submit" class="btn" id="submitBtn"><span data-tx="submit_text">提交需求</span></button>
+        <p class="form-note" data-tx="form_note">提交后会直接发到我的邮箱，通常 24 小时内回复。</p>
       </form>
     </section>
 
     <section class="card">
-      <h2><span class="dot"></span>常见问题</h2>
-      <div class="faq">
+      <h2><span class="dot"></span><span data-tx="faq_title">常见问题</span></h2>
+      <div class="faq" id="faqList">
         <details>
           <summary>提交之后多久能得到回复？</summary>
           <div class="a">通常 24 小时内。如果比较急，可以直接在闲鱼私聊我催一下。</div>
@@ -304,87 +269,116 @@
           <summary>需要我提供账号密码之类的吗？</summary>
           <div class="a">不需要，永远不需要。下单只需要你的闲鱼昵称和需求描述两样东西。如果有人在任何环节向你索要密码、验证码或登录令牌，那一定不是正常流程。</div>
         </details>
-        <details>
-          <summary>提交后想改需求怎么办？</summary>
-          <div class="a">再提交一次并标注「修改」，或者直接在闲鱼私聊我说明改了哪里，以最新一次沟通为准。</div>
-        </details>
-        <details>
-          <summary>不想填表单，能直接聊吗？</summary>
-          <div class="a">可以，直接到我的闲鱼主页私聊就行 —— 见下方按钮。</div>
-        </details>
       </div>
     </section>
 
     <section class="card">
-      <h2><span class="dot"></span>直接找我</h2>
-      <p style="font-size:14.5px;color:var(--body-text);margin-bottom:16px;">
-        想跳过表单、或者先聊聊再决定，都可以直接来闲鱼找我。
-      </p>
-      <a class="btn" id="xyBtn" href="__YOUR_XIANYU__" target="_blank" rel="noopener noreferrer">前往我的闲鱼主页</a>
-      <p class="form-note" id="mailLine">邮箱：<a id="mailtoLink" href="mailto:__YOUR_EMAIL__">__YOUR_EMAIL__</a></p>
+      <h2><span class="dot"></span><span data-tx="contact_title">直接找我</span></h2>
+      <p class="contact-desc" data-tx="contact_desc">想跳过表单、或者先聊聊再决定，都可以直接来闲鱼找我。</p>
+      <a class="btn" id="xyBtn" href="#" target="_blank" rel="noopener noreferrer" aria-disabled="true"><span data-tx="xianyu_text">前往我的闲鱼主页</span></a>
+      <p class="form-note" id="mailLine" hidden>邮箱：<a id="mailtoLink" href="#"></a></p>
     </section>
 
-    <p class="foot">
-      <a href="https://www.menteaweb.com/">Mentea Website</a>
-    </p>
+    <p class="foot"><a href="https://www.menteaweb.com/">Mentea Website</a></p>
 
   </main>
 
   <script>
-    /* ---------- 外观跟随主站（拿不到就保持默认深色，绝不阻塞渲染） ----------
-       ⚠️ 这个页面是**独立部署**在子域名上（Vercel 的 Root Directory 指向 card/），
-          所以本站没有 /api/bundle，必须跨域去主站拿。
-          主站的 /api/* 都带 `Access-Control-Allow-Origin: *`，跨域可用。
-          整块是「锦上添花」：失败就静默保持默认配色，页面功能完全不受影响。 */
-    (function applySiteLook() {
-      fetch('https://www.menteaweb.com/api/bundle', { cache: 'no-store' })
-        .then(function (r) { return r.ok ? r.json() : null; })
-        .then(function (j) {
-          if (!j || j.ok !== true || !j.files) return;
+    /* ============================================================
+       这个页面是主站 Vercel 项目里的一个静态子目录，通过 vercel.json 的
+       host 级 rewrite 只在 card.menteaweb.com 下暴露（主站的 /card/ 路径已被屏蔽为 404）。
+       所有文案 / 闲鱼链接 / 收件邮箱都从主站的 content/card.json 读，后台可改。
+       ============================================================ */
+    var BUNDLE_URL = 'https://www.menteaweb.com/api/bundle';
+    var cfg = null;
+
+    function applyTheme(files) {
+      try {
+        var rawLayout = files['content/layout.json'];
+        if (rawLayout) {
+          var tk = (JSON.parse(rawLayout) || {}).tokens || {};
           var root = document.documentElement;
+          root.setAttribute('data-theme', tk.theme === 'light' ? 'light' : 'dark');
+          if (tk.accent) root.style.setProperty('--accent', tk.accent);
+          if (tk.background) root.style.setProperty('--bg', tk.background);
+        }
+        var rawSettings = files['content/settings.json'];
+        if (rawSettings) {
+          var s = JSON.parse(rawSettings) || {};
+          var el = document.querySelector('.site-name');
+          if (el && s.site_title) el.textContent = '接单台 · ' + s.site_title;
+        }
+      } catch (e) { /* 配色拿不到就用默认的 */ }
+    }
 
-          var rawLayout = j.files['content/layout.json'];
-          if (rawLayout) {
-            var tk = (JSON.parse(rawLayout) || {}).tokens || {};
-            var isLight = tk.theme === 'light';
-            root.setAttribute('data-theme', isLight ? 'light' : 'dark');
-            if (tk.accent) root.style.setProperty('--accent', tk.accent);
-            if (tk.background) root.style.setProperty('--bg', tk.background);
-          }
+    /** 把配置里的纯文本安全地放进页面：只给需要强调的「标题」加粗，其余原样。 */
+    function renderText(cfgData) {
+      document.querySelectorAll('[data-tx]').forEach(function (el) {
+        var v = cfgData[el.getAttribute('data-tx')];
+        if (typeof v === 'string' && v.trim()) el.textContent = v;
+      });
+      document.querySelectorAll('[data-tx-ph]').forEach(function (el) {
+        var v = cfgData[el.getAttribute('data-tx-ph')];
+        if (typeof v === 'string' && v.trim()) el.setAttribute('placeholder', v);
+      });
 
-          var rawSettings = j.files['content/settings.json'];
-          if (rawSettings) {
-            var s = JSON.parse(rawSettings) || {};
-            var el = document.querySelector('.site-name');
-            if (el && s.site_title) el.textContent = '接单台 · ' + s.site_title;
-          }
-        })
-        .catch(function () { /* 静默：默认深色已经渲染好了 */ });
-    })();
+      // 流程：数组重建（第 1 段做加粗，跟默认样式一致）
+      if (Array.isArray(cfgData.steps) && cfgData.steps.length) {
+        var ol = document.getElementById('stepsList');
+        ol.textContent = '';
+        cfgData.steps.forEach(function (s, i) {
+          var li = document.createElement('li');
+          var n = document.createElement('span'); n.className = 'n'; n.textContent = String(i + 1);
+          var t = document.createElement('span'); t.className = 't';
+          if (s && s.title) { var b = document.createElement('b'); b.textContent = s.title; t.appendChild(b); }
+          if (s && s.text) t.appendChild(document.createTextNode((s.title ? ' —— ' : '') + s.text));
+          li.appendChild(n); li.appendChild(t); ol.appendChild(li);
+        });
+      }
 
-    /* ---------- 表单提交 → 邮件 ---------- */
+      // 常见问题：数组重建
+      if (Array.isArray(cfgData.faq) && cfgData.faq.length) {
+        var box = document.getElementById('faqList');
+        box.textContent = '';
+        cfgData.faq.forEach(function (item) {
+          if (!item) return;
+          var d = document.createElement('details');
+          var sum = document.createElement('summary'); sum.textContent = item.q || '';
+          var a = document.createElement('div'); a.className = 'a'; a.textContent = item.a || '';
+          d.appendChild(sum); d.appendChild(a); box.appendChild(d);
+        });
+      }
+    }
+
+    function applyLinks(cfgData) {
+      var btn = document.getElementById('xyBtn');
+      if (btn) {
+        var url = String(cfgData.xianyu_url || '').trim();
+        if (/^https?:\/\//i.test(url)) {
+          btn.href = url;
+          btn.removeAttribute('aria-disabled');
+        } else {
+          btn.removeAttribute('href');
+          btn.setAttribute('aria-disabled', 'true');
+        }
+      }
+      var mail = String(cfgData.email || '').trim();
+      var line = document.getElementById('mailLine');
+      var link = document.getElementById('mailtoLink');
+      if (mail && /@/.test(mail)) {
+        if (link) { link.href = 'mailto:' + mail; link.textContent = mail; }
+        if (line) line.hidden = false;
+      } else if (line) {
+        line.hidden = true;
+      }
+    }
+
+    /* ---------- 表单提交（发到配置里的邮箱） ---------- */
     (function orderForm() {
       var form = document.getElementById('orderForm');
       var btn = document.getElementById('submitBtn');
       var box = document.getElementById('feedback');
       if (!form) return;
-
-      var MAILTO = form.getAttribute('data-mailto') || '';
-
-      /* 占位符还没被替换时（__YOUR_EMAIL__ / __YOUR_XIANYU__），
-         绝不能把这种下划线露给访客看 —— 直接把对应元素收起来。 */
-      var xyBtn = document.getElementById('xyBtn');
-      if (xyBtn && /^__/.test(xyBtn.getAttribute('href') || '')) {
-        xyBtn.removeAttribute('href');
-        xyBtn.setAttribute('aria-disabled', 'true');
-        xyBtn.style.opacity = '.55';
-        xyBtn.style.cursor = 'default';
-        xyBtn.textContent = '闲鱼主页（配置中）';
-      }
-      if (!MAILTO || MAILTO.indexOf('__') === 0) {
-        var mailLine = document.getElementById('mailLine');
-        if (mailLine) mailLine.hidden = true;
-      }
 
       function show(kind, html) {
         box.className = 'feedback ' + kind;
@@ -396,10 +390,9 @@
       form.addEventListener('submit', function (e) {
         e.preventDefault();
 
-        // 蜜罐被填 = 机器人，直接假装成功（不浪费双方时间）
+        // 蜜罐被填 = 机器人，假装成功就算了
         if (form.querySelector('input[name="_honey"]').value) { show('ok', '已收到，谢谢！'); return; }
 
-        // 原生校验（novalidate 关掉了浏览器的气泡提示，这里自己判，文案更清楚）
         var missing = [];
         form.querySelectorAll('[required]').forEach(function (el) {
           if (!String(el.value || '').trim()) missing.push(el);
@@ -408,14 +401,16 @@
           show('err', '还有 ' + missing.length + ' 项必填没写：' +
             missing.map(function (el) {
               var l = form.querySelector('label[for="' + el.id + '"]');
-              return '<b>' + (l ? l.textContent.replace('*', '').replace(/选填.*$/, '').trim() : el.name) + '</b>';
+              var txt = l ? l.textContent.replace('*', '').trim() : el.name;
+              return '<b>' + txt + '</b>';
             }).join('、'));
           missing[0].focus();
           return;
         }
 
-        if (!MAILTO || MAILTO.indexOf('__') === 0) {
-          show('err', '这个页面还没配置收件邮箱，暂时收不到提交。<br>请直接到下方闲鱼主页私聊我。');
+        var MAILTO = String((cfg && cfg.email) || '').trim();
+        if (!MAILTO || MAILTO.indexOf('@') < 0) {
+          show('err', '这个页面还没配置收件邮箱，暂时收不到提交。<br>请直接到下方的闲鱼主页私聊我。');
           return;
         }
 
@@ -425,6 +420,7 @@
         data['_template'] = 'table';
         data['_captcha'] = 'false';
 
+        var oldLabel = btn.textContent;
         btn.disabled = true;
         btn.textContent = '提交中…';
 
@@ -437,22 +433,36 @@
           .then(function (j) {
             if (j && (j.success === 'true' || j.success === true)) {
               form.reset();
-              show('ok', '✅ <b>已提交！</b>我会尽快在闲鱼上联系你，通常 24 小时内。');
+              show('ok', '✅ <b>' + ((cfg && cfg.success_text) || '已提交！') + '</b>');
             } else {
               throw new Error((j && j.message) || '提交未成功');
             }
           })
           .catch(function () {
-            show('err', '⚠️ 提交没能发出去（可能是网络问题）。<br>请直接到下方<b>闲鱼主页</b>私聊我，或发邮件到 ' +
-              '<a href="mailto:' + MAILTO + '">' + MAILTO + '</a>。');
+            show('err', '⚠️ 提交没能发出去（可能是网络问题）。<br>请直接到下方<b>闲鱼主页</b>私聊我，或发邮件到 <a href="mailto:' + MAILTO + '">' + MAILTO + '</a>。');
           })
           .then(function () {
             btn.disabled = false;
-            btn.textContent = '提交需求';
+            btn.textContent = oldLabel;
           });
       });
     })();
 
+    /* ---------- 拉配置（失败就保持 HTML 里的默认文案，页面照常可用） ---------- */
+    (function boot() {
+      fetch(BUNDLE_URL, { cache: 'no-store' })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (j) {
+          if (!j || j.ok !== true || !j.files) return;
+          applyTheme(j.files);
+          var raw = j.files['content/card.json'];
+          if (!raw) return;
+          cfg = JSON.parse(raw) || {};
+          renderText(cfg);
+          applyLinks(cfg);
+        })
+        .catch(function () { /* 静默：默认文案已经渲染好了 */ });
+    })();
   </script>
 </body>
 </html>

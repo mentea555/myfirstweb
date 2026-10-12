@@ -581,3 +581,48 @@ collections:
               required: false,
               hint: "在图片左下角显示这篇笔记的标题与日期（图片上有半透明黑底，两种配色模式下都看得清）。",
             }
+
+      # ==================== 接单页（card.menteaweb.com） ====================
+      # 这个页面的文案全部在这里改，改完点保存即可，不用碰代码。
+      # 页面打开时会自己去读这份配置；万一读不到就用内置的默认文案，不会白屏。
+      - name: "card"
+        label: "接单页（card.menteaweb.com）"
+        description: "交易/接单页的文字、闲鱼链接和收件邮箱都在这里改。"
+        file: "content/card.json"
+        fields:
+          - { label: "顶部小标签", name: "eyebrow", widget: "string", required: false, hint: "大标题上方那个小胶囊里的字" }
+          - { label: "页面大标题", name: "title", widget: "string", required: false }
+          - { label: "副标题", name: "subtitle", widget: "markdown", required: false }
+          - { label: "「下单流程」板块标题", name: "steps_title", widget: "string", required: false }
+          - label: "下单流程步骤"
+            name: "steps"
+            widget: "list"
+            required: false
+            summary: "{{fields.title}}"
+            fields:
+              - { label: "步骤标题", name: "title", widget: "string" }
+              - { label: "步骤说明", name: "text", widget: "string" }
+          - { label: "「提交需求」板块标题", name: "form_title", widget: "string", required: false }
+          - { label: "安全提示文字", name: "guard_text", widget: "text", required: false, hint: "表单上方那段橙色警告，提醒买家不要在这里填密码、验证码" }
+          - { label: "字段一 · 标签", name: "field1_label", widget: "string", required: false, hint: "默认「闲鱼昵称」" }
+          - { label: "字段一 · 输入框提示", name: "field1_placeholder", widget: "string", required: false }
+          - { label: "字段二 · 标签", name: "field2_label", widget: "string", required: false, hint: "默认「信息」" }
+          - { label: "字段二 · 小提示", name: "field2_hint", widget: "string", required: false }
+          - { label: "字段二 · 输入框提示", name: "field2_placeholder", widget: "string", required: false }
+          - { label: "提交按钮文字", name: "submit_text", widget: "string", required: false }
+          - { label: "按钮下方小字", name: "form_note", widget: "string", required: false }
+          - { label: "提交成功后的提示", name: "success_text", widget: "string", required: false }
+          - { label: "「常见问题」板块标题", name: "faq_title", widget: "string", required: false }
+          - label: "常见问题列表"
+            name: "faq"
+            widget: "list"
+            required: false
+            summary: "{{fields.q}}"
+            fields:
+              - { label: "问题", name: "q", widget: "string" }
+              - { label: "回答", name: "a", widget: "text" }
+          - { label: "「直接找我」板块标题", name: "contact_title", widget: "string", required: false }
+          - { label: "「直接找我」说明", name: "contact_desc", widget: "string", required: false }
+          - { label: "闲鱼按钮文字", name: "xianyu_text", widget: "string", required: false }
+          - { label: "★ 闲鱼主页链接", name: "xianyu_url", widget: "string", required: false, hint: "闲鱼 App → 我的 → 右上角分享 → 复制链接，粘贴到这里。留空则按钮变灰不可点" }
+          - { label: "★ 收件邮箱", name: "email", widget: "string", required: false, hint: "有人填表时，内容会发到这个邮箱。第一次收到后会有一封确认邮件，点里面的链接激活一次，之后就一直有效" }

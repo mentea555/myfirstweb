@@ -34,6 +34,14 @@
   ],
   "rewrites": [
     {
+      "source": "/card",
+      "destination": "/__card_page_has_no_public_path__"
+    },
+    {
+      "source": "/card/:path*",
+      "destination": "/__card_page_has_no_public_path__"
+    },
+    {
       "source": "/",
       "has": [{ "type": "host", "value": "card.menteaweb.com" }],
       "destination": "/card/index.html"
