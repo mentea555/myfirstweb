@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Menteaの小站</title>
+  <title id="pageTitle">Menteaの小站</title>
   <script>
     /* 主站那条 /card/ 路径仍然会落到这个文件（Vercel 的 redirect 规则对「目录索引请求」
        /card/ 不生效，只对 /card/xxx 这类显式路径生效）。所以这里自己兜底：
@@ -214,7 +214,7 @@
   <main class="container">
 
     <div class="topbar">
-      <span class="site-name">接单台</span>
+      <span class="site-name" data-tx="site_name">接单台</span>
     </div>
 
     <header class="hero">
@@ -223,7 +223,7 @@
       <p data-tx="subtitle">在下面把要求写清楚，提交后我会收到通知，并按顺序联系你确认细节。急着走的话也可以直接在闲鱼私聊我。</p>
     </header>
 
-    <section class="card">
+    <section class="card" id="stepsCard">
       <h2><span class="dot"></span><span data-tx="steps_title">下单流程</span></h2>
       <ol class="steps" id="stepsList">
         <li><span class="n">1</span><span class="t"><b>填下面的表单</b> —— 写清你要什么、大概什么时候要。</span></li>
@@ -267,7 +267,7 @@
       </form>
     </section>
 
-    <section class="card">
+    <section class="card" id="faqCard">
       <h2><span class="dot"></span><span data-tx="faq_title">常见问题</span></h2>
       <div class="faq" id="faqList">
         <details>
@@ -289,10 +289,10 @@
       <h2><span class="dot"></span><span data-tx="contact_title">直接找我</span></h2>
       <p class="contact-desc" data-tx="contact_desc">想跳过表单、或者先聊聊再决定，都可以直接来闲鱼找我。</p>
       <a class="btn" id="xyBtn" href="#" target="_blank" rel="noopener noreferrer" aria-disabled="true"><span data-tx="xianyu_text">前往我的闲鱼主页</span></a>
-      <p class="form-note" id="mailLine" hidden>邮箱：<a id="mailtoLink" href="#"></a></p>
+      <!-- 收件邮箱只在提交时由 JS 从主站配置里读取，绝不在页面上打印出来 -->
     </section>
 
-    <p class="foot"><a href="https://www.menteaweb.com/">Mentea Website</a></p>
+    <p class="foot"><a id="footLink" href="https://www.menteaweb.com/" data-tx="foot_text">Mentea Website</a></p>
 
   </main>
 
@@ -315,28 +315,58 @@
           if (tk.accent) root.style.setProperty('--accent', tk.accent);
           if (tk.background) root.style.setProperty('--bg', tk.background);
         }
-        var rawSettings = files['content/settings.json'];
-        if (rawSettings) {
-          var s = JSON.parse(rawSettings) || {};
-          var el = document.querySelector('.site-name');
-          if (el && s.site_title) el.textContent = '接单台 · ' + s.site_title;
-        }
       } catch (e) { /* 配色拿不到就用默认的 */ }
     }
 
-    /** 把配置里的纯文本安全地放进页面：只给需要强调的「标题」加粗，其余原样。 */
+    /** 取一条配置文字；没配就用页面里写死的默认值。 */
+    function T(key, fallback) {
+      var v = (cfg && typeof cfg[key] === 'string') ? cfg[key].trim() : '';
+      return v || fallback;
+    }
+
+    /** 转义 HTML，保证后台填的任何文字都不会破坏页面结构。 */
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
+    }
+
+    /** 写文字：有内容就显示；后台留空就把这个元素藏起来（清空 = 页面不显示）。 */
+    function setText(el, v) {
+      el.textContent = v;
+      if (v.trim()) el.removeAttribute('hidden'); else el.setAttribute('hidden', '');
+    }
+
+    /** 把配置里的纯文本放进页面（一律走 textContent，不解析 HTML）。
+        注意：只要配置读到了，字段是字符串就照搬 —— 后台清空 = 页面清空。
+        只有整个配置读不到（网络失败）时，才保留 HTML 里写死的默认文案。 */
     function renderText(cfgData) {
       document.querySelectorAll('[data-tx]').forEach(function (el) {
         var v = cfgData[el.getAttribute('data-tx')];
-        if (typeof v === 'string' && v.trim()) el.textContent = v;
+        if (typeof v === 'string') setText(el, v);
       });
       document.querySelectorAll('[data-tx-ph]').forEach(function (el) {
         var v = cfgData[el.getAttribute('data-tx-ph')];
         if (typeof v === 'string' && v.trim()) el.setAttribute('placeholder', v);
       });
 
-      // 流程：数组重建（第 1 段做加粗，跟默认样式一致）
-      if (Array.isArray(cfgData.steps) && cfgData.steps.length) {
+      // 标签页标题
+      var titleEl = document.getElementById('pageTitle');
+      if (titleEl && typeof cfgData.page_title === 'string' && cfgData.page_title.trim()) {
+        titleEl.textContent = cfgData.page_title.trim();
+      }
+
+      // 页脚链接（文字靠上面的 data-tx="foot_text" 处理）
+      var foot = document.getElementById('footLink');
+      var fu = String(cfgData.foot_url || '').trim();
+      if (foot && (/^https?:\/\//i.test(fu) || fu.charAt(0) === '/')) foot.href = fu;
+
+      // 安全提示：整段留空就把橙色警告框一起收掉
+      var guard = document.querySelector('.guard');
+      if (guard && typeof cfgData.guard_text === 'string') guard.hidden = !cfgData.guard_text.trim();
+
+      // 下单流程：数组存在就重建；空数组 = 整个板块不显示
+      if (Array.isArray(cfgData.steps)) {
         var ol = document.getElementById('stepsList');
         ol.textContent = '';
         cfgData.steps.forEach(function (s, i) {
@@ -347,10 +377,11 @@
           if (s && s.text) t.appendChild(document.createTextNode((s.title ? ' —— ' : '') + s.text));
           li.appendChild(n); li.appendChild(t); ol.appendChild(li);
         });
+        document.getElementById('stepsCard').hidden = !cfgData.steps.length;
       }
 
-      // 常见问题：数组重建
-      if (Array.isArray(cfgData.faq) && cfgData.faq.length) {
+      // 常见问题：同上
+      if (Array.isArray(cfgData.faq)) {
         var box = document.getElementById('faqList');
         box.textContent = '';
         cfgData.faq.forEach(function (item) {
@@ -360,6 +391,7 @@
           var a = document.createElement('div'); a.className = 'a'; a.textContent = item.a || '';
           d.appendChild(sum); d.appendChild(a); box.appendChild(d);
         });
+        document.getElementById('faqCard').hidden = !cfgData.faq.length;
       }
     }
 
@@ -374,15 +406,6 @@
           btn.removeAttribute('href');
           btn.setAttribute('aria-disabled', 'true');
         }
-      }
-      var mail = String(cfgData.email || '').trim();
-      var line = document.getElementById('mailLine');
-      var link = document.getElementById('mailtoLink');
-      if (mail && /@/.test(mail)) {
-        if (link) { link.href = 'mailto:' + mail; link.textContent = mail; }
-        if (line) line.hidden = false;
-      } else if (line) {
-        line.hidden = true;
       }
     }
 
@@ -404,38 +427,43 @@
         e.preventDefault();
 
         // 蜜罐被填 = 机器人，假装成功就算了
-        if (form.querySelector('input[name="_honey"]').value) { show('ok', '已收到，谢谢！'); return; }
+        if (form.querySelector('input[name="_honey"]').value) {
+          show('ok', '<b>' + esc(T('msg_honey', '已收到，谢谢！')) + '</b>');
+          return;
+        }
 
         var missing = [];
         form.querySelectorAll('[required]').forEach(function (el) {
           if (!String(el.value || '').trim()) missing.push(el);
         });
         if (missing.length) {
-          show('err', '还有 ' + missing.length + ' 项必填没写：' +
-            missing.map(function (el) {
-              var l = form.querySelector('label[for="' + el.id + '"]');
-              var txt = l ? l.textContent.replace('*', '').trim() : el.name;
-              return '<b>' + txt + '</b>';
-            }).join('、'));
+          var names = missing.map(function (el) {
+            var l = form.querySelector('label[for="' + el.id + '"]');
+            var txt = l ? l.textContent.replace('*', '').trim() : el.name;
+            return '<b>' + esc(txt) + '</b>';
+          }).join('、');
+          show('err', esc(T('msg_required', '还有 {n} 项必填没写：{fields}'))
+            .replace('{n}', String(missing.length))
+            .replace('{fields}', names));
           missing[0].focus();
           return;
         }
 
         var MAILTO = String((cfg && cfg.email) || '').trim();
         if (!MAILTO || MAILTO.indexOf('@') < 0) {
-          show('err', '这个页面还没配置收件邮箱，暂时收不到提交。<br>请直接到下方的闲鱼主页私聊我。');
+          show('err', esc(T('msg_no_email', '这个页面还没配置收件邮箱，暂时收不到提交。请直接到下方的闲鱼主页私聊我。')).replace(/\n/g, '<br>'));
           return;
         }
 
         var data = {};
         new FormData(form).forEach(function (v, k) { if (k !== '_honey') data[k] = v; });
-        data['_subject'] = '【接单】新需求 · ' + (data['闲鱼昵称'] || '未填昵称');
+        data['_subject'] = T('subject_prefix', '【接单】新需求 · ') + (data['闲鱼昵称'] || '未填昵称');
         data['_template'] = 'table';
         data['_captcha'] = 'false';
 
         var oldLabel = btn.textContent;
         btn.disabled = true;
-        btn.textContent = '提交中…';
+        btn.textContent = T('msg_sending', '提交中…');
 
         fetch('https://formsubmit.co/ajax/' + encodeURIComponent(MAILTO), {
           method: 'POST',
@@ -446,13 +474,15 @@
           .then(function (j) {
             if (j && (j.success === 'true' || j.success === true)) {
               form.reset();
-              show('ok', '✅ <b>' + ((cfg && cfg.success_text) || '已提交！') + '</b>');
+              show('ok', '<b>' + esc(T('success_text', '已提交！我会尽快在闲鱼上联系你，通常 24 小时内。')) + '</b>');
             } else {
               throw new Error((j && j.message) || '提交未成功');
             }
           })
           .catch(function () {
-            show('err', '⚠️ 提交没能发出去（可能是网络问题）。<br>请直接到下方<b>闲鱼主页</b>私聊我，或发邮件到 <a href="mailto:' + MAILTO + '">' + MAILTO + '</a>。');
+            show('err', esc(T('msg_error', '⚠️ 提交没能发出去（可能是网络问题）。\n请直接到下方闲鱼主页私聊我，或发邮件到 {mail}。'))
+              .replace(/\n/g, '<br>')
+              .replace('{mail}', '<a href="mailto:' + esc(MAILTO) + '">' + esc(MAILTO) + '</a>'));
           })
           .then(function () {
             btn.disabled = false;
