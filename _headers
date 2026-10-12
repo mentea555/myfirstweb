@@ -1,0 +1,19 @@
+# Cloudflare Pages 缓存头配置（等价于原 vercel.json 里的 headers 段）
+#
+# 语法：路径行 + 缩进 2 空格的头部行；路径用 * 通配，不是正则。
+# 本文件必须放在「构建输出目录」的根 —— 本站没有构建步骤，输出根就是仓库根。
+
+/admin/vendor/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/admin/skin.css
+  Cache-Control: public, max-age=3600
+
+/admin/boot-cache.js
+  Cache-Control: public, max-age=600
+
+/assets/images/*
+  Cache-Control: public, max-age=86400
+
+/assets/icons/*
+  Cache-Control: public, max-age=86400
