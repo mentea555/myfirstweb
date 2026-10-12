@@ -623,16 +623,12 @@ collections:
             fields:
               - { label: "问题", name: "q", widget: "string" }
               - { label: "回答", name: "a", widget: "text" }
-          - { label: "「直接找我」板块标题", name: "contact_title", widget: "string", required: false }
-          - { label: "「直接找我」说明", name: "contact_desc", widget: "string", required: false }
-          - { label: "闲鱼按钮文字", name: "xianyu_text", widget: "string", required: false }
-          - { label: "★ 闲鱼主页链接", name: "xianyu_url", widget: "string", required: false, hint: "闲鱼 App → 我的 → 右上角分享 → 复制链接，粘贴到这里。留空则按钮变灰不可点" }
           - { label: "★ 收件邮箱", name: "email", widget: "string", required: false, hint: "有人填表时，内容会发到这个邮箱。第一次收到后会有一封确认邮件，点里面的链接激活一次，之后就一直有效" }
           - { label: "页脚文字", name: "foot_text", widget: "string", required: false, default: "Mentea Website", hint: "页面最底部那行字。留空则隐藏整行" }
           - { label: "页脚链接", name: "foot_url", widget: "string", required: false, default: "https://www.menteaweb.com/", hint: "页脚那行字点了跳去哪，一般填主站地址" }
           - { label: "提交中提示", name: "msg_sending", widget: "string", required: false, default: "提交中…", hint: "点下按钮到出结果之间，按钮上的字" }
           - { label: "未写必填项提示", name: "msg_required", widget: "string", required: false, default: "还有 {n} 项必填没写：{fields}", hint: "「{n}」会被替换成缺了几项，「{fields}」替换成缺的字段名，别删掉这两个占位符" }
-          - { label: "未配邮箱时的提示", name: "msg_no_email", widget: "string", required: false, default: "这个页面还没配置收件邮箱，暂时收不到提交。请直接到下方的闲鱼主页私聊我。", hint: "上面「★ 收件邮箱」填好之后，这条提示就不会再出现了" }
-          - { label: "提交失败时的提示", name: "msg_error", widget: "string", required: false, default: "⚠️ 提交没能发出去（可能是网络问题）。请直接到下方闲鱼主页私聊我。", hint: "默认不显示你的邮箱。想在这段里显示，就写一个 {mail}，它会被自动换成邮箱地址" }
+          - { label: "未配邮箱时的提示", name: "msg_no_email", widget: "string", required: false, default: "这个页面还没配置收件邮箱，暂时收不到提交。", hint: "上面「★ 收件邮箱」填好之后，这条提示就不会再出现了" }
+          - { label: "提交失败时的提示", name: "msg_error", widget: "string", required: false, default: "⚠️ 提交没能发出去（可能是网络问题）。请稍后再试一次。", hint: "想在这段里显示你的收件邮箱，就写一个 {mail}，它会被自动换成邮箱地址" }
           - { label: "疑似机器人提交时的提示", name: "msg_honey", widget: "string", required: false, default: "已收到，谢谢！", hint: "防垃圾信息的蜜罐字段被填时显示的提示" }
           - { label: "邮件标题前缀", name: "subject_prefix", widget: "string", required: false, default: "【接单】新需求 · ", hint: "你收到的通知邮件，标题会以这段开头，后面接对方的闲鱼昵称" }
