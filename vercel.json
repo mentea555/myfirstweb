@@ -31,5 +31,12 @@
         { "key": "Cache-Control", "value": "public, max-age=86400" }
       ]
     }
+  ],
+  "rewrites": [
+    {
+      "source": "/",
+      "has": [{ "type": "host", "value": "card.menteaweb.com" }],
+      "destination": "/card/index.html"
+    }
   ]
 }
