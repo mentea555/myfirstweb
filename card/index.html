@@ -4,13 +4,23 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Menteaの小站</title>
+  <script>
+    /* 主站那条 /card/ 路径仍然会落到这个文件（Vercel 的 redirect 规则对「目录索引请求」
+       /card/ 不生效，只对 /card/xxx 这类显式路径生效）。所以这里自己兜底：
+       只要不是从 card.menteaweb.com 进来的，立刻跳到子域名 —— 主站上就不该有 /card/ 这个页面。 */
+    (function () {
+      var h = location.hostname;
+      if (h !== 'card.menteaweb.com' && /(^|\.)menteaweb\.com$/i.test(h)) {
+        location.replace('https://card.menteaweb.com/');
+      }
+    })();
+  </script>
   <!-- ============================================================
        这个页面的所有文字、闲鱼链接、收件邮箱，都在后台「前端页面设置 → 接单页」里改，
        不用动这个文件。页面会在打开时去主站读取 content/card.json 并自动替换；
        万一读不到（网络问题），就会用下面写死的这份默认文案，照样能用。
        ============================================================ -->
-  <!-- 图标走主站的绝对地址：子域名下有一条通配 rewrite（`/(.*)` → 本页），
-       用相对路径的话 /assets/... 会被那张页面接管。 -->
+  <!-- 图标走主站的绝对地址，这样从任何域名打开都指向同一个图标源。 -->
   <link rel="icon" href="https://www.menteaweb.com/assets/icons/favicon.ico" sizes="any">
   <link rel="icon" type="image/png" sizes="32x32" href="https://www.menteaweb.com/assets/icons/favicon-32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="https://www.menteaweb.com/assets/icons/favicon-16.png">
