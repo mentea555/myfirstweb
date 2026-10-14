@@ -60,5 +60,5 @@
   "msg_required": "还有 {n} 项必填没写：{fields}",
   "msg_error": "⚠️ 提交没能发出去（可能是网络问题）。请稍后再试一次。",
   "subject_prefix": "【接单】新需求 · ",
-  "email": "2312772704@qq.com"
+  "endpoint": "4b7b6bef0cd15d8ba50856f67129ba19"
 }

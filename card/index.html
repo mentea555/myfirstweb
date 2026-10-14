@@ -324,6 +324,17 @@
       });
     }
 
+    /** 看起来像邮箱吗？ */
+    function isEmail(v) {
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+    }
+
+    /** 收件端点 = 邮箱，或 FormSubmit 确认邮箱后发给你的那串随机码（一串十六进制）。
+        用随机码的好处：页面和仓库里都不会出现你的真实邮箱。 */
+    function isEndpoint(v) {
+      return isEmail(v) || /^[a-f0-9]{16,64}$/i.test(v);
+    }
+
     /** 写文字：有内容就显示；后台留空就把这个元素藏起来（清空 = 页面不显示）。 */
     function setText(el, v) {
       el.textContent = v;
@@ -428,9 +439,9 @@
           return;
         }
 
-        var MAILTO = String((cfg && cfg.email) || '').trim();
-        if (!MAILTO || MAILTO.indexOf('@') < 0) {
-          show('err', esc(T('msg_no_email', '这个页面还没配置收件邮箱，暂时收不到提交。请直接到下方的闲鱼主页私聊我。')).replace(/\n/g, '<br>'));
+        var ENDPOINT = String((cfg && (cfg.endpoint || cfg.email)) || '').trim();
+        if (!isEndpoint(ENDPOINT)) {
+          show('err', esc(T('msg_no_email', '这个页面还没配置收件邮箱，暂时收不到提交。')).replace(/\n/g, '<br>'));
           return;
         }
 
@@ -444,7 +455,7 @@
         btn.disabled = true;
         btn.textContent = T('msg_sending', '提交中…');
 
-        fetch('https://formsubmit.co/ajax/' + encodeURIComponent(MAILTO), {
+        fetch('https://formsubmit.co/ajax/' + encodeURIComponent(ENDPOINT), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
           body: JSON.stringify(data)
@@ -459,9 +470,13 @@
             }
           })
           .catch(function () {
-            show('err', esc(T('msg_error', '⚠️ 提交没能发出去（可能是网络问题）。\n请直接到下方闲鱼主页私聊我，或发邮件到 {mail}。'))
+            // 只有收件端点真的是邮箱时才给 mailto 链接；用随机码时这一处留空
+            var shown = isEmail(ENDPOINT)
+              ? '<a href="mailto:' + esc(ENDPOINT) + '">' + esc(ENDPOINT) + '</a>'
+              : '';
+            show('err', esc(T('msg_error', '⚠️ 提交没能发出去（可能是网络问题）。请稍后再试一次。'))
               .replace(/\n/g, '<br>')
-              .replace('{mail}', '<a href="mailto:' + esc(MAILTO) + '">' + esc(MAILTO) + '</a>'));
+              .replace('{mail}', shown));
           })
           .then(function () {
             btn.disabled = false;
