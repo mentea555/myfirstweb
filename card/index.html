@@ -198,6 +198,28 @@
 
     .foot { text-align: center; font-size: 12.5px; color: var(--text-dim); margin-top: 36px; }
 
+    /* ---------- 提交成功页 ---------- */
+    .success-page { text-align: center; padding: 38px 22px 34px; }
+    .done-badge {
+      width: 64px; height: 64px; margin: 0 auto 20px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--ok-bg); color: var(--ok-fg);
+    }
+    .done-badge svg { width: 30px; height: 30px; }
+    .done-title { font-size: 21px; font-weight: 700; color: var(--text-strong); margin-bottom: 10px; }
+    .done-desc { font-size: 15px; color: var(--body-text); line-height: 1.75; margin-bottom: 24px; }
+    .btn.ghost {
+      display: inline-block; width: auto; padding: 10px 22px;
+      background: transparent; border: 1px solid var(--card-border); color: var(--body-text);
+    }
+    .btn.ghost:hover { filter: none; background: rgba(127, 127, 127, .1); }
+    .btn[hidden] { display: none; }
+
+    /* 提交成功后整页只留成功提示：藏起顶栏、大标题和其它所有板块 */
+    main.is-done > .topbar,
+    main.is-done > .hero,
+    main.is-done > section.card:not(.success-page) { display: none; }
+
     /* ★ 深色主题下强调色原色压在浅底上对比度不够 → 提亮版。
        自定义属性计算时才求值，放末尾也生效；下面这条同权重但更靠后，所以能覆盖。 */
     html[data-theme="dark"] { --accent-ink: #a5b4fc; }
@@ -285,7 +307,19 @@
       </div>
     </section>
 
-    <p class="foot"><a id="footLink" href="https://www.menteaweb.com/" data-tx="foot_text">Mentea Website</a></p>
+    <section class="card success-page" id="successPage" hidden>
+      <div class="done-badge">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M20 6 9 17l-5-5"/>
+        </svg>
+      </div>
+      <p class="done-title" data-tx="done_title">提交成功</p>
+      <p class="done-desc" data-tx="done_desc">已经收到你的需求，请耐心等待，我会尽快联系你。</p>
+      <button type="button" class="btn ghost" id="againBtn" data-tx="done_again">再提交一条</button>
+    </section>
+
+    <p class="foot"><span data-tx="foot_text">Mentea Website</span></p>
 
   </main>
 
@@ -360,11 +394,6 @@
         titleEl.textContent = cfgData.page_title.trim();
       }
 
-      // 页脚链接（文字靠上面的 data-tx="foot_text" 处理）
-      var foot = document.getElementById('footLink');
-      var fu = String(cfgData.foot_url || '').trim();
-      if (foot && (/^https?:\/\//i.test(fu) || fu.charAt(0) === '/')) foot.href = fu;
-
       // 安全提示：整段留空就把橙色警告框一起收掉
       var guard = document.querySelector('.guard');
       if (guard && typeof cfgData.guard_text === 'string') guard.hidden = !cfgData.guard_text.trim();
@@ -413,14 +442,31 @@
         box.scrollIntoView({ block: 'center', behavior: 'smooth' });
       }
 
+      /** 提交成功：整页只留成功提示（其它板块由 main.is-done 的 CSS 隐藏） */
+      function showSuccess() {
+        box.hidden = true;
+        document.querySelector('main').classList.add('is-done');
+        document.getElementById('successPage').hidden = false;
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+
+      // 成功页上的「再提交一条」：把页面切回表单
+      var againBtn = document.getElementById('againBtn');
+      if (againBtn) {
+        againBtn.addEventListener('click', function () {
+          document.querySelector('main').classList.remove('is-done');
+          document.getElementById('successPage').hidden = true;
+          box.hidden = true;
+          btn.disabled = false;
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+      }
+
       form.addEventListener('submit', function (e) {
         e.preventDefault();
 
         // 蜜罐被填 = 机器人，假装成功就算了
-        if (form.querySelector('input[name="_honey"]').value) {
-          show('ok', '<b>' + esc(T('msg_honey', '已收到，谢谢！')) + '</b>');
-          return;
-        }
+        if (form.querySelector('input[name="_honey"]').value) { showSuccess(); return; }
 
         var missing = [];
         form.querySelectorAll('[required]').forEach(function (el) {
@@ -464,7 +510,7 @@
           .then(function (j) {
             if (j && (j.success === 'true' || j.success === true)) {
               form.reset();
-              show('ok', '<b>' + esc(T('success_text', '已提交！我会尽快在闲鱼上联系你，通常 24 小时内。')) + '</b>');
+              showSuccess();
             } else {
               throw new Error((j && j.message) || '提交未成功');
             }
