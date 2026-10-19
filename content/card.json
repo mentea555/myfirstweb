@@ -26,7 +26,7 @@
   "eyebrow": "",
   "msg_error": "⚠️ 提交没能发出去（可能是网络问题）。请稍后再试一次。",
   "field1_placeholder": "你的昵称",
-  "field2_placeholder": "",
+  "field2_placeholder": "页面复制内容",
   "field1_label": "昵称",
   "field2_label": "信息",
   "form_note": "",
