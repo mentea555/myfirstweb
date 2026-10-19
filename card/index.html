@@ -148,8 +148,9 @@
       transition: border-color .18s, box-shadow .18s;
     }
     .field textarea { min-height: 150px; resize: vertical; line-height: 1.65; }
-    .field-foot { display: flex; justify-content: flex-end; margin-top: 6px; }
-    .counter { font-size: 12px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+    .field-foot { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-top: 6px; }
+    .chunk-hint { font-size: 12px; color: #d97706; }
+    .counter { font-size: 12px; color: var(--text-dim); font-variant-numeric: tabular-nums; margin-left: auto; }
     .counter.warn { color: #d97706; }
     .counter.full { color: #ef4444; font-weight: 600; }
     .field input:focus, .field textarea:focus {
@@ -286,7 +287,10 @@
           <label for="detail"><span data-tx="field2_label">信息</span><span class="req">*</span><span class="hint" data-tx="field2_hint">要什么、数量、什么时候要，都写在这里</span></label>
           <textarea id="detail" name="信息" required maxlength="40000" rows="8"
                     data-tx-ph="field2_placeholder" placeholder="写清你要什么、有什么要求、大概什么时候要"></textarea>
-          <div class="field-foot"><span class="counter" id="charCount" hidden></span></div>
+          <div class="field-foot">
+            <span class="chunk-hint" id="chunkHint" hidden></span>
+            <span class="counter" id="charCount" hidden></span>
+          </div>
         </div>
 
         <button type="submit" class="btn" id="submitBtn"><span data-tx="submit_text">提交需求</span></button>
@@ -372,6 +376,28 @@
         用随机码的好处：页面和仓库里都不会出现你的真实邮箱。 */
     function isEndpoint(v) {
       return isEmail(v) || /^[a-f0-9]{16,64}$/i.test(v);
+    }
+
+    /** 把长文本切成若干段：优先在换行处断开，别把一句话切两半。 */
+    function splitText(s, size) {
+      if (s.length <= size) return [s];
+      var out = [], i = 0;
+      while (i < s.length) {
+        var end = Math.min(s.length, i + size);
+        if (end < s.length) {
+          var nl = s.lastIndexOf('\n', end - 1);
+          if (nl > i + size * 0.5) end = nl + 1;
+        }
+        out.push(s.slice(i, end));
+        i = end;
+      }
+      return out;
+    }
+
+    /** 每段最多多少字符（FormSubmit 的 /ajax/ 接口约 2 万字就会拒，默认 1 万留足余量）。 */
+    function maxChunk() {
+      var n = parseInt(cfg && cfg.chunk_chars, 10);
+      return (isFinite(n) && n >= 1000) ? Math.min(n, 10000) : 10000;
     }
 
     /** 写文字：有内容就显示；后台留空就把这个元素藏起来（清空 = 页面不显示）。 */
@@ -496,56 +522,72 @@
           return;
         }
 
-        // ★ FormSubmit 对「字段文本总量」有硬上限（实测约 3 万字含中文，约 50KB 报文），
-        //   超了直接 500。但附件不受这个限制（上限 10MB）——
-        //   所以：短内容照常内联；超过 INLINE_MAX 就内联一段预览 + 把全文做成 .txt 附件。
-        var INLINE_MAX = 6000;
+        // ★ FormSubmit 的 /ajax/ 接口只吃文本字段：
+        //   ① 字段文本总量约 2 万字（54KB 报文）就会被拒（HTTP 500）；
+        //   ② 附件会被**静默丢弃**（返回 success，但邮件里没有附件）。
+        //   所以长内容只能**分段多发几封**，每封都在正文里，点开就能读。
+        var chunk = maxChunk();
+
         var text = String((form.querySelector('#detail') || {}).value || '');
         var nick = String((form.querySelector('#xyId') || {}).value || '').trim() || '未填昵称';
-
-        var fd = new FormData();
-        fd.append('闲鱼昵称', nick);
-        if (text.length <= INLINE_MAX) {
-          fd.append('信息', text);
-        } else {
-          fd.append('信息', text.slice(0, 1500) + '\n\n' +
-            T('msg_attachment', '……（内容较长，共 {n} 字符，完整内容见附件 request.txt）')
-              .replace('{n}', String(text.length)));
-          fd.append('attachment', new Blob([text], { type: 'text/plain;charset=utf-8' }), 'request.txt');
-        }
-        fd.append('_subject', T('subject_prefix', '【接单】新需求 · ') + nick);
-        // 邮件排版用 basic：每个字段「加粗字段名」一行、内容另起一段。
-        // 之前用的 table 在 QQ 邮箱会被压成一条细线，长文本根本没法看。
-        fd.append('_template', 'basic');
-        fd.append('_captcha', 'false');
+        var parts = splitText(text, chunk);
+        var total = parts.length;
+        var sent = 0;
 
         var oldLabel = btn.textContent;
         btn.disabled = true;
         btn.textContent = T('msg_sending', '提交中…');
 
-        // 用 multipart（FormData）：浏览器自己带 boundary，别手写 Content-Type
-        fetch('https://formsubmit.co/ajax/' + encodeURIComponent(ENDPOINT), {
-          method: 'POST',
-          headers: { 'Accept': 'application/json' },
-          body: fd
-        })
-          .then(function (r) { return r.json().catch(function () { return {}; }); })
-          .then(function (j) {
-            if (j && (j.success === 'true' || j.success === true)) {
-              form.reset();
-              showSuccess();
-            } else {
-              throw new Error((j && j.message) || '提交未成功');
-            }
+        function sendPart(idx) {
+          var fd = new FormData();
+          fd.append('闲鱼昵称', nick);
+          fd.append('信息', parts[idx]);
+          fd.append('_subject', T('subject_prefix', '【接单】新需求 · ') + nick +
+            (total > 1 ? '（' + (idx + 1) + '/' + total + '）' : ''));
+          // 邮件排版用 basic：每个字段「加粗字段名」一行、内容另起一段。
+          // table 在 QQ 邮箱会被压成一条细线，长文本根本没法看。
+          fd.append('_template', 'basic');
+          fd.append('_captcha', 'false');
+
+          btn.textContent = T('msg_sending', '提交中…') + (total > 1 ? ' ' + (idx + 1) + '/' + total : '');
+
+          // multipart（FormData）：浏览器自己带 boundary，别手写 Content-Type
+          return fetch('https://formsubmit.co/ajax/' + encodeURIComponent(ENDPOINT), {
+            method: 'POST',
+            headers: { 'Accept': 'application/json' },
+            body: fd
+          })
+            .then(function (r) { return r.json().catch(function () { return {}; }); })
+            .then(function (j) {
+              if (!(j && (j.success === 'true' || j.success === true))) {
+                throw new Error((j && j.message) || '提交未成功');
+              }
+              sent = idx + 1;
+              if (sent < total) return sendPart(sent);
+            });
+        }
+
+        sendPart(0)
+          .then(function () {
+            form.reset();
+            showSuccess();
           })
           .catch(function () {
-            // 只有收件端点真的是邮箱时才给 mailto 链接；用随机码时这一处留空
-            var shown = isEmail(ENDPOINT)
-              ? '<a href="mailto:' + esc(ENDPOINT) + '">' + esc(ENDPOINT) + '</a>'
-              : '';
-            show('err', esc(T('msg_error', '⚠️ 提交没能发出去（可能是网络问题）。请稍后再试一次。'))
-              .replace(/\n/g, '<br>')
-              .replace('{mail}', shown));
+            // 分段提交失败时，告诉主人已经发出几段，避免他以为整条都丢了
+            if (total > 1 && sent > 0) {
+              show('err', esc(T('msg_partial', '已发出 {done}/{total} 段，第 {fail} 段没发出去，请重新提交一次。'))
+                .replace('{done}', String(sent))
+                .replace('{total}', String(total))
+                .replace('{fail}', String(sent + 1)));
+            } else {
+              // 只有收件端点真的是邮箱时才给 mailto 链接；用随机码时这一处留空
+              var shown = isEmail(ENDPOINT)
+                ? '<a href="mailto:' + esc(ENDPOINT) + '">' + esc(ENDPOINT) + '</a>'
+                : '';
+              show('err', esc(T('msg_error', '⚠️ 提交没能发出去（可能是网络问题）。请稍后再试一次。'))
+                .replace(/\n/g, '<br>')
+                .replace('{mail}', shown));
+            }
           })
           .then(function () {
             btn.disabled = false;
@@ -578,6 +620,19 @@
         out.textContent = tpl.replace('{n}', fmt(n)).replace('{max}', fmt(max));
         out.className = 'counter' + (full ? ' full' : (n >= max * 0.9 ? ' warn' : ''));
         out.removeAttribute('hidden');
+
+        // 超过单封邮件的容量就提前告知会分成几封
+        var hint = document.getElementById('chunkHint');
+        if (hint) {
+          var size = maxChunk();
+          var parts = Math.ceil(n / size);
+          if (n > size) {
+            hint.textContent = T('msg_chunks', '内容较长，会分成 {n} 封邮件发送').replace('{n}', String(parts));
+            hint.removeAttribute('hidden');
+          } else {
+            hint.setAttribute('hidden', '');
+          }
+        }
       }
 
       ta.addEventListener('input', paint);
