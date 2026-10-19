@@ -611,6 +611,9 @@ collections:
           - { label: "字段二 · 标签", name: "field2_label", widget: "string", required: false, hint: "默认「信息」" }
           - { label: "字段二 · 小提示", name: "field2_hint", widget: "string", required: false }
           - { label: "字段二 · 输入框提示", name: "field2_placeholder", widget: "string", required: false }
+          - { label: "字段二 · 字数上限", name: "max_chars", widget: "number", value_type: "int", min: 100, max: 200000, required: false, default: 40000, hint: "买家最多能写多少字符，默认 40000（约 2 万字的中文）。改完保存即生效" }
+          - { label: "字段二 · 字数统计文字", name: "msg_counter", widget: "string", required: false, default: "已输入 {n} / {max} 字符", hint: "输入框右下角那行小字。「{n}」是已输入的量，「{max}」是上限，别删掉这两个占位符" }
+          - { label: "字段二 · 写满时的文字", name: "msg_counter_full", widget: "string", required: false, default: "已输入 {n} / {max} 字符 · 已达上限", hint: "写到上限后换成这句（同时变红色）" }
           - { label: "提交按钮文字", name: "submit_text", widget: "string", required: false }
           - { label: "按钮下方小字", name: "form_note", widget: "string", required: false }
           - { label: "成功页 · 大字", name: "done_title", widget: "string", required: false, default: "提交成功", hint: "提交成功后整页显示的大字" }

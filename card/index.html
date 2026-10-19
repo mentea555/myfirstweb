@@ -147,7 +147,11 @@
       border-radius: 11px; padding: 11px 13px; outline: none;
       transition: border-color .18s, box-shadow .18s;
     }
-    .field textarea { min-height: 118px; resize: vertical; line-height: 1.65; }
+    .field textarea { min-height: 150px; resize: vertical; line-height: 1.65; }
+    .field-foot { display: flex; justify-content: flex-end; margin-top: 6px; }
+    .counter { font-size: 12px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+    .counter.warn { color: #d97706; }
+    .counter.full { color: #ef4444; font-weight: 600; }
     .field input:focus, .field textarea:focus {
       border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft);
     }
@@ -280,8 +284,9 @@
 
         <div class="field">
           <label for="detail"><span data-tx="field2_label">信息</span><span class="req">*</span><span class="hint" data-tx="field2_hint">要什么、数量、什么时候要，都写在这里</span></label>
-          <textarea id="detail" name="信息" required maxlength="2000"
+          <textarea id="detail" name="信息" required maxlength="40000" rows="8"
                     data-tx-ph="field2_placeholder" placeholder="写清你要什么、有什么要求、大概什么时候要"></textarea>
+          <div class="field-foot"><span class="counter" id="charCount" hidden></span></div>
         </div>
 
         <button type="submit" class="btn" id="submitBtn"><span data-tx="submit_text">提交需求</span></button>
@@ -494,7 +499,9 @@
         var data = {};
         new FormData(form).forEach(function (v, k) { if (k !== '_honey') data[k] = v; });
         data['_subject'] = T('subject_prefix', '【接单】新需求 · ') + (data['闲鱼昵称'] || '未填昵称');
-        data['_template'] = 'table';
+        // 邮件排版用 basic：每个字段「加粗字段名」一行、内容另起一段。
+        // 之前用的 table 在 QQ 邮箱里会被压成一条细线，长文本根本没法看。
+        data['_template'] = 'basic';
         data['_captcha'] = 'false';
 
         var oldLabel = btn.textContent;
@@ -531,6 +538,37 @@
       });
     })();
 
+    /* ---------- 输入字数统计（上限来自后台配置，默认 40000 字符） ---------- */
+    (function charCount() {
+      var ta = document.getElementById('detail');
+      var out = document.getElementById('charCount');
+      if (!ta || !out) return;
+
+      function limit() {
+        var n = parseInt(cfg && cfg.max_chars, 10);
+        return (isFinite(n) && n >= 100) ? n : 40000;
+      }
+
+      function fmt(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+
+      function paint() {
+        var max = limit();
+        if (String(max) !== ta.getAttribute('maxlength')) ta.setAttribute('maxlength', String(max));
+        var n = ta.value.length;
+        var full = n >= max;
+        var tpl = full
+          ? T('msg_counter_full', '已输入 {n} / {max} 字符 · 已达上限')
+          : T('msg_counter', '已输入 {n} / {max} 字符');
+        out.textContent = tpl.replace('{n}', fmt(n)).replace('{max}', fmt(max));
+        out.className = 'counter' + (full ? ' full' : (n >= max * 0.9 ? ' warn' : ''));
+        out.removeAttribute('hidden');
+      }
+
+      ta.addEventListener('input', paint);
+      paint();
+      window.__paintCharCount = paint;   // 配置到位后再刷一次（上限/文案可能被后台改过）
+    })();
+
     /* ---------- 拉配置（失败就保持 HTML 里的默认文案，页面照常可用） ---------- */
     (function boot() {
       fetch(BUNDLE_URL, { cache: 'no-store' })
@@ -542,6 +580,7 @@
           if (!raw) return;
           cfg = JSON.parse(raw) || {};
           renderText(cfg);
+          if (window.__paintCharCount) window.__paintCharCount();
         })
         .catch(function () { /* 静默：默认文案已经渲染好了 */ });
     })();
