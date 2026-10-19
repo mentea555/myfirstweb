@@ -6,23 +6,23 @@
   "guard_text": "",
   "steps": [
     {
-      "title": "登录chatgpt.com",
-      "text": "确保处于登录状态"
+      "title": "1",
+      "text": "1"
     },
     {
-      "title": "打开chatgpt.com/api/auth/session页面",
-      "text": "复制页面所有内容"
+      "title": "1",
+      "text": "1"
     },
     {
-      "title": "填入交易平台昵称和页面复制内容",
-      "text": "平台（闲鱼，微信，QQ等）"
+      "title": "1",
+      "text": "1"
     },
     {
-      "title": "等待充值到账，一般5小时内处理完成",
-      "text": "人工处理，等耐心等待"
+      "title": "2",
+      "text": "1"
     }
   ],
-  "page_title": "GPT充值",
+  "page_title": "1",
   "eyebrow": "",
   "msg_error": "⚠️ 提交没能发出去（可能是网络问题）。请稍后再试一次。",
   "field1_placeholder": "你的昵称",
@@ -37,7 +37,7 @@
   "endpoint": "4b7b6bef0cd15d8ba50856f67129ba19",
   "faq": [],
   "subtitle": "",
-  "title": "GPT plus充值",
+  "title": "1",
   "done_title": "提交成功",
   "msg_sending": "提交中…",
   "msg_no_email": "这个页面还没配置收件邮箱，暂时收不到提交。",
