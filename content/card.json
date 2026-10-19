@@ -1,64 +1,47 @@
 {
-  "page_title": "Menteaの小站",
-  "site_name": "接单台",
-  "eyebrow": "Order Desk",
-  "title": "填写需求，我来接单",
-  "subtitle": "在下面把要求写清楚，提交后我会收到通知，并按顺序联系你确认细节。急着走的话也可以直接在闲鱼私聊我。",
-  "steps_title": "下单流程",
+  "steps_title": "操作流程",
+  "done_again": "再提交一条",
+  "site_name": "订单",
+  "subject_prefix": "【接单】新需求 · ",
+  "guard_text": "",
   "steps": [
     {
-      "title": "填下面的表单",
-      "text": "写清你要什么、大概什么时候要。"
+      "title": "登录chatgpt.com",
+      "text": "确保处于登录状态"
     },
     {
-      "title": "等我回复报价",
-      "text": "通常 24 小时内，确认价格和交期。"
+      "title": "打开chatgpt.com/api/auth/session页面",
+      "text": "复制页面所有内容"
     },
     {
-      "title": "在闲鱼下单付款",
-      "text": "走平台交易，双方都有保障。"
+      "title": "填入交易平台昵称和页面复制内容",
+      "text": "平台（闲鱼，微信，QQ等）"
     },
     {
-      "title": "我开工并交付",
-      "text": "交付后确认收货即可。"
+      "title": "等待充值到账，一般5小时内处理完成",
+      "text": "人工处理，等耐心等待"
     }
   ],
-  "form_title": "提交需求",
-  "guard_text": "请不要在本页面填写任何密码、短信验证码、登录令牌或账号凭据。我永远不会向你索要这些 —— 整个下单流程都不需要。任何要求你提供这类信息的人都是骗子，请直接举报。",
-  "field1_label": "闲鱼昵称",
-  "field1_placeholder": "你的闲鱼昵称",
+  "page_title": "GPT充值",
+  "eyebrow": "",
+  "msg_error": "⚠️ 提交没能发出去（可能是网络问题）。请稍后再试一次。",
+  "field1_placeholder": "你的昵称",
+  "field2_placeholder": "",
+  "field1_label": "昵称",
   "field2_label": "信息",
-  "field2_hint": "要什么、数量、什么时候要，都写在这里",
-  "field2_placeholder": "写清你要什么、有什么要求、大概什么时候要",
-  "submit_text": "提交需求",
-  "form_note": "提交后会直接发到我的邮箱，通常 24 小时内回复。",
+  "form_note": "",
+  "done_desc": "已经收到消息，请耐心等待。",
+  "field2_hint": "",
   "faq_title": "常见问题",
-  "faq": [
-    {
-      "q": "提交之后多久能得到回复？",
-      "a": "通常 24 小时内。如果比较急，可以直接在闲鱼私聊我催一下。"
-    },
-    {
-      "q": "怎么付款？可以不走闲鱼吗？",
-      "a": "一律走闲鱼平台交易 —— 对双方都是有保障的做法。不走平台的私下转账我不接，也建议你不要答应任何人的这种要求。"
-    },
-    {
-      "q": "需要我提供账号密码之类的吗？",
-      "a": "不需要，永远不需要。下单只需要你的闲鱼昵称和需求描述两样东西。如果有人在任何环节向你索要密码、验证码或登录令牌，那一定不是正常流程。"
-    },
-    {
-      "q": "提交后想改需求怎么办？",
-      "a": "再提交一次并标注「修改」，或者直接在闲鱼私聊我说明改了哪里，以最新一次沟通为准。"
-    }
-  ],
-  "foot_text": "Mentea Website",
+  "submit_text": "提交需求",
+  "endpoint": "4b7b6bef0cd15d8ba50856f67129ba19",
+  "faq": [],
+  "subtitle": "",
+  "title": "GPT plus充值",
+  "done_title": "提交成功",
   "msg_sending": "提交中…",
   "msg_no_email": "这个页面还没配置收件邮箱，暂时收不到提交。",
   "msg_required": "还有 {n} 项必填没写：{fields}",
-  "msg_error": "⚠️ 提交没能发出去（可能是网络问题）。请稍后再试一次。",
-  "subject_prefix": "【接单】新需求 · ",
-  "endpoint": "4b7b6bef0cd15d8ba50856f67129ba19",
-  "done_title": "提交成功",
-  "done_desc": "已经收到你的需求，请耐心等待，我会尽快联系你。",
-  "done_again": "再提交一条"
+  "form_title": "提交",
+  "foot_text": ""
 }
