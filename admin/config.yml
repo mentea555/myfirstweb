@@ -634,4 +634,5 @@ collections:
           - { label: "未写必填项提示", name: "msg_required", widget: "string", required: false, default: "还有 {n} 项必填没写：{fields}", hint: "「{n}」会被替换成缺了几项，「{fields}」替换成缺的字段名，别删掉这两个占位符" }
           - { label: "未配收件端点时的提示", name: "msg_no_email", widget: "string", required: false, default: "这个页面还没配置收件方式，暂时收不到提交。", hint: "上面「★ 收件端点」填好之后，这条提示就不会再出现了" }
           - { label: "提交失败时的提示", name: "msg_error", widget: "string", required: false, default: "⚠️ 提交没能发出去（可能是网络问题）。请稍后再试一次。", hint: "想在这段里显示你的收件邮箱，就写一个 {mail}，它会被自动换成邮箱地址" }
+          - { label: "长内容的附件说明", name: "msg_attachment", widget: "string", required: false, default: "……（内容较长，共 {n} 字符，完整内容见附件 request.txt）", hint: "内容超过 6000 字符时，邮件正文只放前一段预览，全文放进 request.txt 附件。这段是预览末尾那句说明，「{n}」会被换成总字数" }
           - { label: "邮件标题前缀", name: "subject_prefix", widget: "string", required: false, default: "【接单】新需求 · ", hint: "你收到的通知邮件，标题会以这段开头，后面接对方的闲鱼昵称" }

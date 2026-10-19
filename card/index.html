@@ -496,22 +496,38 @@
           return;
         }
 
-        var data = {};
-        new FormData(form).forEach(function (v, k) { if (k !== '_honey') data[k] = v; });
-        data['_subject'] = T('subject_prefix', '【接单】新需求 · ') + (data['闲鱼昵称'] || '未填昵称');
+        // ★ FormSubmit 对「字段文本总量」有硬上限（实测约 3 万字含中文，约 50KB 报文），
+        //   超了直接 500。但附件不受这个限制（上限 10MB）——
+        //   所以：短内容照常内联；超过 INLINE_MAX 就内联一段预览 + 把全文做成 .txt 附件。
+        var INLINE_MAX = 6000;
+        var text = String((form.querySelector('#detail') || {}).value || '');
+        var nick = String((form.querySelector('#xyId') || {}).value || '').trim() || '未填昵称';
+
+        var fd = new FormData();
+        fd.append('闲鱼昵称', nick);
+        if (text.length <= INLINE_MAX) {
+          fd.append('信息', text);
+        } else {
+          fd.append('信息', text.slice(0, 1500) + '\n\n' +
+            T('msg_attachment', '……（内容较长，共 {n} 字符，完整内容见附件 request.txt）')
+              .replace('{n}', String(text.length)));
+          fd.append('attachment', new Blob([text], { type: 'text/plain;charset=utf-8' }), 'request.txt');
+        }
+        fd.append('_subject', T('subject_prefix', '【接单】新需求 · ') + nick);
         // 邮件排版用 basic：每个字段「加粗字段名」一行、内容另起一段。
-        // 之前用的 table 在 QQ 邮箱里会被压成一条细线，长文本根本没法看。
-        data['_template'] = 'basic';
-        data['_captcha'] = 'false';
+        // 之前用的 table 在 QQ 邮箱会被压成一条细线，长文本根本没法看。
+        fd.append('_template', 'basic');
+        fd.append('_captcha', 'false');
 
         var oldLabel = btn.textContent;
         btn.disabled = true;
         btn.textContent = T('msg_sending', '提交中…');
 
+        // 用 multipart（FormData）：浏览器自己带 boundary，别手写 Content-Type
         fetch('https://formsubmit.co/ajax/' + encodeURIComponent(ENDPOINT), {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-          body: JSON.stringify(data)
+          headers: { 'Accept': 'application/json' },
+          body: fd
         })
           .then(function (r) { return r.json().catch(function () { return {}; }); })
           .then(function (j) {

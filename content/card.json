@@ -25,6 +25,7 @@
   "page_title": "1",
   "eyebrow": "",
   "msg_error": "⚠️ 提交没能发出去（可能是网络问题）。请稍后再试一次。",
+  "msg_attachment": "……（内容较长，共 {n} 字符，完整内容见附件 request.txt）",
   "field1_placeholder": "你的昵称",
   "field2_placeholder": "页面复制内容",
   "max_chars": 40000,
