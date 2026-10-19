@@ -621,15 +621,17 @@
         out.className = 'counter' + (full ? ' full' : (n >= max * 0.9 ? ' warn' : ''));
         out.removeAttribute('hidden');
 
-        // 超过单封邮件的容量就提前告知会分成几封
+        // 超过单封邮件的容量就提前告知会分成几封（后台把「分多封时的提示」清空就不显示）
         var hint = document.getElementById('chunkHint');
         if (hint) {
           var size = maxChunk();
+          var tplHint = (cfg && typeof cfg.msg_chunks === 'string') ? cfg.msg_chunks.trim() : '';
           var parts = Math.ceil(n / size);
-          if (n > size) {
-            hint.textContent = T('msg_chunks', '内容较长，会分成 {n} 封邮件发送').replace('{n}', String(parts));
+          if (tplHint && n > size) {
+            hint.textContent = tplHint.replace('{n}', String(parts));
             hint.removeAttribute('hidden');
           } else {
+            hint.textContent = '';
             hint.setAttribute('hidden', '');
           }
         }
